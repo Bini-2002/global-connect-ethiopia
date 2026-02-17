@@ -1,11 +1,9 @@
 from motor.motor_asyncio import AsyncIOMotorClient
+from app.core.config import settings
 
-# local MongoDB Compass
-MONGODB_URL = "mongodb://localhost:27017"
-client = AsyncIOMotorClient(MONGODB_URL)
 
-# database name 'global_connect' 
-db = client.global_connect 
+client = AsyncIOMotorClient(settings.MONGODB_URL)
+db = client[settings.DATABASE_NAME]
 
 # users collection
 user_collection = db.users
