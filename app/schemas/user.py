@@ -1,4 +1,5 @@
-import re 
+import re
+from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 
@@ -38,3 +39,15 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+# Data stored in DB
+class UserInDB(BaseModel):
+    id: Optional[str] = None
+    full_name: str
+    email: EmailStr
+    password_hash: str
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
