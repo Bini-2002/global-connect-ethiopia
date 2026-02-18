@@ -1,0 +1,133 @@
+BACKEND GIT WORKFLOW GUIDELINES
+Project: Global Connect Ethiopia – Event Hub
+
+1. PURPOSE
+This document defines the Git collaboration workflow for backend development.
+The goal is to ensure:
+●	Clean code integration
+●	No direct production changes
+●	Safe collaboration
+●	Structured feature development
+●	Professional engineering standards
+All team members must follow this workflow.
+
+2. CORE PRINCIPLE
+We DO NOT work directly on the main branch.
+Branch purposes:
+●	main → Production-ready stable code
+●	develop → Integration and testing branch
+●	feature/* → Individual developer task branches
+All changes must go through a Pull Request (PR).
+3. BRANCH STRUCTURE
+main
+↑
+develop
+↑
+feature/auth-engine
+feature/rbac-profile
+feature/workflow-engine
+4. DEVELOPER WORKFLOW (STEP-BY-STEP)
+Step 1 – Get Latest Code
+Before starting any task:
+git checkout develop
+git pull origin develop
+
+Step 2 – Create Your Feature Branch
+Each task must have its own branch.
+Example:
+Dev-1 (Auth & DB):
+git checkout -b feature/auth-engine
+
+Dev-2 (RBAC & Profile):
+git checkout -b feature/rbac-profile
+
+Branch naming format:
+feature/task-name
+
+Keep names short and descriptive.
+Step 3 – Work & Commit Properly
+Commit message format:
+●	feat: add JWT authentication
+●	feat: implement bcrypt hashing
+●	fix: resolve login validation bug
+●	refactor: restructure user schema
+Example:
+git add .
+git commit -m "feat: implement JWT login logic"
+
+Commit often and keep changes small.
+Step 4 – Push Your Branch
+git push -u origin feature/auth-engine
+
+Step 5 – Create Pull Request
+On GitHub:
+Create PR from:
+feature/auth-engine → develop
+
+Requirements:
+●	Add description of what was implemented
+●	Request review from teammate
+●	Do not merge your own PR without review (if possible)
+5. PROTECTED RULES
+The following actions are NOT allowed:
+●	Direct push to main
+●	Direct push to develop
+●	Merge without Pull Request
+●	Large unreviewed commits
+main branch must be protected in repository settings.
+6. WEEKLY INTEGRATION PROCESS (SUNDAY SYNC)
+Every Sunday:
+1.	Merge all approved feature branches into develop
+2.	Perform integration testing
+3.	Verify APIs, database, authentication, and role permissions
+4.	If stable, merge develop → main
+5.	Create version tag
+Example:
+git tag v1.0-auth-phase
+git push origin v1.0-auth-phase
+
+
+7. TASK-BASED BRANCH STRATEGY (PHASE 1 EXAMPLE)
+Dev-1 Tasks:
+●	feature/auth-jwt
+●	feature/mongodb-schema
+Dev-2 Tasks:
+●	feature/rbac-middleware
+●	feature/profile-crud
+Each branch should focus on ONE logical feature only.
+8. MERGE CONFLICT HANDLING
+If conflict occurs:
+git checkout develop
+git pull origin develop
+git checkout feature/your-branch
+git merge develop
+
+Resolve conflicts manually → commit → push again.
+Conflicts are normal. Do not panic.
+9. REPOSITORY CLEANLINESS RULES
+Never commit:
+●	venv/
+●	.env
+●	pycache/
+●	node_modules/ (if frontend later)
+Ensure .gitignore is configured correctly.
+10. TEAM ENGINEERING CULTURE
+We:
+●	Write meaningful commit messages
+●	Keep branches short-lived
+●	Review each other's work
+●	Test before merging
+●	Respect the branch structure
+●	Communicate before major changes
+Professional collaboration is more important than speed.
+11. FINAL WORKFLOW SUMMARY
+1.	Pull from develop
+2.	Create feature branch
+3.	Code
+4.	Commit properly
+5.	Push branch
+6.	Create PR to develop
+7.	Review & merge
+8.	Weekly merge develop → main
+
+
