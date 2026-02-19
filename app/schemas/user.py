@@ -1,12 +1,14 @@
 import re 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
+from app.models.roles import UserRole
 
 # Data coming IN from Frontend
 class UserCreate(BaseModel):
     full_name: str = Field(..., min_length=3)
     email: EmailStr
     password: str = Field(..., min_length=8)
+    role: UserRole = UserRole.ATTENDEE
 
     @field_validator('password')
     @classmethod
@@ -27,6 +29,7 @@ class UserResponse(BaseModel):
     id: str 
     full_name: str
     email: EmailStr
+    role: UserRole = UserRole.ATTENDEE
 
     class Config:
         from_attributes = True

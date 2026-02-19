@@ -39,7 +39,6 @@ async def login(user_in: UserLogin):
     user = await user_collection.find_one({"email": user_in.email})
     
     # 2. Check if user exists AND if password matches
-    # We use security.verify_password which uses Bcrypt to compare the hash
     if not user or not security.verify_password(user_in.password, user["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -48,7 +47,10 @@ async def login(user_in: UserLogin):
         )
 
     # 3. If everything is correct, generate the JWT
-    access_token = security.create_access_token(subject=user["_id"])
+    access_token = security.create_access_token(
+        subject=user["_id"], 
+        role=user.get("role", "attendee")  # Default to 'attendee' if role is not set # type: ignore
+        )
 
     # 4. Return the Token back to the frontend
     return {

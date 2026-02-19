@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Union, Any
 from jose import jwt
 from app.core.config import settings
+from app.models import roles
 
 SECRET_KEY = settings.JWT_SECRET
 ALGORITHM = settings.ALGORITHM
@@ -20,9 +21,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_access_token(subject: Union[str, Any]) -> str:
    
     expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    # We include 'sub' (subject) and 'exp' (expiration) in the payload
-    to_encode = {"exp": expire, "sub": str(subject)}
+    to_encode = {"exp": expire, "sub": str(subject), "role":roles}
     
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
