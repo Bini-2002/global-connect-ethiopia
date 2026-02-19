@@ -1,7 +1,11 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.params import Depends
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token
 from app.core import security
 from app.db.mongodb import user_collection 
+from app.api.v1.deps import RoleChecker
+from app.models.roles import UserRole
 
 router = APIRouter()
 
@@ -34,12 +38,12 @@ async def register(user_in: UserCreate):
 
 
 @router.post("/login", response_model=Token)
-async def login(user_in: UserLogin):
+async def login(form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
     # 1. Look for the user in MongoDB
-    user = await user_collection.find_one({"email": user_in.email})
+    user = await user_collection.find_one({"email": form_data.username})
     
     # 2. Check if user exists AND if password matches
-    if not user or not security.verify_password(user_in.password, user["password_hash"]):
+    if not user or not security.verify_password(form_data.password, user["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -48,7 +52,7 @@ async def login(user_in: UserLogin):
 
     # 3. If everything is correct, generate the JWT
     access_token = security.create_access_token(
-        subject=user["_id"], 
+        subject=str(user["_id"]), 
         role=user.get("role", "attendee")  # Default to 'attendee' if role is not set # type: ignore
         )
 
@@ -57,3 +61,11 @@ async def login(user_in: UserLogin):
         "access_token": access_token,
         "token_type": "bearer"
     }
+
+@router.get("/admin-only-test")
+async def test_admin_access(role=Depends(RoleChecker([UserRole.ADMIN]))):
+    return {"message": "Hello Admin! You have access to this secret data."}
+
+@router.get("/organizer-test")
+async def test_organizer_access(role=Depends(RoleChecker([UserRole.ADMIN, UserRole.ORGANIZER]))):
+    return {"message": "Access granted to Organizer or Admin."}
