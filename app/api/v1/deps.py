@@ -41,3 +41,9 @@ class RoleChecker:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have enough permissions to access this resource"
             )
+        
+# Define specific role checkers for each role
+allow_admin = RoleChecker([UserRole.ADMIN])
+allow_organizer = RoleChecker([UserRole.ADMIN, UserRole.ORGANIZER])
+allow_vendor = RoleChecker([UserRole.ADMIN, UserRole.VENDOR])
+allow_government = RoleChecker([UserRole.ADMIN, UserRole.GOVERNMENT])

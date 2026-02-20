@@ -24,6 +24,7 @@ async def register(user_in: UserCreate):
     # 3. Prepare the data to be saved in MongoDB
     new_user_data = user_in.model_dump()
     new_user_data["password_hash"] = hashed_password
+    new_user_data["is_active"] = True  # default to active when registering
     del new_user_data["password"] 
 
     # 4. Save to Local MongoDB
@@ -49,6 +50,13 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()): # type: ignor
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # Check status
+    if not user.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account deactivated. Please contact the administrator."
+        )
 
     # 3. If everything is correct, generate the JWT
     access_token = security.create_access_token(
@@ -62,10 +70,3 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()): # type: ignor
         "token_type": "bearer"
     }
 
-@router.get("/admin-only-test")
-async def test_admin_access(role=Depends(RoleChecker([UserRole.ADMIN]))):
-    return {"message": "Hello Admin! You have access to this secret data."}
-
-@router.get("/organizer-test")
-async def test_organizer_access(role=Depends(RoleChecker([UserRole.ADMIN, UserRole.ORGANIZER]))):
-    return {"message": "Access granted to Organizer or Admin."}
