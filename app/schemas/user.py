@@ -3,7 +3,6 @@ from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 
-# Data coming IN from Frontend
 class UserCreate(BaseModel):
     full_name: str = Field(..., min_length=3)
     email: EmailStr
