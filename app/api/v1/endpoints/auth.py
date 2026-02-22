@@ -1,11 +1,7 @@
-from fastapi import APIRouter, HTTPException, status, Depends
-from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.params import Depends
+from fastapi import APIRouter, HTTPException, status
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token
 from app.core import security
 from app.db.mongodb import user_collection 
-from app.api.v1.deps import RoleChecker
-from app.models.roles import UserRole
 
 router = APIRouter()
 
@@ -39,12 +35,12 @@ async def register(user_in: UserCreate):
         }
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
+async def login(user_in: UserLogin):
     # 1. Look for the user in MongoDB
-    user = await user_collection.find_one({"email": form_data.username})
+    user = await user_collection.find_one({"email": user_in.email})
     
     # 2. Check if user exists AND if password matches
-    if not user or not security.verify_password(form_data.password, user["password_hash"]):
+    if not user or not security.verify_password(user_in.password, user["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
