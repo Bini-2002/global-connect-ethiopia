@@ -34,9 +34,9 @@ async def register(user_in: UserCreate):
     return {
         "id": str(result.inserted_id),
         "full_name": new_user_data["full_name"],
-        "email": new_user_data["email"]
-    }
-
+        "email": new_user_data["email"],
+        "role": new_user_data["role"]
+        }
 
 @router.post("/login", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
