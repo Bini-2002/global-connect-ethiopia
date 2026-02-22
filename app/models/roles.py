@@ -4,5 +4,6 @@ class UserRole(str, Enum):
     ADMIN = 'admin'
     ORGANIZER = 'organizer'
     VENDOR = 'vendor'
-    GOVERNMENT = 'government'
+    MINISTRY_GOV = 'ministry_gov'
+    MUNICIPAL_GOV = 'municipal_gov'
     ATTENDEE = 'attendee'
