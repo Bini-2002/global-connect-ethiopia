@@ -1,16 +1,50 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from datetime import datetime
 from bson import ObjectId
 from app.api.v1.deps import get_current_user, allow_admin
 from app.db.mongodb import vendor_collection
-from app.schemas.vendor import VendorCreate, VendorResponse
+from app.schemas.vendor import VendorResponse
 
 router = APIRouter()
+
+BUSINESS_LICENSE_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp", ".wepg"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".wepg"}
+
+
+def _get_file_extension(filename: str) -> str:
+    if "." not in filename:
+        return ""
+    return "." + filename.rsplit(".", 1)[1].lower()
+
+
+async def _build_file_metadata(file: UploadFile) -> dict:
+    file_content = await file.read()
+    size_bytes = len(file_content)
+    return {
+        "filename": file.filename or "",
+        "content_type": file.content_type or "application/octet-stream",
+        "size_bytes": size_bytes,
+        "uploaded_at": datetime.utcnow(),
+    }
+
+
+def _validate_extension(filename: str, allowed_extensions: set[str], field_name: str) -> None:
+    extension = _get_file_extension(filename)
+    if extension not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {field_name} format. Allowed: {', '.join(sorted(allowed_extensions))}",
+        )
 
 
 @router.post("/register", response_model=VendorResponse)
 async def create_vendor_record(
-    vendor_in: VendorCreate,
+    business_name: str = Form(...),
+    tin_number: str = Form(...),
+    business_address: str = Form(...),
+    business_license: UploadFile = File(...),
+    national_id_front: UploadFile = File(...),
+    national_id_back: UploadFile = File(...),
     current_user: dict = Depends(get_current_user)
 ):
     if current_user["role"] != "vendor":
@@ -23,13 +57,36 @@ async def create_vendor_record(
     if existing:
         raise HTTPException(status_code=400, detail="Vendor record already exists")
 
+    _validate_extension(
+        business_license.filename or "",
+        BUSINESS_LICENSE_EXTENSIONS,
+        "business licence",
+    )
+    _validate_extension(
+        national_id_front.filename or "",
+        IMAGE_EXTENSIONS,
+        "national ID front",
+    )
+    _validate_extension(
+        national_id_back.filename or "",
+        IMAGE_EXTENSIONS,
+        "national ID back",
+    )
+
     now = datetime.utcnow()
+
+    business_license_metadata = await _build_file_metadata(business_license)
+    national_id_front_metadata = await _build_file_metadata(national_id_front)
+    national_id_back_metadata = await _build_file_metadata(national_id_back)
 
     new_vendor = {
         "user_id": ObjectId(current_user["id"]),
-        "business_name": vendor_in.business_name,
-        "tin_number": vendor_in.tin_number,
-        "business_address": vendor_in.business_address,
+        "business_name": business_name,
+        "tin_number": tin_number,
+        "business_address": business_address,
+        "business_license": business_license_metadata,
+        "national_id_front": national_id_front_metadata,
+        "national_id_back": national_id_back_metadata,
         "status": "draft",
         "created_at": now,
         "updated_at": now,
