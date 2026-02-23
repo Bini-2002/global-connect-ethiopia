@@ -16,7 +16,20 @@ async def get_my_profile(current_user: dict = Depends(get_current_user)):
     )
 
     if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        # Lazy initialization: Create profile if it doesn't exist
+        now = datetime.utcnow()
+        new_profile = {
+            "user_id": ObjectId(current_user["id"]),
+            "role": current_user.get("role", "attendee"),
+            "bio": None,
+            "phone": None,
+            "address": None,
+            "extra_data": {},
+            "created_at": now,
+            "updated_at": now,
+        }
+        result = await profile_collection.insert_one(new_profile)
+        profile = await profile_collection.find_one({"_id": result.inserted_id})
 
     profile["id"] = str(profile["_id"])
     profile["user_id"] = str(profile["user_id"])
