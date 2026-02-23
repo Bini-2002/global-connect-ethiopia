@@ -60,3 +60,25 @@ async def submit_for_review(
     )
 
     return {"message": "Submitted for review"}
+
+@router.patch("/{vendor_id}/verify")
+async def verify_vendor(
+    vendor_id: str,
+    approved: bool,
+    current_user: dict = Depends(allow_admin)
+):
+    vendor = await vendor_collection.find_one(
+        {"_id": ObjectId(vendor_id)}
+    )
+
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    new_status = "approved" if approved else "rejected"
+
+    await vendor_collection.update_one(
+        {"_id": ObjectId(vendor_id)},
+        {"$set": {"status": new_status, "updated_at": datetime.utcnow()}}
+    )
+
+    return {"message": f"Vendor {new_status}"}
