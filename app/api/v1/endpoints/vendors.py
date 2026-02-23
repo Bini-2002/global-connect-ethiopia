@@ -115,6 +115,19 @@ async def submit_for_review(
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor record not found")
 
+    documents = await document_collection.count_documents(
+        {
+            "owner_id": ObjectId(current_user["id"]),
+            "document_type": {"$in": ["vendor_business_license", "vendor_national_id"]}
+        }
+    )
+
+    if documents < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Upload required legal documents before submitting"
+        )
+
     await vendor_collection.update_one(
         {"_id": vendor["_id"]},
         {"$set": {"status": "pending", "updated_at": datetime.utcnow()}}
