@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime
 from bson import ObjectId
-from app.db.mongodb import profile_collection
+from app.db.mongodb import profile_collection, user_collection
 from app.schemas.profile import ProfileResponse, ProfileUpdate
 from app.api.v1.deps import get_current_user
 
@@ -33,6 +33,14 @@ async def get_my_profile(current_user: dict = Depends(get_current_user)):
 
     profile["id"] = str(profile["_id"])
     profile["user_id"] = str(profile["user_id"])
+    profile["name"] = current_user.get("full_name")
+
+    if profile["name"] is None:
+        user = await user_collection.find_one(
+            {"_id": ObjectId(current_user["id"])},
+            {"full_name": 1}
+        )
+        profile["name"] = user.get("full_name") if user else None
 
     return profile
 
@@ -65,6 +73,15 @@ async def update_my_profile(
         result = await profile_collection.insert_one(new_profile)
         new_profile["id"] = str(result.inserted_id)
         new_profile["user_id"] = str(new_profile["user_id"])
+        new_profile["name"] = current_user.get("full_name")
+
+        if new_profile["name"] is None:
+            user = await user_collection.find_one(
+                {"_id": ObjectId(current_user["id"])},
+                {"full_name": 1}
+            )
+            new_profile["name"] = user.get("full_name") if user else None
+
         return new_profile
 
     # Update existing
@@ -82,5 +99,13 @@ async def update_my_profile(
 
     updated_profile["id"] = str(updated_profile["_id"])
     updated_profile["user_id"] = str(updated_profile["user_id"])
+    updated_profile["name"] = current_user.get("full_name")
+
+    if updated_profile["name"] is None:
+        user = await user_collection.find_one(
+            {"_id": ObjectId(current_user["id"])},
+            {"full_name": 1}
+        )
+        updated_profile["name"] = user.get("full_name") if user else None
 
     return updated_profile
