@@ -4,6 +4,10 @@ from bson import ObjectId
 from app.api.v1.deps import get_current_user, allow_admin
 from app.db.mongodb import vendor_collection
 from app.schemas.vendor import VendorResponse
+from fastapi import UploadFile, File
+from app.db.mongodb import document_collection
+from app.core import cloudinary_config
+import cloudinary.uploader
 
 router = APIRouter()
 
@@ -139,3 +143,38 @@ async def verify_vendor(
     )
 
     return {"message": f"Vendor {new_status}"}
+
+
+@router.post("/upload-document")
+async def upload_vendor_document(
+    document_type: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "vendor":
+        raise HTTPException(status_code=403, detail="Only vendors can upload documents")
+
+    if document_type not in ["vendor_business_license", "vendor_national_id"]:
+        raise HTTPException(status_code=400, detail="Invalid document type")
+
+    if file.content_type not in ["image/jpeg", "image/png"]:
+        raise HTTPException(status_code=400, detail="Only JPG or PNG images allowed")
+
+    # Upload to Cloudinary
+    upload_result = cloudinary.uploader.upload(file.file)
+
+    document_data = {
+        "owner_id": ObjectId(current_user["id"]),
+        "document_type": document_type,
+        "file_url": upload_result["secure_url"],
+        "uploaded_at": datetime.utcnow(),
+        "status": "uploaded"
+    }
+
+    result = await document_collection.insert_one(document_data)
+
+    return {
+        "message": "Document uploaded successfully",
+        "document_id": str(result.inserted_id),
+        "file_url": upload_result["secure_url"]
+    }
