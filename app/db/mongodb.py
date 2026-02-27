@@ -12,3 +12,6 @@ vendor_collection = db.vendors
 organizer_collection = db.organizers
 document_collection = db.documents
 permit_collection = db.permits
+
+# proposals collection
+proposal_collection = db.proposals
