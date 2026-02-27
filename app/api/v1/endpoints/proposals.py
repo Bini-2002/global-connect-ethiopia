@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.v1.deps import get_current_user, allow_organizer # type: ignore
-from app.schemas.proposals import ProposalCreate, ProposalResponse # type: ignore
+from app.schemas.proposals import ProposalCreate, ProposalResponse, ProposalUpdate# type: ignore
 from app.db.mongodb import proposal_collection
 from app.models.proposal_states import ProposalStatus
 from datetime import datetime, timezone
@@ -38,3 +38,43 @@ async def create_proposal(
 
     new_proposal["id"] = str(result.inserted_id)
     return new_proposal
+
+# for pending status
+@router.patch("/{proposal_id}", response_model=ProposalResponse)
+async def update_proposal(
+    proposal_id: str,
+    proposal_update: ProposalUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+   
+    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+    
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+
+    if proposal["organizer_id"] != str(current_user["_id"]):
+        raise HTTPException(
+            status_code=403, 
+            detail="Access denied. You do not own this proposal."
+        )
+
+    if proposal["status"] != ProposalStatus.DRAFT:
+        raise HTTPException(
+            status_code=400, 
+            detail="Only draft proposals can be updated."
+        )
+
+    # 'exclude_unset=True' ensures we only update fields the user sent
+    update_data = proposal_update.model_dump(exclude_unset=True)
+    update_data["updated_at"] = datetime.now(timezone.utc)
+
+    if update_data:
+        await proposal_collection.update_one(
+            {"_id": ObjectId(proposal_id)},
+            {"$set": update_data}
+        )
+        proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+
+    proposal["id"] = str(proposal["_id"]) # type: ignore
+    return proposal
