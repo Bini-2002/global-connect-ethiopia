@@ -17,11 +17,13 @@ class ProposalBase(BaseModel):
     new_event_file_url: Optional[str] = None    # For uploaded documents
 
 class ProposalCreate(BaseModel):
-    title: str 
+    title: str = Field(..., min_length=3)
 
 
 class ProposalUpdate(ProposalBase):
-    pass
+    title: Optional[str] = Field(None, min_length=3) # type: ignore
+    expected_attendees: Optional[int] = Field(None, gt=0) # type: ignore
+    budget_estimate: Optional[float] = Field(None, gt=0.0) # type: ignore
 
 
 class ProposalResponse(ProposalBase):

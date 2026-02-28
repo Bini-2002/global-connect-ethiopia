@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.v1.deps import get_current_user, allow_organizer # type: ignore
 from app.schemas.proposals import ProposalCreate, ProposalResponse, ProposalUpdate# type: ignore
@@ -77,4 +79,85 @@ async def update_proposal(
         proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
 
     proposal["id"] = str(proposal["_id"]) # type: ignore
+    return proposal
+
+
+@router.post("/{proposal_id}/submit", response_model=ProposalResponse)
+async def submit_proposal(
+    proposal_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+  
+    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+    
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    if proposal["organizer_id"] != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    required_fields = [
+        "event_type", 
+        "start_date", 
+        "end_date", 
+        "location", 
+        "expected_attendees", 
+        "budget_estimate"
+    ]
+    invalid_fields = []
+    for field in required_fields:
+        val = proposal.get(field)
+
+        if val is None:
+            invalid_fields.append(field)
+        elif isinstance(val, str) and (val.strip() == "" ):
+            invalid_fields.append(field)
+        elif isinstance(val, (int, float)) and val <= 0:
+            invalid_fields.append(field)
+
+    if invalid_fields:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail={
+                "error": "Incomplete Proposal",
+                "message": "Please provide valid values for all mandatory fields.",
+                "missing_or_invalid": invalid_fields
+            }
+        )
+
+    await proposal_collection.update_one(
+        {"_id": ObjectId(proposal_id)},
+        {
+            "$set": {
+                "status": ProposalStatus.SUBMITTED,
+                "updated_at": datetime.now(timezone.utc)
+            }
+        }
+    )
+
+
+    updated_proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+    updated_proposal["id"] = str(updated_proposal["_id"]) # type: ignore
+    return updated_proposal
+
+@router.get("/", response_model=List[ProposalResponse])
+async def list_my_proposals(current_user: dict = Depends(get_current_user)):
+    cursor = proposal_collection.find({"organizer_id": str(current_user["_id"])})
+    proposals = await cursor.to_list(length=100)
+
+    for p in proposals:
+        p["id"] = str(p["_id"])
+    return proposals
+
+@router.get("/{proposal_id}", response_model=ProposalResponse)
+async def get_proposal(
+    proposal_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+    
+    if not proposal or proposal["organizer_id"] != str(current_user["_id"]):
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    
+    proposal["id"] = str(proposal["_id"])
     return proposal
