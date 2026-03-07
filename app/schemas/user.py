@@ -30,6 +30,7 @@ class UserResponse(BaseModel):
     full_name: str
     email: EmailStr
     role: UserRole = UserRole.ATTENDEE
+    email_verified: bool = False
 
     class Config:
         from_attributes = True
@@ -41,3 +42,23 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class OtpSendRequest(BaseModel):
+    email: EmailStr
+
+
+class OtpSendResponse(BaseModel):
+    message: str
+    otp_expires_in_minutes: int
+    otp_code: Optional[str] = None
+
+
+class OtpVerifyRequest(BaseModel):
+    email: EmailStr
+    otp_code: str = Field(..., min_length=6, max_length=6)
+
+
+class OtpVerifyResponse(BaseModel):
+    message: str
+    email_verified: bool
