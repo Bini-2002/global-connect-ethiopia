@@ -1,0 +1,2834 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Global Connect Ethiopia",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Register",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Login",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get My Profile",
+        "operationId": "get_my_profile_api_v1_users_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update My Profile",
+        "operationId": "update_my_profile_api_v1_users_me_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/vendors/register": {
+      "post": {
+        "tags": [
+          "Vendors"
+        ],
+        "summary": "Create Vendor Record",
+        "operationId": "create_vendor_record_api_v1_vendors_register_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_vendor_record_api_v1_vendors_register_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/vendors/submit": {
+      "post": {
+        "tags": [
+          "Vendors"
+        ],
+        "summary": "Submit For Review",
+        "operationId": "submit_for_review_api_v1_vendors_submit_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/vendors/{vendor_id}/verify": {
+      "patch": {
+        "tags": [
+          "Vendors"
+        ],
+        "summary": "Verify Vendor",
+        "operationId": "verify_vendor_api_v1_vendors__vendor_id__verify_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vendor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Vendor Id"
+            }
+          },
+          {
+            "name": "approved",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "boolean",
+              "title": "Approved"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vendors/upload-document": {
+      "post": {
+        "tags": [
+          "Vendors"
+        ],
+        "summary": "Upload Vendor Document",
+        "operationId": "upload_vendor_document_api_v1_vendors_upload_document_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Type"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_vendor_document_api_v1_vendors_upload_document_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/proposals/": {
+      "get": {
+        "tags": [
+          "Proposals"
+        ],
+        "summary": "List My Proposals",
+        "operationId": "list_my_proposals_api_v1_proposals__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProposalResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List My Proposals Api V1 Proposals  Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Proposals"
+        ],
+        "summary": "Create Proposal",
+        "operationId": "create_proposal_api_v1_proposals__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/proposals/{proposal_id}": {
+      "patch": {
+        "tags": [
+          "Proposals"
+        ],
+        "summary": "Update Proposal",
+        "operationId": "update_proposal_api_v1_proposals__proposal_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Proposals"
+        ],
+        "summary": "Get Proposal",
+        "operationId": "get_proposal_api_v1_proposals__proposal_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/proposals/{proposal_id}/submit": {
+      "post": {
+        "tags": [
+          "Proposals"
+        ],
+        "summary": "Submit Proposal",
+        "operationId": "submit_proposal_api_v1_proposals__proposal_id__submit_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizers/personal-profile": {
+      "post": {
+        "tags": [
+          "Organizers"
+        ],
+        "summary": "Create Or Update Personal Profile",
+        "operationId": "create_or_update_personal_profile_api_v1_organizers_personal_profile_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_or_update_personal_profile_api_v1_organizers_personal_profile_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerPersonalProfileResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/organizers/organization/step-1": {
+      "post": {
+        "tags": [
+          "Organizers"
+        ],
+        "summary": "Create Or Update Organization Step 1",
+        "operationId": "create_or_update_organization_step_1_api_v1_organizers_organization_step_1_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_or_update_organization_step_1_api_v1_organizers_organization_step_1_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerOrganizationStep1Response"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/organizers/organization/step-2": {
+      "post": {
+        "tags": [
+          "Organizers"
+        ],
+        "summary": "Create Or Update Organization Step 2",
+        "operationId": "create_or_update_organization_step_2_api_v1_organizers_organization_step_2_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizerOrganizationStep2Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerOrganizationStep2Response"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/organizers/organization/step-3/send-otp": {
+      "post": {
+        "tags": [
+          "Organizers"
+        ],
+        "summary": "Send Organization Phone Otp",
+        "operationId": "send_organization_phone_otp_api_v1_organizers_organization_step_3_send_otp_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_send_organization_phone_otp_api_v1_organizers_organization_step_3_send_otp_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerOtpSendResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/organizers/organization/step-3/submit": {
+      "post": {
+        "tags": [
+          "Organizers"
+        ],
+        "summary": "Submit Representative Verification",
+        "operationId": "submit_representative_verification_api_v1_organizers_organization_step_3_submit_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_submit_representative_verification_api_v1_organizers_organization_step_3_submit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerRepresentativeVerificationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/organizers/organization/verification-status": {
+      "get": {
+        "tags": [
+          "Organizers"
+        ],
+        "summary": "Get Verification Status",
+        "operationId": "get_verification_status_api_v1_organizers_organization_verification_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/organizers/organization/admin/manual-review": {
+      "get": {
+        "tags": [
+          "Organizers"
+        ],
+        "summary": "List Manual Review Cases",
+        "operationId": "list_manual_review_cases_api_v1_organizers_organization_admin_manual_review_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/organizers/organization/admin/{organizer_id}/decision": {
+      "patch": {
+        "tags": [
+          "Organizers"
+        ],
+        "summary": "Admin Decide Verification",
+        "operationId": "admin_decide_verification_api_v1_organizers_organization_admin__organizer_id__decision_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Organizer Id"
+            }
+          },
+          {
+            "name": "approved",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "boolean",
+              "title": "Approved"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_decide_verification_api_v1_organizers_organization_admin__organizer_id__decision_patch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Read Root",
+        "operationId": "read_root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_admin_decide_verification_api_v1_organizers_organization_admin__organizer_id__decision_patch": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "title": "Body_admin_decide_verification_api_v1_organizers_organization_admin__organizer_id__decision_patch"
+      },
+      "Body_create_or_update_organization_step_1_api_v1_organizers_organization_step_1_post": {
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "title": "Organization Name"
+          },
+          "organization_type": {
+            "type": "string",
+            "title": "Organization Type"
+          },
+          "position_in_organization": {
+            "type": "string",
+            "title": "Position In Organization"
+          },
+          "industry": {
+            "type": "string",
+            "title": "Industry"
+          },
+          "employee_count": {
+            "type": "string",
+            "title": "Employee Count"
+          },
+          "office_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Office Location"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          },
+          "organization_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Description"
+          },
+          "business_license_or_registration_document": {
+            "type": "string",
+            "format": "binary",
+            "title": "Business License Or Registration Document"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_name",
+          "organization_type",
+          "position_in_organization",
+          "industry",
+          "employee_count",
+          "business_license_or_registration_document"
+        ],
+        "title": "Body_create_or_update_organization_step_1_api_v1_organizers_organization_step_1_post"
+      },
+      "Body_create_or_update_personal_profile_api_v1_organizers_personal_profile_post": {
+        "properties": {
+          "profession": {
+            "type": "string",
+            "title": "Profession"
+          },
+          "personal_bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personal Bio"
+          },
+          "social_media_or_portfolio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Social Media Or Portfolio Url"
+          },
+          "prior_event_experience": {
+            "type": "boolean",
+            "title": "Prior Event Experience"
+          },
+          "national_id_document": {
+            "type": "string",
+            "format": "binary",
+            "title": "National Id Document"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profession",
+          "prior_event_experience",
+          "national_id_document"
+        ],
+        "title": "Body_create_or_update_personal_profile_api_v1_organizers_personal_profile_post"
+      },
+      "Body_create_vendor_record_api_v1_vendors_register_post": {
+        "properties": {
+          "business_name": {
+            "type": "string",
+            "title": "Business Name"
+          },
+          "tin_number": {
+            "type": "string",
+            "title": "Tin Number"
+          },
+          "business_address": {
+            "type": "string",
+            "title": "Business Address"
+          },
+          "business_license": {
+            "type": "string",
+            "format": "binary",
+            "title": "Business License"
+          },
+          "national_id_front": {
+            "type": "string",
+            "format": "binary",
+            "title": "National Id Front"
+          },
+          "national_id_back": {
+            "type": "string",
+            "format": "binary",
+            "title": "National Id Back"
+          }
+        },
+        "type": "object",
+        "required": [
+          "business_name",
+          "tin_number",
+          "business_address",
+          "business_license",
+          "national_id_front",
+          "national_id_back"
+        ],
+        "title": "Body_create_vendor_record_api_v1_vendors_register_post"
+      },
+      "Body_send_organization_phone_otp_api_v1_organizers_organization_step_3_send_otp_post": {
+        "properties": {
+          "organization_phone_number": {
+            "type": "string",
+            "title": "Organization Phone Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_phone_number"
+        ],
+        "title": "Body_send_organization_phone_otp_api_v1_organizers_organization_step_3_send_otp_post"
+      },
+      "Body_submit_representative_verification_api_v1_organizers_organization_step_3_submit_post": {
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "position_role": {
+            "type": "string",
+            "title": "Position Role"
+          },
+          "phone_number": {
+            "type": "string",
+            "title": "Phone Number"
+          },
+          "work_email": {
+            "type": "string",
+            "title": "Work Email"
+          },
+          "id_type": {
+            "type": "string",
+            "title": "Id Type"
+          },
+          "government_id_document": {
+            "type": "string",
+            "format": "binary",
+            "title": "Government Id Document"
+          },
+          "authorization_letter": {
+            "type": "string",
+            "format": "binary",
+            "title": "Authorization Letter"
+          },
+          "organization_phone_number": {
+            "type": "string",
+            "title": "Organization Phone Number"
+          },
+          "otp_code": {
+            "type": "string",
+            "title": "Otp Code"
+          },
+          "alternate_contact_person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alternate Contact Person"
+          },
+          "alternate_contact_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alternate Contact Phone"
+          },
+          "confirm_information_is_accurate": {
+            "type": "boolean",
+            "title": "Confirm Information Is Accurate"
+          },
+          "confirm_authorization_to_represent_organization": {
+            "type": "boolean",
+            "title": "Confirm Authorization To Represent Organization"
+          },
+          "agree_platform_terms_and_policies": {
+            "type": "boolean",
+            "title": "Agree Platform Terms And Policies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "full_name",
+          "position_role",
+          "phone_number",
+          "work_email",
+          "id_type",
+          "government_id_document",
+          "authorization_letter",
+          "organization_phone_number",
+          "otp_code",
+          "confirm_information_is_accurate",
+          "confirm_authorization_to_represent_organization",
+          "agree_platform_terms_and_policies"
+        ],
+        "title": "Body_submit_representative_verification_api_v1_organizers_organization_step_3_submit_post"
+      },
+      "Body_upload_vendor_document_api_v1_vendors_upload_document_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_vendor_document_api_v1_vendors_upload_document_post"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "OrganizerAlternateContact": {
+        "properties": {
+          "alternate_contact_person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alternate Contact Person"
+          },
+          "alternate_contact_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alternate Contact Phone"
+          }
+        },
+        "type": "object",
+        "title": "OrganizerAlternateContact"
+      },
+      "OrganizerAuthorizationProof": {
+        "properties": {
+          "authorization_letter": {
+            "$ref": "#/components/schemas/OrganizerUploadedDocumentMetadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "authorization_letter"
+        ],
+        "title": "OrganizerAuthorizationProof"
+      },
+      "OrganizerConfirmationFlags": {
+        "properties": {
+          "confirm_information_is_accurate": {
+            "type": "boolean",
+            "title": "Confirm Information Is Accurate"
+          },
+          "confirm_authorization_to_represent_organization": {
+            "type": "boolean",
+            "title": "Confirm Authorization To Represent Organization"
+          },
+          "agree_platform_terms_and_policies": {
+            "type": "boolean",
+            "title": "Agree Platform Terms And Policies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "confirm_information_is_accurate",
+          "confirm_authorization_to_represent_organization",
+          "agree_platform_terms_and_policies"
+        ],
+        "title": "OrganizerConfirmationFlags"
+      },
+      "OrganizerIdentityVerification": {
+        "properties": {
+          "id_type": {
+            "type": "string",
+            "title": "Id Type"
+          },
+          "government_id_document": {
+            "$ref": "#/components/schemas/OrganizerUploadedDocumentMetadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_type",
+          "government_id_document"
+        ],
+        "title": "OrganizerIdentityVerification"
+      },
+      "OrganizerNationalIdDocument": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "file_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Url"
+          },
+          "document_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Url"
+          },
+          "storage_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Key"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Uploaded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "content_type",
+          "uploaded_at"
+        ],
+        "title": "OrganizerNationalIdDocument"
+      },
+      "OrganizerOrganizationProfile": {
+        "properties": {
+          "step_1": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrganizerOrganizationStep1Data"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "step_2": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrganizerOrganizationStep2Data"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "step_3": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrganizerStep3Data"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "OrganizerOrganizationProfile"
+      },
+      "OrganizerOrganizationStep1Data": {
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "title": "Organization Name"
+          },
+          "organization_type": {
+            "type": "string",
+            "title": "Organization Type"
+          },
+          "position_in_organization": {
+            "type": "string",
+            "title": "Position In Organization"
+          },
+          "industry": {
+            "type": "string",
+            "title": "Industry"
+          },
+          "employee_count": {
+            "type": "string",
+            "title": "Employee Count"
+          },
+          "office_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Office Location"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          },
+          "organization_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Description"
+          },
+          "business_license_or_registration_document": {
+            "$ref": "#/components/schemas/OrganizerUploadedDocumentMetadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_name",
+          "organization_type",
+          "position_in_organization",
+          "industry",
+          "employee_count",
+          "business_license_or_registration_document"
+        ],
+        "title": "OrganizerOrganizationStep1Data"
+      },
+      "OrganizerOrganizationStep1Response": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "profile_type": {
+            "type": "string",
+            "title": "Profile Type"
+          },
+          "onboarding_status": {
+            "type": "string",
+            "title": "Onboarding Status"
+          },
+          "organization_profile": {
+            "$ref": "#/components/schemas/OrganizerOrganizationProfile"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "profile_type",
+          "onboarding_status",
+          "organization_profile",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "OrganizerOrganizationStep1Response"
+      },
+      "OrganizerOrganizationStep2Data": {
+        "properties": {
+          "event_focus_areas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Event Focus Areas"
+          },
+          "target_audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Audience"
+          },
+          "operating_regions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operating Regions"
+          },
+          "years_of_operation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Years Of Operation"
+          },
+          "previous_major_events": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Major Events"
+          },
+          "expected_events_per_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Events Per Year"
+          },
+          "estimated_average_attendance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Average Attendance"
+          },
+          "linkedin_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linkedin Url"
+          },
+          "portfolio_website": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portfolio Website"
+          },
+          "additional_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additional Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_focus_areas"
+        ],
+        "title": "OrganizerOrganizationStep2Data"
+      },
+      "OrganizerOrganizationStep2Request": {
+        "properties": {
+          "event_focus_areas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Event Focus Areas"
+          },
+          "target_audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Audience"
+          },
+          "operating_regions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operating Regions"
+          },
+          "years_of_operation": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Years Of Operation"
+          },
+          "previous_major_events": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Major Events"
+          },
+          "expected_events_per_year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Events Per Year"
+          },
+          "estimated_average_attendance": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Average Attendance"
+          },
+          "linkedin_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linkedin Url"
+          },
+          "portfolio_website": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portfolio Website"
+          },
+          "additional_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additional Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_focus_areas"
+        ],
+        "title": "OrganizerOrganizationStep2Request"
+      },
+      "OrganizerOrganizationStep2Response": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "profile_type": {
+            "type": "string",
+            "title": "Profile Type"
+          },
+          "onboarding_status": {
+            "type": "string",
+            "title": "Onboarding Status"
+          },
+          "organization_profile": {
+            "$ref": "#/components/schemas/OrganizerOrganizationProfile"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "profile_type",
+          "onboarding_status",
+          "organization_profile",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "OrganizerOrganizationStep2Response"
+      },
+      "OrganizerOtpPayload": {
+        "properties": {
+          "phone_number": {
+            "type": "string",
+            "title": "Phone Number"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone_number",
+          "code",
+          "expires_at",
+          "verified"
+        ],
+        "title": "OrganizerOtpPayload"
+      },
+      "OrganizerOtpSendResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "organization_phone_number": {
+            "type": "string",
+            "title": "Organization Phone Number"
+          },
+          "otp_expires_in_minutes": {
+            "type": "integer",
+            "title": "Otp Expires In Minutes"
+          },
+          "otp_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Otp Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "organization_phone_number",
+          "otp_expires_in_minutes"
+        ],
+        "title": "OrganizerOtpSendResponse"
+      },
+      "OrganizerPersonalProfileResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "profile_type": {
+            "type": "string",
+            "title": "Profile Type"
+          },
+          "profession": {
+            "type": "string",
+            "title": "Profession"
+          },
+          "personal_bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personal Bio"
+          },
+          "social_media_or_portfolio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Social Media Or Portfolio Url"
+          },
+          "prior_event_experience": {
+            "type": "boolean",
+            "title": "Prior Event Experience"
+          },
+          "national_id_document": {
+            "$ref": "#/components/schemas/OrganizerNationalIdDocument"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "profile_type",
+          "profession",
+          "prior_event_experience",
+          "national_id_document",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "OrganizerPersonalProfileResponse"
+      },
+      "OrganizerPhoneVerification": {
+        "properties": {
+          "organization_phone_number": {
+            "type": "string",
+            "title": "Organization Phone Number"
+          },
+          "otp_verified": {
+            "type": "boolean",
+            "title": "Otp Verified"
+          },
+          "verified_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Verified At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_phone_number",
+          "otp_verified",
+          "verified_at"
+        ],
+        "title": "OrganizerPhoneVerification"
+      },
+      "OrganizerRepresentativeInformation": {
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "position_role": {
+            "type": "string",
+            "title": "Position Role"
+          },
+          "phone_number": {
+            "type": "string",
+            "title": "Phone Number"
+          },
+          "work_email": {
+            "type": "string",
+            "format": "email",
+            "title": "Work Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "full_name",
+          "position_role",
+          "phone_number",
+          "work_email"
+        ],
+        "title": "OrganizerRepresentativeInformation"
+      },
+      "OrganizerRepresentativeVerificationResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "profile_type": {
+            "type": "string",
+            "title": "Profile Type"
+          },
+          "onboarding_status": {
+            "type": "string",
+            "title": "Onboarding Status"
+          },
+          "verification_status": {
+            "type": "string",
+            "title": "Verification Status"
+          },
+          "organization_profile": {
+            "$ref": "#/components/schemas/OrganizerOrganizationProfile"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "profile_type",
+          "onboarding_status",
+          "verification_status",
+          "organization_profile",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "OrganizerRepresentativeVerificationResponse"
+      },
+      "OrganizerStep3Data": {
+        "properties": {
+          "representative_information": {
+            "$ref": "#/components/schemas/OrganizerRepresentativeInformation"
+          },
+          "identity_verification": {
+            "$ref": "#/components/schemas/OrganizerIdentityVerification"
+          },
+          "authorization_proof": {
+            "$ref": "#/components/schemas/OrganizerAuthorizationProof"
+          },
+          "organization_phone_verification": {
+            "$ref": "#/components/schemas/OrganizerPhoneVerification"
+          },
+          "alternate_contact": {
+            "$ref": "#/components/schemas/OrganizerAlternateContact"
+          },
+          "confirmations": {
+            "$ref": "#/components/schemas/OrganizerConfirmationFlags"
+          },
+          "review_notice": {
+            "type": "string",
+            "title": "Review Notice"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "otp": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrganizerOtpPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "representative_information",
+          "identity_verification",
+          "authorization_proof",
+          "organization_phone_verification",
+          "alternate_contact",
+          "confirmations",
+          "review_notice",
+          "submitted_at"
+        ],
+        "title": "OrganizerStep3Data"
+      },
+      "OrganizerUploadedDocumentMetadata": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "document_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Url"
+          },
+          "storage_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Key"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Uploaded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "content_type",
+          "uploaded_at"
+        ],
+        "title": "OrganizerUploadedDocumentMetadata"
+      },
+      "ProfileResponse": {
+        "properties": {
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "extra_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Data"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "role",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProfileResponse"
+      },
+      "ProfileUpdate": {
+        "properties": {
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "extra_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Data"
+          }
+        },
+        "type": "object",
+        "title": "ProfileUpdate"
+      },
+      "ProposalCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "ProposalCreate"
+      },
+      "ProposalResponse": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "event_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Type"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "expected_attendees": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Attendees"
+          },
+          "budget_estimate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Estimate"
+          },
+          "new_event_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Event Description"
+          },
+          "new_event_file_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Event File Url"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "organizer_id": {
+            "type": "string",
+            "title": "Organizer Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "organizer_id",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProposalResponse"
+      },
+      "ProposalStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "submitted",
+          "under_review",
+          "approved",
+          "rejected",
+          "changes_requested"
+        ],
+        "title": "ProposalStatus"
+      },
+      "ProposalUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "event_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Type"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "expected_attendees": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Attendees"
+          },
+          "budget_estimate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Estimate"
+          },
+          "new_event_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Event Description"
+          },
+          "new_event_file_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Event File Url"
+          }
+        },
+        "type": "object",
+        "title": "ProposalUpdate"
+      },
+      "Token": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type"
+        ],
+        "title": "Token"
+      },
+      "UploadedDocumentMetadata": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Uploaded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "content_type",
+          "size_bytes",
+          "uploaded_at"
+        ],
+        "title": "UploadedDocumentMetadata"
+      },
+      "UserCreate": {
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "minLength": 3,
+            "title": "Full Name"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "title": "Password"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole",
+            "default": "attendee"
+          }
+        },
+        "type": "object",
+        "required": [
+          "full_name",
+          "email",
+          "password"
+        ],
+        "title": "UserCreate"
+      },
+      "UserLogin": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "UserLogin"
+      },
+      "UserResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole",
+            "default": "attendee"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "full_name",
+          "email"
+        ],
+        "title": "UserResponse"
+      },
+      "UserRole": {
+        "type": "string",
+        "enum": [
+          "admin",
+          "organizer",
+          "vendor",
+          "ministry_gov",
+          "municipal_gov",
+          "attendee"
+        ],
+        "title": "UserRole"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VendorResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "business_name": {
+            "type": "string",
+            "title": "Business Name"
+          },
+          "tin_number": {
+            "type": "string",
+            "title": "Tin Number"
+          },
+          "business_address": {
+            "type": "string",
+            "title": "Business Address"
+          },
+          "business_license": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadedDocumentMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "national_id_front": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadedDocumentMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "national_id_back": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadedDocumentMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "business_name",
+          "tin_number",
+          "business_address",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "VendorResponse"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
