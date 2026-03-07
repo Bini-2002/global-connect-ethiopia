@@ -192,6 +192,92 @@ class DocumentVerificationService:
             },
         }
 
+    def score_vendor_application(
+        self,
+        government_id_ocr: dict[str, Any],
+        business_document_ocr: dict[str, Any],
+        business_document_detection: DetectionResult,
+        government_id_detection: DetectionResult,
+        submitted_business_name: str | None,
+    ) -> dict[str, Any]:
+        checks: list[dict[str, Any]] = []
+        score = 0
+
+        if government_id_ocr.get("ocr_success"):
+            score += 30
+            checks.append({"check": "Government ID OCR successful", "score": 30, "passed": True})
+        else:
+            checks.append({"check": "Government ID OCR successful", "score": 30, "passed": False})
+
+        if business_document_ocr.get("ocr_success"):
+            score += 20
+            checks.append({"check": "Business document OCR successful", "score": 20, "passed": True})
+        else:
+            checks.append({"check": "Business document OCR successful", "score": 20, "passed": False})
+
+        extracted_id_name = self._normalized(government_id_ocr.get("name"))
+        extracted_doc_name = self._normalized(business_document_ocr.get("name"))
+        name_match = extracted_id_name != "" and extracted_id_name == extracted_doc_name
+        if name_match:
+            score += 25
+        checks.append({"check": "Name matches ID and business document", "score": 25, "passed": name_match})
+
+        extracted_org_name = self._normalized(business_document_ocr.get("organization"))
+        submitted_org_name = self._normalized(submitted_business_name)
+        business_name_match = submitted_org_name != "" and submitted_org_name == extracted_org_name
+        if business_name_match:
+            score += 20
+        checks.append({"check": "Business name matches submitted details", "score": 20, "passed": business_name_match})
+
+        signature_detected = (
+            government_id_detection.signature_detected or business_document_detection.signature_detected
+        )
+        if signature_detected:
+            score += 10
+        checks.append({"check": "Signature detected", "score": 10, "passed": signature_detected})
+
+        stamp_detected = government_id_detection.stamp_detected or business_document_detection.stamp_detected
+        if stamp_detected:
+            score += 10
+        checks.append({"check": "Stamp detected", "score": 10, "passed": stamp_detected})
+
+        low_quality = (
+            government_id_ocr.get("ocr_confidence", 0) < 0.40
+            or business_document_ocr.get("ocr_confidence", 0) < 0.40
+        )
+        if low_quality:
+            score -= 20
+        checks.append({"check": "Low image quality", "score": -20, "passed": low_quality})
+
+        missing_keywords = len(business_document_ocr.get("keywords", [])) < 1
+        if missing_keywords:
+            score -= 30
+        checks.append({"check": "Missing keywords", "score": -30, "passed": missing_keywords})
+
+        if score >= settings.AUTO_APPROVE_SCORE:
+            decision = "auto_approved"
+            status = "approved"
+        elif score >= settings.MANUAL_REVIEW_MIN_SCORE:
+            decision = "manual_review"
+            status = "manual_review"
+        else:
+            decision = "rejected"
+            status = "rejected"
+
+        return {
+            "score": score,
+            "decision": decision,
+            "verification_status": status,
+            "checks": checks,
+            "cross_verification": {
+                "name_match": name_match,
+                "business_name_match": business_name_match,
+                "extracted_id_name": government_id_ocr.get("name"),
+                "extracted_business_doc_name": business_document_ocr.get("name"),
+                "extracted_business_org_name": business_document_ocr.get("organization"),
+            },
+        }
+
     @staticmethod
     def _estimate_ocr_confidence(text: str) -> float:
         if not text:
