@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
-from datetime import datetime
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token
 from app.core import security
-from app.db.mongodb import user_collection, profile_collection 
+from app.db.mongodb import user_collection
 
 router = APIRouter()
 
@@ -28,21 +27,7 @@ async def register(user_in: UserCreate):
     result = await user_collection.insert_one(new_user_data)
     user_id = result.inserted_id
 
-    # 5. Create a default profile for the user
-    now = datetime.utcnow()
-    new_profile = {
-        "user_id": user_id,
-        "role": new_user_data.get("role", "attendee"),
-        "bio": None,
-        "phone": None,
-        "address": None,
-        "extra_data": {},
-        "created_at": now,
-        "updated_at": now,
-    }
-    await profile_collection.insert_one(new_profile)
-
-    # 6. Return the response
+    # 5. Return the response
     return {
         "id": str(user_id),
         "full_name": new_user_data["full_name"],
