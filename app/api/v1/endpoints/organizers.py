@@ -64,10 +64,11 @@ async def _store_upload_file(file: UploadFile, folder: str, allowed_extensions: 
         )
 
     storage = ObjectStorageService()
-    stored = storage.upload_bytes(
+    stored = storage.upload_verification_document(
         content=content,
         filename=file.filename or "document",
         folder=folder,
+        content_type=file.content_type,
     )
 
     return {
@@ -76,6 +77,7 @@ async def _store_upload_file(file: UploadFile, folder: str, allowed_extensions: 
         "size_bytes": stored.size_bytes,
         "document_url": stored.document_url,
         "storage_key": stored.storage_key,
+        "storage_provider": stored.storage_provider,
         "uploaded_at": datetime.now(timezone.utc),
     }
 

@@ -68,7 +68,7 @@ class RoleChecker:
 
 
 # Role shortcuts
-allow_admin = RoleChecker([UserRole.ADMIN])
+allow_admin = RoleChecker([UserRole.SUPER_ADMIN, UserRole.ADMIN])
 allow_vendor = RoleChecker([UserRole.ADMIN, UserRole.VENDOR])
 allow_organizer = RoleChecker([UserRole.ADMIN, UserRole.ORGANIZER])
 allow_ministry = RoleChecker([UserRole.MINISTRY_GOV])

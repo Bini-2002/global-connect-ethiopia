@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY_ID: Optional[str] = None
     S3_SECRET_ACCESS_KEY: Optional[str] = None
     S3_ENDPOINT_URL: Optional[str] = None
+    PDF_STORAGE_PROVIDER: Optional[str] = None
+    GRIDFS_DATABASE_NAME: Optional[str] = None
+    GRIDFS_BUCKET_NAME: str = "documents"
     LOCAL_STORAGE_PATH: str = "./storage"
 
     # Queue / worker
