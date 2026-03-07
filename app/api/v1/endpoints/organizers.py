@@ -4,8 +4,10 @@ from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.api.v1.deps import get_current_user
-from app.db.mongodb import organizer_collection
+from app.api.v1.deps import allow_admin, get_current_user
+from app.core.config import settings
+from app.core.queue import get_verification_queue
+from app.db.mongodb import organizer_collection, verification_job_collection
 from app.models.roles import UserRole
 from app.schemas.organizer import (
     OrganizerOrganizationStep1Response,
@@ -15,6 +17,7 @@ from app.schemas.organizer import (
     OrganizerPersonalProfileResponse,
     OrganizerRepresentativeVerificationResponse,
 )
+from app.services.object_storage import ObjectStorageService
 
 router = APIRouter()
 
@@ -39,23 +42,42 @@ def _to_response(document: dict) -> dict:
     return document
 
 
-def _build_file_metadata(file: UploadFile) -> dict:
-    return {
-        "filename": file.filename or "",
-        "content_type": file.content_type or "application/octet-stream",
-        "size_bytes": None,
-        "uploaded_at": datetime.now(timezone.utc),
-    }
-
-
-def _get_or_create_base_doc(current_user: dict) -> dict:
-    user_oid = ObjectId(current_user["id"])
-    return {"user_id": user_oid}
-
-
 def _require_organizer(current_user: dict) -> None:
     if current_user.get("role") != UserRole.ORGANIZER:
         raise HTTPException(status_code=403, detail="Only organizers can submit this form")
+
+
+async def _store_upload_file(file: UploadFile, folder: str, allowed_extensions: set[str]) -> dict:
+    extension = _get_file_extension(file.filename or "")
+    if extension not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file format. Allowed: {', '.join(sorted(allowed_extensions))}",
+        )
+
+    content = await file.read()
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    if len(content) > max_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Maximum size is {settings.MAX_UPLOAD_SIZE_MB}MB",
+        )
+
+    storage = ObjectStorageService()
+    stored = storage.upload_bytes(
+        content=content,
+        filename=file.filename or "document",
+        folder=folder,
+    )
+
+    return {
+        "filename": file.filename or "",
+        "content_type": file.content_type or "application/octet-stream",
+        "size_bytes": stored.size_bytes,
+        "document_url": stored.document_url,
+        "storage_key": stored.storage_key,
+        "uploaded_at": datetime.now(timezone.utc),
+    }
 
 
 @router.post("/personal-profile", response_model=OrganizerPersonalProfileResponse)
@@ -78,12 +100,11 @@ async def create_or_update_personal_profile(
             detail="social_media_or_portfolio_url must start with http:// or https://",
         )
 
-    extension = _get_file_extension(national_id_document.filename or "")
-    if extension not in ID_DOCUMENT_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid national ID format. Allowed: .jpg, .jpeg, .pdf, .png, .webp",
-        )
+    national_id_metadata = await _store_upload_file(
+        file=national_id_document,
+        folder="organizers/personal_id",
+        allowed_extensions=ID_DOCUMENT_EXTENSIONS,
+    )
 
     now = datetime.now(timezone.utc)
     profile_data = {
@@ -94,13 +115,7 @@ async def create_or_update_personal_profile(
         "personal_bio": personal_bio,
         "social_media_or_portfolio_url": social_media_or_portfolio_url,
         "prior_event_experience": prior_event_experience,
-        "national_id_document": {
-            "filename": national_id_document.filename or "",
-            "content_type": national_id_document.content_type or "application/octet-stream",
-            "file_url": None,
-            "size_bytes": None,
-            "uploaded_at": now,
-        },
+        "national_id_document": national_id_metadata,
         "updated_at": now,
     }
 
@@ -127,6 +142,7 @@ async def create_or_update_organization_step_1(
     position_in_organization: str = Form(...),
     industry: str = Form(...),
     employee_count: str = Form(...),
+    office_location: str | None = Form(None),
     website_url: str | None = Form(None),
     organization_description: str | None = Form(None),
     business_license_or_registration_document: UploadFile = File(...),
@@ -140,12 +156,11 @@ async def create_or_update_organization_step_1(
     if website_url and not _is_valid_url(website_url):
         raise HTTPException(status_code=400, detail="website_url must start with http:// or https://")
 
-    extension = _get_file_extension(business_license_or_registration_document.filename or "")
-    if extension not in BUSINESS_LICENSE_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid business license format. Allowed: .jpg, .jpeg, .pdf, .png, .webp",
-        )
+    business_license_metadata = await _store_upload_file(
+        file=business_license_or_registration_document,
+        folder="organizers/organization_license",
+        allowed_extensions=BUSINESS_LICENSE_EXTENSIONS,
+    )
 
     user_oid = ObjectId(current_user["id"])
     now = datetime.now(timezone.utc)
@@ -155,11 +170,10 @@ async def create_or_update_organization_step_1(
         "position_in_organization": position_in_organization.strip(),
         "industry": industry.strip(),
         "employee_count": employee_count.strip(),
+        "office_location": office_location,
         "website_url": website_url,
         "organization_description": organization_description,
-        "business_license_or_registration_document": _build_file_metadata(
-            business_license_or_registration_document
-        ),
+        "business_license_or_registration_document": business_license_metadata,
     }
 
     existing_profile = await organizer_collection.find_one({"user_id": user_oid})
@@ -250,18 +264,21 @@ async def send_organization_phone_otp(
                 "organization_profile.step_3.otp.code": otp_code,
                 "organization_profile.step_3.otp.expires_at": otp_expires_at,
                 "organization_profile.step_3.otp.verified": False,
+                "organization_profile.step_3.otp.attempts": 0,
                 "updated_at": datetime.now(timezone.utc),
             }
         },
     )
 
-    # Development mode response: in production this code must be sent via SMS provider only.
-    return {
+    response = {
         "message": "OTP generated. Integrate SMS provider before production use.",
         "organization_phone_number": organization_phone_number.strip(),
         "otp_expires_in_minutes": OTP_EXPIRY_MINUTES,
-        "otp_code": otp_code,
+        "otp_code": None,
     }
+    if settings.ENABLE_DEBUG_OTP_RESPONSE:
+        response["otp_code"] = otp_code
+    return response
 
 
 @router.post(
@@ -295,37 +312,28 @@ async def submit_representative_verification(
     if existing_profile.get("profile_type") != "organization":
         raise HTTPException(status_code=400, detail="This account is not using organization flow")
 
+    if not existing_profile.get("organization_profile", {}).get("step_1"):
+        raise HTTPException(status_code=400, detail="Complete organization step 1 first")
+
+    if not existing_profile.get("organization_profile", {}).get("step_2"):
+        raise HTTPException(status_code=400, detail="Complete organization step 2 first")
+
     allowed_id_types = {"national_id", "kebele_id", "passport"}
     normalized_id_type = id_type.strip().lower()
     if normalized_id_type not in allowed_id_types:
         raise HTTPException(status_code=400, detail="id_type must be one of: national_id, kebele_id, passport")
 
-    government_id_ext = _get_file_extension(government_id_document.filename or "")
-    authorization_letter_ext = _get_file_extension(authorization_letter.filename or "")
-
-    if government_id_ext not in ID_DOCUMENT_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid government ID format. Allowed: .jpg, .jpeg, .pdf, .png, .webp",
-        )
-
-    if authorization_letter_ext not in {".pdf", ".jpg", ".jpeg", ".png", ".webp"}:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid authorization letter format. Allowed: .jpg, .jpeg, .pdf, .png, .webp",
-        )
-
-    if not (confirm_information_is_accurate and confirm_authorization_to_represent_organization and agree_platform_terms_and_policies):
+    if not (
+        confirm_information_is_accurate
+        and confirm_authorization_to_represent_organization
+        and agree_platform_terms_and_policies
+    ):
         raise HTTPException(
             status_code=400,
             detail="All confirmations must be accepted before submission",
         )
 
-    otp_data = (
-        existing_profile.get("organization_profile", {})
-        .get("step_3", {})
-        .get("otp")
-    )
+    otp_data = existing_profile.get("organization_profile", {}).get("step_3", {}).get("otp")
 
     if not otp_data:
         raise HTTPException(status_code=400, detail="OTP not generated. Please send OTP first")
@@ -333,12 +341,47 @@ async def submit_representative_verification(
     if otp_data.get("phone_number") != organization_phone_number.strip():
         raise HTTPException(status_code=400, detail="Organization phone number does not match OTP request")
 
+    attempts = int(otp_data.get("attempts", 0))
+    if attempts >= settings.OTP_ATTEMPT_LIMIT:
+        raise HTTPException(status_code=429, detail="OTP attempts exceeded. Request a new OTP")
+
     expires_at = otp_data.get("expires_at")
     if expires_at is None or datetime.now(timezone.utc) > expires_at:
         raise HTTPException(status_code=400, detail="OTP expired. Please request a new OTP")
 
     if otp_data.get("code") != otp_code.strip():
+        await organizer_collection.update_one(
+            {"_id": existing_profile["_id"]},
+            {
+                "$set": {
+                    "organization_profile.step_3.otp.attempts": attempts + 1,
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            },
+        )
         raise HTTPException(status_code=400, detail="Invalid OTP code")
+
+    government_id_metadata = await _store_upload_file(
+        file=government_id_document,
+        folder="organizers/verification/government_id",
+        allowed_extensions=ID_DOCUMENT_EXTENSIONS,
+    )
+    authorization_letter_metadata = await _store_upload_file(
+        file=authorization_letter,
+        folder="organizers/verification/authorization_letter",
+        allowed_extensions=ID_DOCUMENT_EXTENSIONS,
+    )
+
+    business_license_metadata = (
+        existing_profile.get("organization_profile", {})
+        .get("step_1", {})
+        .get("business_license_or_registration_document")
+    )
+    if not business_license_metadata or not business_license_metadata.get("storage_key"):
+        raise HTTPException(
+            status_code=400,
+            detail="Organization license document missing. Please re-submit organization step 1",
+        )
 
     now = datetime.now(timezone.utc)
     step3_payload = {
@@ -350,10 +393,10 @@ async def submit_representative_verification(
         },
         "identity_verification": {
             "id_type": normalized_id_type,
-            "government_id_document": _build_file_metadata(government_id_document),
+            "government_id_document": government_id_metadata,
         },
         "authorization_proof": {
-            "authorization_letter": _build_file_metadata(authorization_letter),
+            "authorization_letter": authorization_letter_metadata,
         },
         "organization_phone_verification": {
             "organization_phone_number": organization_phone_number.strip(),
@@ -378,11 +421,120 @@ async def submit_representative_verification(
         {
             "$set": {
                 "organization_profile.step_3": step3_payload,
-                "onboarding_status": "under_review",
-                "verification_status": "pending",
+                "onboarding_status": "verification_in_progress",
+                "verification_status": "processing",
                 "updated_at": now,
             }
         },
     )
+
+    job_payload = {
+        "user_id": user_oid,
+        "organizer_id": existing_profile["_id"],
+        "status": "queued",
+        "verification_status": "processing",
+        "documents": {
+            "government_id_document": {
+                "storage_key": government_id_metadata["storage_key"],
+                "content_type": government_id_metadata["content_type"],
+            },
+            "authorization_letter": {
+                "storage_key": authorization_letter_metadata["storage_key"],
+                "content_type": authorization_letter_metadata["content_type"],
+            },
+            "business_license": {
+                "storage_key": business_license_metadata["storage_key"],
+                "content_type": business_license_metadata.get("content_type", "application/octet-stream"),
+            },
+        },
+        "submitted_at": now,
+    }
+    job_result = await verification_job_collection.insert_one(job_payload)
+
+    queue_enqueued = True
+    try:
+        queue = get_verification_queue()
+        queue.enqueue("app.workers.verification_tasks.run_organizer_verification_job", str(job_result.inserted_id))
+    except Exception:
+        queue_enqueued = False
+        await verification_job_collection.update_one(
+            {"_id": job_result.inserted_id},
+            {"$set": {"status": "queued_no_worker", "updated_at": datetime.now(timezone.utc)}},
+        )
+
+    await organizer_collection.update_one(
+        {"_id": existing_profile["_id"]},
+        {
+            "$set": {
+                "verification_job_id": str(job_result.inserted_id),
+                "queue_status": "queued" if queue_enqueued else "queued_no_worker",
+                "updated_at": datetime.now(timezone.utc),
+            }
+        },
+    )
+
     profile = await organizer_collection.find_one({"_id": existing_profile["_id"]})
     return _to_response(profile)
+
+
+@router.get("/organization/verification-status")
+async def get_verification_status(current_user: dict = Depends(get_current_user)):
+    _require_organizer(current_user)
+    profile = await organizer_collection.find_one({"user_id": ObjectId(current_user["id"])})
+    if not profile:
+        raise HTTPException(status_code=404, detail="Organizer profile not found")
+
+    response = {
+        "verification_status": profile.get("verification_status", "not_started"),
+        "verification_score": profile.get("verification_score"),
+        "verification_decision": profile.get("verification_decision"),
+        "review_required": profile.get("review_required", False),
+        "verification_job_id": profile.get("verification_job_id"),
+        "queue_status": profile.get("queue_status"),
+        "onboarding_status": profile.get("onboarding_status"),
+    }
+    return response
+
+
+@router.get("/organization/admin/manual-review")
+async def list_manual_review_cases(current_user: dict = Depends(allow_admin)):
+    cursor = organizer_collection.find({"verification_status": "manual_review"})
+    docs = await cursor.to_list(length=200)
+    for doc in docs:
+        doc["id"] = str(doc["_id"])
+        doc["user_id"] = str(doc["user_id"])
+    return {"count": len(docs), "items": docs}
+
+
+@router.patch("/organization/admin/{organizer_id}/decision")
+async def admin_decide_verification(
+    organizer_id: str,
+    approved: bool,
+    notes: str | None = Form(None),
+    current_user: dict = Depends(allow_admin),
+):
+    organizer = await organizer_collection.find_one({"_id": ObjectId(organizer_id)})
+    if not organizer:
+        raise HTTPException(status_code=404, detail="Organizer not found")
+
+    new_status = "approved" if approved else "rejected"
+    await organizer_collection.update_one(
+        {"_id": organizer["_id"]},
+        {
+            "$set": {
+                "verification_status": new_status,
+                "verification_decision": "manual_approved" if approved else "manual_rejected",
+                "review_notes": notes,
+                "reviewed_at": datetime.now(timezone.utc),
+                "review_required": False,
+                "updated_at": datetime.now(timezone.utc),
+            }
+        },
+    )
+
+    return {
+        "message": f"Organizer verification {new_status}",
+        "organizer_id": organizer_id,
+        "verification_status": new_status,
+        "review_notes": notes,
+    }

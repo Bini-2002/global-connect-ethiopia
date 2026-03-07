@@ -1,0 +1,536 @@
+{
+  "info": {
+    "name": "Global Connect Ethiopia - Organizer Verification Flow",
+    "description": "End-to-end API flow for organizer organization verification: auth, onboarding steps, OTP, submission, status, and admin manual review.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01) Auth",
+      "item": [
+        {
+          "name": "Register Organizer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"{{organizer_full_name}}\",\n  \"email\": \"{{organizer_email}}\",\n  \"password\": \"{{organizer_password}}\",\n  \"role\": \"organizer\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Creates an organizer user account. If account already exists, continue to Login Organizer."
+          }
+        },
+        {
+          "name": "Login Organizer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data.access_token) {",
+                  "  pm.environment.set('organizer_token', data.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{organizer_email}}\",\n  \"password\": \"{{organizer_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02) Organizer Onboarding",
+      "item": [
+        {
+          "name": "Organization Step 1 (multipart)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "organization_name",
+                  "value": "{{organization_name}}",
+                  "type": "text"
+                },
+                {
+                  "key": "organization_type",
+                  "value": "Private Company",
+                  "type": "text"
+                },
+                {
+                  "key": "position_in_organization",
+                  "value": "Event Director",
+                  "type": "text"
+                },
+                {
+                  "key": "industry",
+                  "value": "Events",
+                  "type": "text"
+                },
+                {
+                  "key": "employee_count",
+                  "value": "11-50",
+                  "type": "text"
+                },
+                {
+                  "key": "office_location",
+                  "value": "Addis Ababa, Bole",
+                  "type": "text"
+                },
+                {
+                  "key": "website_url",
+                  "value": "https://example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "organization_description",
+                  "value": "Organizer focused on business and technology conferences.",
+                  "type": "text"
+                },
+                {
+                  "key": "business_license_or_registration_document",
+                  "type": "file",
+                  "src": "{{business_license_file}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizers/organization/step-1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizers",
+                "organization",
+                "step-1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Organization Step 2 (json)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_focus_areas\": [\"conference\", \"expo\"],\n  \"target_audience\": \"Businesses and startups\",\n  \"operating_regions\": [\"Addis Ababa\", \"Oromia\"],\n  \"years_of_operation\": 3,\n  \"previous_major_events\": \"Annual Startup Expo\",\n  \"expected_events_per_year\": 4,\n  \"estimated_average_attendance\": 500,\n  \"linkedin_url\": \"https://linkedin.com/company/example\",\n  \"portfolio_website\": \"https://example.com/portfolio\",\n  \"additional_notes\": \"Specialized in B2B events\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizers/organization/step-2",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizers",
+                "organization",
+                "step-2"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Step 3 - Send OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data.otp_code) {",
+                  "  pm.environment.set('otp_code', data.otp_code);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "organization_phone_number",
+                  "value": "{{organization_phone_number}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizers/organization/step-3/send-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizers",
+                "organization",
+                "step-3",
+                "send-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Step 3 - Submit Verification (multipart)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "full_name",
+                  "value": "{{representative_full_name}}",
+                  "type": "text"
+                },
+                {
+                  "key": "position_role",
+                  "value": "{{representative_position}}",
+                  "type": "text"
+                },
+                {
+                  "key": "phone_number",
+                  "value": "{{representative_phone_number}}",
+                  "type": "text"
+                },
+                {
+                  "key": "work_email",
+                  "value": "{{representative_work_email}}",
+                  "type": "text"
+                },
+                {
+                  "key": "id_type",
+                  "value": "national_id",
+                  "type": "text"
+                },
+                {
+                  "key": "government_id_document",
+                  "type": "file",
+                  "src": "{{government_id_file}}"
+                },
+                {
+                  "key": "authorization_letter",
+                  "type": "file",
+                  "src": "{{authorization_letter_file}}"
+                },
+                {
+                  "key": "organization_phone_number",
+                  "value": "{{organization_phone_number}}",
+                  "type": "text"
+                },
+                {
+                  "key": "otp_code",
+                  "value": "{{otp_code}}",
+                  "type": "text"
+                },
+                {
+                  "key": "alternate_contact_person",
+                  "value": "{{alternate_contact_person}}",
+                  "type": "text"
+                },
+                {
+                  "key": "alternate_contact_phone",
+                  "value": "{{alternate_contact_phone}}",
+                  "type": "text"
+                },
+                {
+                  "key": "confirm_information_is_accurate",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "confirm_authorization_to_represent_organization",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "agree_platform_terms_and_policies",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizers/organization/step-3/submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizers",
+                "organization",
+                "step-3",
+                "submit"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Verification Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizers/organization/verification-status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizers",
+                "organization",
+                "verification-status"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03) Admin Manual Review",
+      "description": "Requires a real admin account in DB.",
+      "item": [
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data.access_token) {",
+                  "  pm.environment.set('admin_token', data.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Manual Review Cases",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && Array.isArray(data.items) && data.items.length > 0) {",
+                  "  pm.environment.set('organizer_id_for_decision', data.items[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizers/organization/admin/manual-review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizers",
+                "organization",
+                "admin",
+                "manual-review"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Decision",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "approved",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "notes",
+                  "value": "Reviewed and approved by admin.",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/organizers/organization/admin/{{organizer_id_for_decision}}/decision",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizers",
+                "organization",
+                "admin",
+                "{{organizer_id_for_decision}}",
+                "decision"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [],
+  "variable": []
+}

@@ -7,6 +7,8 @@ class OrganizerNationalIdDocument(BaseModel):
     filename: str
     content_type: str
     file_url: str | None = None
+    document_url: str | None = None
+    storage_key: str | None = None
     size_bytes: int | None = None
     uploaded_at: datetime
 
@@ -30,6 +32,8 @@ class OrganizerPersonalProfileResponse(BaseModel):
 class OrganizerUploadedDocumentMetadata(BaseModel):
     filename: str
     content_type: str
+    document_url: str | None = None
+    storage_key: str | None = None
     size_bytes: int | None = None
     uploaded_at: datetime
 
@@ -53,6 +57,7 @@ class OrganizerOrganizationStep1Data(BaseModel):
     position_in_organization: str
     industry: str
     employee_count: str
+    office_location: str | None = None
     website_url: str | None = None
     organization_description: str | None = None
     business_license_or_registration_document: OrganizerUploadedDocumentMetadata
@@ -159,7 +164,7 @@ class OrganizerOtpSendResponse(BaseModel):
     message: str
     organization_phone_number: str
     otp_expires_in_minutes: int
-    otp_code: str
+    otp_code: str | None = None
 
 
 class OrganizerRepresentativeVerificationResponse(BaseModel):
