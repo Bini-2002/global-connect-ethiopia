@@ -26,6 +26,12 @@ BUSINESS_LICENSE_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 OTP_EXPIRY_MINUTES = 5
 
 
+def _to_utc_aware(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def _get_file_extension(filename: str) -> str:
     if "." not in filename:
         return ""
@@ -348,6 +354,16 @@ async def submit_representative_verification(
         raise HTTPException(status_code=429, detail="OTP attempts exceeded. Request a new OTP")
 
     expires_at = otp_data.get("expires_at")
+    if isinstance(expires_at, str):
+        normalized = expires_at.replace("Z", "+00:00")
+        try:
+            expires_at = datetime.fromisoformat(normalized)
+        except ValueError:
+            expires_at = None
+
+    if isinstance(expires_at, datetime):
+        expires_at = _to_utc_aware(expires_at)
+
     if expires_at is None or datetime.now(timezone.utc) > expires_at:
         raise HTTPException(status_code=400, detail="OTP expired. Please request a new OTP")
 

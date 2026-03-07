@@ -46,14 +46,21 @@ def _otp_response_payload(message: str, otp_payload: dict) -> dict:
 
 def _parse_expiry(expires_at):
     if isinstance(expires_at, datetime):
-        return expires_at
+        return _to_utc_aware(expires_at)
     if isinstance(expires_at, str):
         normalized = expires_at.replace("Z", "+00:00")
         try:
-            return datetime.fromisoformat(normalized)
+            return _to_utc_aware(datetime.fromisoformat(normalized))
         except ValueError:
             return None
     return None
+
+
+def _to_utc_aware(value: datetime) -> datetime:
+    # MongoDB drivers can return naive UTC datetime values.
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 @router.post("/register", response_model=UserResponse)
 async def register(user_in: UserCreate):
