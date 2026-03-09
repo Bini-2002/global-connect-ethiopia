@@ -1,5 +1,5 @@
 from enum import Enum
-class ProposalState(str, Enum):
+class ProposalStatus(str, Enum):
     DRAFT = "draft"
     SUBMITTED = "submitted"
     UNDER_REVIEW = "under_review"

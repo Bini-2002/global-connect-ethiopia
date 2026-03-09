@@ -2,7 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.v1.deps import get_current_user, allow_organizer # type: ignore
-from app.schemas.proposals import ProposalCreate, ProposalResponse, ProposalUpdate# type: ignore
+from app.schemas.proposal import ProposalCreate, ProposalResponse, ProposalUpdate  # type: ignore
 from app.db.mongodb import proposal_collection
 from app.models.proposal_states import ProposalStatus
 from datetime import datetime, timezone
