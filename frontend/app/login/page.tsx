@@ -60,8 +60,8 @@ export default function LoginPage() {
     <>
       <LoginHeader />
 
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
+      <main className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-[#8CB98820] rounded-2xl shadow-xl p-8 border border-slate-200">
           {/* Welcome */}
           <h2 className="text-3xl font-bold text-[#0F172A] mb-2">Welcome Back</h2>
           <p className="text-sm text-slate-500 mb-6">
@@ -135,7 +135,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#062E22] hover:bg-slate-600 text-white font-semibold py-3 rounded-lg flex items-center justify-center transition-shadow duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#062E22] hover:bg-[#045c33] text-white font-semibold py-3 rounded-lg flex items-center justify-center transition-shadow duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
