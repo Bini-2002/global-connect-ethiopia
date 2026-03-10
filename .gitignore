@@ -12,3 +12,6 @@ env/
 # IDEs
 .vscode/
 .idea/
+
+# Editor artifacts
+**/.cph/
