@@ -1,5 +1,11 @@
 from datetime import datetime, timezone
 from typing import List
+from app.db.redis import redis_client
+
+
+from pydantic import json
+
+from pydantic import json
 
 from app.models.proposal_states import ProposalStatus
 from app.repositories.proposal_repository import ProposalRepository
@@ -117,12 +123,27 @@ class ProposalService:
         organizer_id: str,
         page: int,
         limit: int
-    ) -> List[dict]:
+    ):
+
+        cache_key = f"proposals:{organizer_id}:{page}:{limit}"
+
+        cached = await redis_client.get(cache_key)
+
+        if cached:
+            return json.loads(cached)
 
         skip = (page - 1) * limit
 
-        return await ProposalRepository.list_by_organizer(
+        proposals = await ProposalRepository.list_by_organizer(
             organizer_id,
             skip,
             limit
         )
+
+        await redis_client.setex(
+            cache_key,
+            300,
+            json.dumps(proposals)
+        )
+
+        return proposals

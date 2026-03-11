@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     MANUAL_REVIEW_MIN_SCORE: int = 50
     ENABLE_DEBUG_OTP_RESPONSE: bool = True
 
+    # Redis configuration
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+
     class Config:
         env_file = ".env"
 
