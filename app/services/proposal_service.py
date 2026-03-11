@@ -75,6 +75,9 @@ class ProposalService:
 
         if proposal["organizer_id"] != organizer_id:
             raise PermissionError("Not authorized")
+        
+        if proposal["status"] != ProposalStatus.DRAFT:
+            raise ValueError("Only draft proposals can be submitted")
 
         required_fields = [
             "event_type",
@@ -98,11 +101,15 @@ class ProposalService:
                 f"Missing required fields: {missing_fields}"
             )
 
-        return await ProposalRepository.update_status(
+        await ProposalRepository.update_status(
             proposal_id,
             ProposalStatus.SUBMITTED,
             datetime.now(timezone.utc)
         )
+
+        updated = await ProposalRepository.get_by_id(proposal_id)
+
+        return updated
 
 
     @staticmethod
