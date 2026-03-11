@@ -17,3 +17,12 @@ verification_result_collection = db.verification_results
 
 # proposals collection
 proposal_collection = db.proposals
+
+# Database Indexes
+async def create_indexes():
+    await proposal_collection.create_index("organizer_id")
+    await proposal_collection.create_index(
+        [("status", 1), ("created_at", 1)]
+    )
+
+    await proposal_collection.create_index("title")
