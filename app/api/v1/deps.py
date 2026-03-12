@@ -1,23 +1,27 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import jwt, JWTError
+from __future__ import annotations
+
 from bson import ObjectId
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
+from jose import JWTError, jwt
+
 from app.core.config import settings
-from app.models.roles import UserRole
 from app.db.mongodb import user_collection
-from fastapi.security import OAuth2PasswordBearer
+from app.models.roles import UserRole
 
 security_scheme = HTTPBearer()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
-async def get_current_user(
-    auth: HTTPAuthorizationCredentials = Depends(security_scheme)
+
+async def _get_current_user_bearer(
+    auth: HTTPAuthorizationCredentials = Depends(security_scheme),
 ):
     try:
         payload = jwt.decode(
             auth.credentials,
             settings.JWT_SECRET,
             algorithms=[settings.ALGORITHM],
-            options={"leeway": 10}
+            options={"leeway": 10},
         )
 
         user_id: str | None = payload.get("sub")
@@ -52,31 +56,27 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
+
+
 class RoleChecker:
     def __init__(self, allowed_roles: list[UserRole]):
         self.allowed_roles = allowed_roles
 
-    def __call__(self, current_user: dict = Depends(get_current_user)):
+    def __call__(self, current_user: dict = Depends(_get_current_user_bearer)):
         if current_user["role"] not in self.allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have enough permissions"
+                detail="You do not have enough permissions",
             )
         return current_user
 
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login"
-)
-
-
 async def get_current_user(token: str = Depends(oauth2_scheme)):
-
     try:
         payload = jwt.decode(
             token,
             settings.SECRET_KEY,
-            algorithms=["HS256"]
+            algorithms=["HS256"],
         )
 
         user_id = payload.get("user_id")
@@ -91,14 +91,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
     return user
 
+
 def require_role(role: UserRole):
-
     async def role_checker(user=Depends(get_current_user)):
-
         if user["role"] != role:
             raise HTTPException(
                 status_code=403,
-                detail="Permission denied"
+                detail="Permission denied",
             )
 
         return user
@@ -111,7 +110,4 @@ allow_vendor = RoleChecker([UserRole.ADMIN, UserRole.VENDOR])
 allow_organizer = RoleChecker([UserRole.ADMIN, UserRole.ORGANIZER])
 allow_ministry = RoleChecker([UserRole.MINISTRY_GOV])
 allow_municipal = RoleChecker([UserRole.MUNICIPAL_GOV])
-
-
-
 

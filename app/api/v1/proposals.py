@@ -1,11 +1,8 @@
-from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
-from app.models.proposal_states import ProposalStatus
-from fastapi import APIRouter, HTTPException
-from bson import ObjectId
-from datetime import datetime
-from app.db.mongodb import proposal_collection
+
+from pydantic import BaseModel
+
 from app.models.proposal_states import ProposalStatus
 
 
