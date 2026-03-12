@@ -7,3 +7,9 @@ redis_client = redis.Redis(
     port=settings.REDIS_PORT,
     decode_responses=True
 )
+
+async def delete_pattern(pattern: str):
+    keys = await redis_client.keys(pattern)
+
+    if keys:
+        await redis_client.delete(*keys)

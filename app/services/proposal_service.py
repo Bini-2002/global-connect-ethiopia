@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import List
-from app.db.redis import redis_client
+from app.db.redis import redis_client, delete_pattern
+
 
 
 from pydantic import json
@@ -65,7 +66,10 @@ class ProposalService:
         update_data = proposal_update.model_dump(exclude_unset=True)
         update_data["updated_at"] = datetime.now(timezone.utc)
 
-        return await ProposalRepository.update(proposal_id, update_data)
+        updated = await ProposalRepository.update(proposal_id, update_data)
+        await redis_client.delete_pattern(f"proposals:{organizer_id}:*")
+
+        return updated
 
 
     @staticmethod
@@ -114,6 +118,8 @@ class ProposalService:
         )
 
         updated = await ProposalRepository.get_by_id(proposal_id)
+
+        await redis_client.delete_pattern(f"proposals:{organizer_id}:*")
 
         return updated
 
