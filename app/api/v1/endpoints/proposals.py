@@ -7,9 +7,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.v1.deps import get_current_user  # type: ignore
 from app.db.mongodb import proposal_collection
 from app.models.proposal_states import ProposalStatus
+from app.models.roles import UserRole
 from app.schemas.proposal import ProposalCreate, ProposalResponse, ProposalUpdate  # type: ignore
 
 router = APIRouter()
+
+
+def _require_organizer(current_user: dict) -> None:
+    if current_user.get("role") != UserRole.ORGANIZER:
+        raise HTTPException(status_code=403, detail="Only organizers can access proposals")
 
 def proposal_helper(proposal):
     return {
@@ -28,23 +34,22 @@ async def create_proposal(
     proposal_in: ProposalCreate, 
     current_user: dict = Depends(get_current_user) 
 ):
-    
-    
+    _require_organizer(current_user)
+
     new_proposal = {
         "title": proposal_in.title,
+        "description": proposal_in.description,
         "organizer_id": str(current_user["_id"]), 
         "status": ProposalStatus.DRAFT,
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
 
-        "event_type": None,
-        "start_date": None,
-        "end_date": None,
-        "location": None,
-        "expected_attendees": None,
-        "budget_estimate": None,
-        "new_event_description": None,
-        "new_event_file_url": None
+        "event_type": proposal_in.event_type,
+        "start_date": proposal_in.start_date,
+        "end_date": proposal_in.end_date,
+        "location": proposal_in.location,
+        "expected_attendees": proposal_in.expected_attendees,
+        "budget_estimate": proposal_in.budget_estimate,
     }
 
  
@@ -61,6 +66,7 @@ async def update_proposal(
     proposal_update: ProposalUpdate,
     current_user: dict = Depends(get_current_user)
 ):
+    _require_organizer(current_user)
    
     proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
     
@@ -74,10 +80,10 @@ async def update_proposal(
             detail="Access denied. You do not own this proposal."
         )
 
-    if proposal["status"] != ProposalStatus.DRAFT:
+    if proposal["status"] not in {ProposalStatus.DRAFT, ProposalStatus.CHANGES_REQUESTED}:
         raise HTTPException(
             status_code=400, 
-            detail="Only draft proposals can be updated."
+            detail="Only draft or changes requested proposals can be updated."
         )
 
     # 'exclude_unset=True' ensures we only update fields the user sent
@@ -100,6 +106,7 @@ async def submit_proposal(
     proposal_id: str,
     current_user: dict = Depends(get_current_user)
 ):
+    _require_organizer(current_user)
   
     proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
     
@@ -108,6 +115,9 @@ async def submit_proposal(
 
     if proposal["organizer_id"] != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not authorized")
+
+    if proposal.get("status") not in {ProposalStatus.DRAFT, ProposalStatus.CHANGES_REQUESTED}:
+        raise HTTPException(status_code=400, detail="Only draft or changes requested proposals can be submitted")
 
     required_fields = [
         "event_type", 
@@ -155,6 +165,7 @@ async def submit_proposal(
 
 @router.get("/", response_model=List[ProposalResponse])
 async def list_my_proposals(current_user: dict = Depends(get_current_user)):
+    _require_organizer(current_user)
     cursor = proposal_collection.find({"organizer_id": str(current_user["_id"])})
     proposals = await cursor.to_list(length=100)
 
@@ -167,6 +178,7 @@ async def get_proposal(
     proposal_id: str,
     current_user: dict = Depends(get_current_user)
 ):
+    _require_organizer(current_user)
     proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
     
     if not proposal or proposal["organizer_id"] != str(current_user["_id"]):
@@ -176,121 +188,3 @@ async def get_proposal(
     return proposal
 
 
-@router.post("/{proposal_id}/start-review")
-async def start_review(proposal_id: str):
-
-    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
-
-    if not proposal:
-        raise HTTPException(status_code=404, detail="Proposal not found")
-
-    if proposal["status"] != ProposalStatus.SUBMITTED:
-        raise HTTPException(
-            status_code=400,
-            detail="Proposal must be submitted first"
-        )
-
-    await proposal_collection.update_one(
-        {"_id": ObjectId(proposal_id)},
-        {
-            "$set": {
-                "status": ProposalStatus.UNDER_REVIEW,
-                "updated_at": datetime.utcnow()
-            }
-        }
-    )
-
-    updated = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
-
-    return proposal_helper(updated)
-
-
-@router.post("/{proposal_id}/request-changes")
-async def request_changes(proposal_id: str):
-
-    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
-
-    if not proposal:
-        raise HTTPException(status_code=404, detail="Proposal not found")
-
-    if proposal["status"] != ProposalStatus.UNDER_REVIEW:
-        raise HTTPException(
-            status_code=400,
-            detail="Proposal must be under review"
-        )
-
-    await proposal_collection.update_one(
-        {"_id": ObjectId(proposal_id)},
-        {
-            "$set": {
-                "status": ProposalStatus.CHANGES_REQUESTED,
-                "updated_at": datetime.utcnow()
-            }
-        }
-    )
-
-    updated = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
-
-    return proposal_helper(updated)
-
-    updated = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
-
-    return proposal_helper(updated)
-
-
-@router.post("/{proposal_id}/reject")
-async def reject_proposal(proposal_id: str):
-
-    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
-
-    if not proposal:
-        raise HTTPException(status_code=404, detail="Proposal not found")
-
-    if proposal["status"] != ProposalStatus.UNDER_REVIEW:
-        raise HTTPException(
-            status_code=400,
-            detail="Proposal must be under review"
-        )
-
-    await proposal_collection.update_one(
-        {"_id": ObjectId(proposal_id)},
-        {
-            "$set": {
-                "status": ProposalStatus.REJECTED,
-                "updated_at": datetime.utcnow()
-            }
-        }
-    )
-
-    updated = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
-
-    return proposal_helper(updated)
-
-
-@router.post("/{proposal_id}/approve-proposal")
-async def approve_proposal(proposal_id: str):
-
-    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
-
-    if not proposal:
-        raise HTTPException(status_code=404, detail="Proposal not found")
-
-    if proposal["status"] != ProposalStatus.UNDER_REVIEW:
-        raise HTTPException(
-            status_code=400,
-            detail="Proposal must be under review"
-        )
-
-    await proposal_collection.update_one(
-        {"_id": ObjectId(proposal_id)},
-        {
-            "$set": {
-                "status": ProposalStatus.APPROVED,
-                "updated_at": datetime.utcnow()
-            }
-        }
-    )
-
-    updated = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
-
-    return proposal_helper(updated)
