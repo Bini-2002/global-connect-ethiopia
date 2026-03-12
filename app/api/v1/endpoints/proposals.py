@@ -10,6 +10,18 @@ from bson import ObjectId
 
 router = APIRouter()
 
+def proposal_helper(proposal):
+    return {
+        "id": str(proposal["_id"]),
+        "title": proposal["title"],
+        "event_type": proposal.get("event_type"),
+        "location": proposal.get("location"),
+        "organizer_id": proposal["organizer_id"],
+        "status": proposal["status"],
+        "created_at": proposal["created_at"],
+        "updated_at": proposal["updated_at"]
+    }
+
 @router.post("/", response_model=ProposalResponse, status_code=status.HTTP_201_CREATED)
 async def create_proposal(
     proposal_in: ProposalCreate, 
@@ -161,3 +173,118 @@ async def get_proposal(
     
     proposal["id"] = str(proposal["_id"])
     return proposal
+
+
+@router.post("/{proposal_id}/start-review")
+async def start_review(proposal_id: str):
+
+    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    if proposal["status"] != ProposalStatus.SUBMITTED:
+        raise HTTPException(
+            status_code=400,
+            detail="Proposal must be submitted first"
+        )
+
+    await proposal_collection.update_one(
+        {"_id": ObjectId(proposal_id)},
+        {
+            "$set": {
+                "status": ProposalStatus.UNDER_REVIEW,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+
+    updated = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+
+    return proposal_helper(updated)
+
+
+@router.post("/{proposal_id}/request-changes")
+async def request_changes(proposal_id: str):
+
+    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    if proposal["status"] != ProposalStatus.UNDER_REVIEW:
+        raise HTTPException(
+            status_code=400,
+            detail="Proposal must be under review"
+        )
+
+    await proposal_collection.update_one(
+        {"_id": ObjectId(proposal_id)},
+        {
+            "$set": {
+                "status": ProposalStatus.CHANGES_REQUESTED,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+
+    updated = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+
+    return proposal_helper(updated)
+
+@router.post("/{proposal_id}/request-changes")
+async def request_changes(proposal_id: str):
+
+    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    if proposal["status"] != ProposalStatus.UNDER_REVIEW:
+        raise HTTPException(
+            status_code=400,
+            detail="Proposal must be under review"
+        )
+
+    await proposal_collection.update_one(
+        {"_id": ObjectId(proposal_id)},
+        {
+            "$set": {
+                "status": ProposalStatus.CHANGES_REQUESTED,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+
+    updated = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+
+    return proposal_helper(updated)
+
+
+@router.post("/{proposal_id}/reject")
+async def reject_proposal(proposal_id: str):
+
+    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    if proposal["status"] != ProposalStatus.UNDER_REVIEW:
+        raise HTTPException(
+            status_code=400,
+            detail="Proposal must be under review"
+        )
+
+    await proposal_collection.update_one(
+        {"_id": ObjectId(proposal_id)},
+        {
+            "$set": {
+                "status": ProposalStatus.REJECTED,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+
+    updated = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+
+    return proposal_helper(updated)

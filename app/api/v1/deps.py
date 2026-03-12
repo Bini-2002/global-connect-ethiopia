@@ -5,9 +5,9 @@ from bson import ObjectId
 from app.core.config import settings
 from app.models.roles import UserRole
 from app.db.mongodb import user_collection
+from fastapi.security import OAuth2PasswordBearer
 
 security_scheme = HTTPBearer()
-
 
 async def get_current_user(
     auth: HTTPAuthorizationCredentials = Depends(security_scheme)
@@ -52,8 +52,6 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
-
-
 class RoleChecker:
     def __init__(self, allowed_roles: list[UserRole]):
         self.allowed_roles = allowed_roles
@@ -67,9 +65,53 @@ class RoleChecker:
         return current_user
 
 
-# Role shortcuts
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/login"
+)
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=["HS256"]
+        )
+
+        user_id = payload.get("user_id")
+
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    user = await user_collection.find_one({"_id": ObjectId(user_id)})
+
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return user
+
+def require_role(role: UserRole):
+
+    async def role_checker(user=Depends(get_current_user)):
+
+        if user["role"] != role:
+            raise HTTPException(
+                status_code=403,
+                detail="Permission denied"
+            )
+
+        return user
+
+    return role_checker
+
+
 allow_admin = RoleChecker([UserRole.SUPER_ADMIN, UserRole.ADMIN])
 allow_vendor = RoleChecker([UserRole.ADMIN, UserRole.VENDOR])
 allow_organizer = RoleChecker([UserRole.ADMIN, UserRole.ORGANIZER])
 allow_ministry = RoleChecker([UserRole.MINISTRY_GOV])
 allow_municipal = RoleChecker([UserRole.MUNICIPAL_GOV])
+
+
+
+

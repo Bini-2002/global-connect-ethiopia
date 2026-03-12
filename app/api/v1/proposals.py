@@ -2,6 +2,11 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 from app.models.proposal_states import ProposalStatus
+from fastapi import APIRouter, HTTPException
+from bson import ObjectId
+from datetime import datetime
+from app.db.mongodb import proposal_collection
+from app.models.proposal_states import ProposalStatus
 
 
 class ProposalCreate(BaseModel):
@@ -22,3 +27,4 @@ class ProposalResponse(BaseModel):
     status: ProposalStatus
     created_at: datetime
     updated_at: datetime
+
