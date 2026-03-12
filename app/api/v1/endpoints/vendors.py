@@ -301,7 +301,7 @@ async def get_vendor_verification_status(current_user: dict = Depends(get_curren
     }
 
 
-@router.get("/admin/manual-review")
+@router.get("/admin/manual-review", tags=["Admin Vendors"])
 async def list_vendor_manual_review_cases(current_user: dict = Depends(allow_admin)):
     cursor = vendor_collection.find({"verification_status": "manual_review"})
     docs = await cursor.to_list(length=200)
@@ -311,7 +311,7 @@ async def list_vendor_manual_review_cases(current_user: dict = Depends(allow_adm
     return {"count": len(docs), "items": docs}
 
 
-@router.patch("/admin/{vendor_id}/decision")
+@router.patch("/admin/{vendor_id}/decision", tags=["Admin Vendors"])
 async def admin_decide_vendor_verification(
     vendor_id: str,
     approved: bool,
