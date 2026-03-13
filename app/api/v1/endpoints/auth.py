@@ -1,7 +1,8 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.user import (
     OtpSendRequest,
     OtpSendResponse,
@@ -62,6 +63,39 @@ def _to_utc_aware(value: datetime) -> datetime:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
 
+
+async def _issue_access_token(email: str, password: str) -> dict:
+    user = await user_collection.find_one({"email": email})
+
+    if not user or not security.verify_password(password, user["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if user.get("role", UserRole.ATTENDEE) == UserRole.ATTENDEE and not user.get("email_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email not verified. Please verify your OTP before logging in.",
+        )
+
+    if not user.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account deactivated. Please contact the administrator.",
+        )
+
+    access_token = security.create_access_token(
+        subject=str(user["_id"]),
+        role=user.get("role", "attendee")  # type: ignore
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
 @router.post("/register", response_model=UserResponse)
 async def register(user_in: UserCreate):
     # 1. Check if the user already exists
@@ -102,41 +136,18 @@ async def register(user_in: UserCreate):
 
 @router.post("/login", response_model=Token)
 async def login(user_in: UserLogin):
-    # 1. Look for the user in MongoDB
-    user = await user_collection.find_one({"email": user_in.email})
-    
-    # 2. Check if user exists AND if password matches
-    if not user or not security.verify_password(user_in.password, user["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    if user.get("role", UserRole.ATTENDEE) == UserRole.ATTENDEE and not user.get("email_verified", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email not verified. Please verify your OTP before logging in.",
-        )
+    return await _issue_access_token(email=user_in.email, password=user_in.password)
 
-    # Check status
-    if not user.get("is_active", True):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account deactivated. Please contact the administrator."
-        )
 
-    # 3. If everything is correct, generate the JWT
-    access_token = security.create_access_token(
-        subject=str(user["_id"]), 
-        role=user.get("role", "attendee")  # Default to 'attendee' if role is not set # type: ignore
-        )
-
-    # 4. Return the Token back to the frontend
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+@router.post(
+    "/token",
+    response_model=Token,
+    summary="OAuth2 token login",
+    description="Swagger OAuth2 password flow endpoint. Use your account email in the username field.",
+)
+async def token_login(form_data: OAuth2PasswordRequestForm = Depends()):
+    # Swagger OAuth2 password flow sends "username"; in this API it is the account email.
+    return await _issue_access_token(email=form_data.username, password=form_data.password)
 
 
 @router.post("/send-email-otp", response_model=OtpSendResponse)

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 
 from app.api.v1.deps import allow_admin, get_current_user
 from app.core.config import settings
@@ -16,6 +16,8 @@ from app.schemas.vendor import (
 from app.services.object_storage import ObjectStorageService
 
 router = APIRouter()
+
+PENDING_ADMIN_REVIEW = "pending_admin_review"
 
 BUSINESS_DOCUMENT_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 ID_DOCUMENT_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
@@ -226,8 +228,8 @@ async def submit_vendor_for_verification(
                     "confirm_information_is_accurate": confirm_information_is_accurate,
                     "agree_terms_and_privacy": agree_terms_and_privacy,
                 },
-                "status": "verification_in_progress",
-                "verification_status": "processing",
+                "status": PENDING_ADMIN_REVIEW,
+                "verification_status": PENDING_ADMIN_REVIEW,
                 "updated_at": now,
             }
         },
@@ -238,7 +240,7 @@ async def submit_vendor_for_verification(
         "entity_id": vendor["_id"],
         "user_id": vendor["user_id"],
         "status": "queued",
-        "verification_status": "processing",
+        "verification_status": PENDING_ADMIN_REVIEW,
         "documents": {
             "business_document": {
                 "storage_key": business_doc["storage_key"],
@@ -303,12 +305,40 @@ async def get_vendor_verification_status(current_user: dict = Depends(get_curren
 
 @router.get("/admin/manual-review", tags=["Admin Vendors"])
 async def list_vendor_manual_review_cases(current_user: dict = Depends(allow_admin)):
-    cursor = vendor_collection.find({"verification_status": "manual_review"})
+    # Backward-compatible route name. Now returns pending admin review queue.
+    cursor = vendor_collection.find({"verification_status": PENDING_ADMIN_REVIEW})
     docs = await cursor.to_list(length=200)
     for doc in docs:
         doc["id"] = str(doc["_id"])
         doc["user_id"] = str(doc["user_id"])
     return {"count": len(docs), "items": docs}
+
+
+@router.get("/admin/reviews", tags=["Admin Vendors"])
+async def list_vendor_review_cases(
+    verification_status: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+    current_user: dict = Depends(allow_admin),
+):
+    query: dict = {}
+    if verification_status:
+        query["verification_status"] = verification_status
+    else:
+        query["verification_status"] = PENDING_ADMIN_REVIEW
+
+    docs = await vendor_collection.find(query).to_list(length=limit)
+    for doc in docs:
+        doc["id"] = str(doc["_id"])
+        doc["user_id"] = str(doc["user_id"])
+
+    return {
+        "count": len(docs),
+        "filter": {
+            "verification_status": verification_status,
+            "limit": limit,
+        },
+        "items": docs,
+    }
 
 
 @router.patch("/admin/{vendor_id}/decision", tags=["Admin Vendors"])
