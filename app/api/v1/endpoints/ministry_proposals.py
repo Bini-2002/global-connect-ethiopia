@@ -28,6 +28,17 @@ async def list_ministry_review_queue(current_user: dict = Depends(allow_ministry
     return proposals
 
 
+@router.get("/{proposal_id}", response_model=ProposalResponse)
+async def get_ministry_proposal_detail(
+    proposal_id: str,
+    current_user: dict = Depends(allow_ministry),
+):
+    proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return _to_response(proposal)
+
+
 @router.post("/{proposal_id}/start-review", response_model=ProposalResponse)
 async def start_review(
     proposal_id: str,
