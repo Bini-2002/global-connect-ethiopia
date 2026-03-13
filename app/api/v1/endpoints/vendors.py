@@ -310,6 +310,7 @@ async def list_vendor_manual_review_cases(current_user: dict = Depends(allow_adm
     docs = await cursor.to_list(length=200)
     for doc in docs:
         doc["id"] = str(doc["_id"])
+        doc["_id"] = str(doc["_id"])
         doc["user_id"] = str(doc["user_id"])
     return {"count": len(docs), "items": docs}
 
@@ -329,6 +330,7 @@ async def list_vendor_review_cases(
     docs = await vendor_collection.find(query).to_list(length=limit)
     for doc in docs:
         doc["id"] = str(doc["_id"])
+        doc["_id"] = str(doc["_id"])
         doc["user_id"] = str(doc["user_id"])
 
     return {

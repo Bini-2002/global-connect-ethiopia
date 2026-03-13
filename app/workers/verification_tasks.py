@@ -11,6 +11,8 @@ from app.db.mongodb import vendor_collection
 from app.services.document_verification import DocumentVerificationService
 from app.services.object_storage import ObjectStorageService
 
+PENDING_ADMIN_REVIEW = "pending_admin_review"
+
 
 async def _run_verification_job(job_id: str) -> None:
     storage = ObjectStorageService()
@@ -250,12 +252,14 @@ async def _run_vendor_verification_job(job_id: str) -> None:
             {
                 "$set": {
                     "verification_score": scoring["score"],
-                    "verification_status": scoring["verification_status"],
+                    # Keep admin-facing state stable; expose system recommendation separately.
+                    "verification_status": PENDING_ADMIN_REVIEW,
                     "verification_decision": scoring["decision"],
+                    "recommended_status": scoring.get("verification_status"),
                     "verification_job_id": str(job["_id"]),
-                    "review_required": scoring["decision"] == "manual_review",
-                    "reviewed_at": now if scoring["decision"] != "manual_review" else None,
-                    "status": scoring["verification_status"],
+                    "review_required": True,
+                    "reviewed_at": None,
+                    "status": PENDING_ADMIN_REVIEW,
                     "updated_at": now,
                 }
             },
@@ -276,8 +280,8 @@ async def _run_vendor_verification_job(job_id: str) -> None:
             {"_id": job["entity_id"]},
             {
                 "$set": {
-                    "verification_status": "manual_review",
-                    "status": "manual_review",
+                    "verification_status": PENDING_ADMIN_REVIEW,
+                    "status": PENDING_ADMIN_REVIEW,
                     "review_required": True,
                     "updated_at": datetime.now(timezone.utc),
                 }
