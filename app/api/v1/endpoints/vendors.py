@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.api.v1.deps import allow_admin, get_current_user
+from app.api.v1.deps import get_current_user
 from app.core.config import settings
 from app.core.queue import get_verification_queue
-from app.db.mongodb import user_collection, vendor_collection, verification_job_collection
+from app.db.mongodb import vendor_collection, verification_job_collection
 from app.models.roles import UserRole
 from app.schemas.vendor import (
     VendorReviewSummaryResponse,
@@ -57,33 +57,6 @@ def _status_history_entry(*, status: str, source: str, note: str | None = None, 
         "actor_id": actor_id,
         "changed_at": datetime.now(timezone.utc),
     }
-
-
-def _serialize_admin_vendor(doc: dict) -> dict:
-    serialized = doc.copy()
-    serialized["id"] = str(doc["_id"])
-    serialized["_id"] = str(doc["_id"])
-    if "user_id" in doc:
-        serialized["user_id"] = str(doc["user_id"])
-    return serialized
-
-
-def _ocr_tier(score: int | None) -> str:
-    """
-    Translate a numeric OCR similarity score into a human-readable tier.
-    Tiers are visible to admin only.
-
-      >= 75  → passed
-      50–74  → needs_review
-      < 50   → rejected
-    """
-    if score is None:
-        return "pending"
-    if score >= settings.AUTO_APPROVE_SCORE:
-        return "passed"
-    if score >= settings.MANUAL_REVIEW_MIN_SCORE:
-        return "needs_review"
-    return "rejected"
 
 
 async def _store_upload_file(file: UploadFile, folder: str, allowed_extensions: set[str]) -> dict:
@@ -369,10 +342,18 @@ async def get_vendor_verification_status(current_user: dict = Depends(get_curren
         raise HTTPException(status_code=404, detail="Vendor record not found")
 
     score = vendor.get("verification_score")
+    if score is None:
+        ocr_tier = "pending"
+    elif score >= settings.AUTO_APPROVE_SCORE:
+        ocr_tier = "passed"
+    elif score >= settings.MANUAL_REVIEW_MIN_SCORE:
+        ocr_tier = "needs_review"
+    else:
+        ocr_tier = "rejected"
     return {
         "verification_status": vendor.get("verification_status", "not_started"),
         "verification_score": score,
-        "ocr_tier": _ocr_tier(score),
+        "ocr_tier": ocr_tier,
         "verification_decision": vendor.get("verification_decision"),
         "review_required": vendor.get("review_required", False),
         "verification_job_id": vendor.get("verification_job_id"),

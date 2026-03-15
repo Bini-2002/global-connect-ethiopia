@@ -106,16 +106,21 @@ def client() -> TestClient:
 
 @pytest.fixture()
 def setup_vendor_mocks(monkeypatch: pytest.MonkeyPatch):
-    from app.api.v1.endpoints import vendors
+    from app.api.v1.endpoints import vendors, admin_vendors
 
     vendor_collection = FakeCollection()
     verification_job_collection = FakeCollection()
     fake_queue = FakeQueue()
 
+    # Patch vendor-facing module
     monkeypatch.setattr(vendors, "vendor_collection", vendor_collection)
     monkeypatch.setattr(vendors, "verification_job_collection", verification_job_collection)
     monkeypatch.setattr(vendors, "ObjectStorageService", FakeObjectStorageService)
     monkeypatch.setattr(vendors, "get_verification_queue", lambda: fake_queue)
+
+    # Patch admin-vendors module (admin endpoints moved here)
+    monkeypatch.setattr(admin_vendors, "vendor_collection", vendor_collection)
+    monkeypatch.setattr(admin_vendors, "verification_job_collection", verification_job_collection)
 
     vendor_user = {
         "id": str(ObjectId()),
@@ -131,13 +136,14 @@ def setup_vendor_mocks(monkeypatch: pytest.MonkeyPatch):
     }
 
     app.dependency_overrides[vendors.get_current_user] = lambda: vendor_user
-    app.dependency_overrides[vendors.allow_admin] = lambda: admin_user
+    app.dependency_overrides[admin_vendors.allow_admin] = lambda: admin_user
 
     yield {
         "vendors": vendor_collection,
         "jobs": verification_job_collection,
         "queue": fake_queue,
         "vendor_user": vendor_user,
+        "admin_user": admin_user,
     }
 
     app.dependency_overrides.clear()
