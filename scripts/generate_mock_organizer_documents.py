@@ -276,8 +276,102 @@ def generate_organizer_document_test_set() -> None:
             auth_img.save(OUT_DIR / "organizer_02_authorization_proof.webp", "WEBP", quality=90)
 
 
+def generate_organizer_negative_test_set() -> None:
+    # Base palette for negative samples.
+    palette = {
+        "paper": (248, 251, 250),
+        "header_bg": (223, 239, 236),
+        "header_text": (13, 44, 40),
+        "title_text": (13, 84, 62),
+        "body_text": (24, 29, 34),
+        "accent": (8, 96, 61),
+        "stamp": (18, 102, 181),
+        "signature": (10, 10, 10),
+        "border": (27, 83, 72),
+        "watermark": (205, 66, 66),
+    }
+
+    sample = SAMPLES[0]
+
+    # 1) Representative name mismatch between metadata and authorization proof.
+    mismatch_auth = OrganizerSample(
+        company_name=sample.company_name,
+        rep_name="Wrong Representative Name",
+        rep_position=sample.rep_position,
+        issue_date=sample.issue_date,
+        expiry_date=sample.expiry_date,
+        license_number=sample.license_number,
+        authorization_ref=sample.authorization_ref,
+    )
+
+    business_ok = _draw_license_document(
+        sample=sample,
+        index=91,
+        palette=palette,
+        stamp_serial="NEG-091",
+        signature_seed=9011,
+        texture=False,
+    )
+    auth_mismatch = _draw_authorization_document(
+        sample=mismatch_auth,
+        index=91,
+        palette=palette,
+        stamp_serial="NEG-091",
+        signature_seed=9011,
+        textured=False,
+    )
+    business_ok.save(OUT_DIR / "organizer_neg_01_business_licence_valid.png")
+    auth_mismatch.save(OUT_DIR / "organizer_neg_01_authorization_rep_name_mismatch.png")
+
+    # 2) Missing stamp and signature on both docs.
+    no_mark_business = _draw_license_document(
+        sample=sample,
+        index=92,
+        palette=palette,
+        stamp_serial="NEG-092",
+        signature_seed=9012,
+        texture=False,
+    )
+    no_mark_auth = _draw_authorization_document(
+        sample=sample,
+        index=92,
+        palette=palette,
+        stamp_serial="NEG-092",
+        signature_seed=9012,
+        textured=False,
+    )
+    draw_b = ImageDraw.Draw(no_mark_business)
+    draw_a = ImageDraw.Draw(no_mark_auth)
+    # Paint over stamp and signature areas to remove both indicators.
+    draw_b.rectangle((930, 650, 1450, 1040), fill=palette["paper"])
+    draw_a.rectangle((930, 650, 1450, 1040), fill=palette["paper"])
+    no_mark_business.save(OUT_DIR / "organizer_neg_02_business_licence_no_stamp_signature.png")
+    no_mark_auth.save(OUT_DIR / "organizer_neg_02_authorization_no_stamp_signature.png")
+
+    # 3) Low quality pair for OCR stress testing.
+    lowq_business = _draw_license_document(
+        sample=sample,
+        index=93,
+        palette=palette,
+        stamp_serial="NEG-093",
+        signature_seed=9013,
+        texture=True,
+    ).filter(ImageFilter.GaussianBlur(radius=1.8))
+    lowq_auth = _draw_authorization_document(
+        sample=sample,
+        index=93,
+        palette=palette,
+        stamp_serial="NEG-093",
+        signature_seed=9013,
+        textured=True,
+    ).filter(ImageFilter.GaussianBlur(radius=1.8))
+    lowq_business.save(OUT_DIR / "organizer_neg_03_business_licence_low_quality.png")
+    lowq_auth.save(OUT_DIR / "organizer_neg_03_authorization_low_quality.png")
+
+
 def main() -> None:
     generate_organizer_document_test_set()
+    generate_organizer_negative_test_set()
     print(f"Mock organizer registration documents generated at: {OUT_DIR.resolve()}")
 
 
