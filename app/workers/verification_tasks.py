@@ -261,7 +261,16 @@ async def _run_vendor_verification_job(job_id: str) -> None:
                     "reviewed_at": None,
                     "status": PENDING_ADMIN_REVIEW,
                     "updated_at": now,
-                }
+                },
+                "$push": {
+                    "status_history": {
+                        "status": PENDING_ADMIN_REVIEW,
+                        "source": "system_scoring",
+                        "note": f"Automated recommendation: {scoring['decision']}",
+                        "actor_id": None,
+                        "changed_at": now,
+                    }
+                },
             },
         )
 
@@ -276,6 +285,7 @@ async def _run_vendor_verification_job(job_id: str) -> None:
                 }
             },
         )
+        fail_time = datetime.now(timezone.utc)
         await vendor_collection.update_one(
             {"_id": job["entity_id"]},
             {
@@ -283,8 +293,17 @@ async def _run_vendor_verification_job(job_id: str) -> None:
                     "verification_status": PENDING_ADMIN_REVIEW,
                     "status": PENDING_ADMIN_REVIEW,
                     "review_required": True,
-                    "updated_at": datetime.now(timezone.utc),
-                }
+                    "updated_at": fail_time,
+                },
+                "$push": {
+                    "status_history": {
+                        "status": PENDING_ADMIN_REVIEW,
+                        "source": "system_scoring_error",
+                        "note": "Automated verification failed; escalated to admin review",
+                        "actor_id": None,
+                        "changed_at": fail_time,
+                    }
+                },
             },
         )
 

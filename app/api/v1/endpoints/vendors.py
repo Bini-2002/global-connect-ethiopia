@@ -44,6 +44,40 @@ def _to_response(document: dict) -> dict:
     return document
 
 
+def _status_history_entry(*, status: str, source: str, note: str | None = None, actor_id: str | None = None) -> dict:
+    return {
+        "status": status,
+        "source": source,
+        "note": note,
+        "actor_id": actor_id,
+        "changed_at": datetime.now(timezone.utc),
+    }
+
+
+def _serialize_admin_vendor(doc: dict) -> dict:
+    serialized = doc.copy()
+    serialized["id"] = str(doc["_id"])
+    serialized["_id"] = str(doc["_id"])
+    if "user_id" in doc:
+        serialized["user_id"] = str(doc["user_id"])
+    return serialized
+
+
+def _build_admin_list_response(*, docs: list[dict], verification_status: str | None, limit: int) -> dict:
+    items = [_serialize_admin_vendor(doc) for doc in docs]
+    return {
+        "count": len(items),
+        "meta": {
+            "count": len(items),
+            "limit": limit,
+        },
+        "filter": {
+            "verification_status": verification_status,
+        },
+        "items": items,
+    }
+
+
 async def _store_upload_file(file: UploadFile, folder: str, allowed_extensions: set[str]) -> dict:
     extension = _get_file_extension(file.filename or "")
     if extension not in allowed_extensions:
@@ -144,7 +178,15 @@ async def create_or_update_vendor_business_details(
                     "status": "draft",
                     "verification_status": "not_started",
                     "updated_at": now,
-                }
+                },
+                "$push": {
+                    "status_history": _status_history_entry(
+                        status="draft",
+                        source="vendor_step_2",
+                        note="Vendor updated business details and documents",
+                        actor_id=current_user["id"],
+                    )
+                },
             },
         )
         vendor = await vendor_collection.find_one({"_id": existing["_id"]})
@@ -155,6 +197,14 @@ async def create_or_update_vendor_business_details(
             "status": "draft",
             "verification_status": "not_started",
             "review_required": False,
+            "status_history": [
+                _status_history_entry(
+                    status="draft",
+                    source="vendor_step_2",
+                    note="Vendor created registration record",
+                    actor_id=current_user["id"],
+                )
+            ],
             "created_at": now,
             "updated_at": now,
         }
@@ -231,7 +281,15 @@ async def submit_vendor_for_verification(
                 "status": PENDING_ADMIN_REVIEW,
                 "verification_status": PENDING_ADMIN_REVIEW,
                 "updated_at": now,
-            }
+            },
+            "$push": {
+                "status_history": _status_history_entry(
+                    status=PENDING_ADMIN_REVIEW,
+                    source="vendor_step_3_submit",
+                    note="Vendor submitted registration for admin review",
+                    actor_id=current_user["id"],
+                )
+            },
         },
     )
 
@@ -303,16 +361,28 @@ async def get_vendor_verification_status(current_user: dict = Depends(get_curren
     }
 
 
-@router.get("/admin/manual-review", tags=["Admin Vendors"])
-async def list_vendor_manual_review_cases(current_user: dict = Depends(allow_admin)):
-    # Backward-compatible route name. Now returns pending admin review queue.
+@router.get("/admin/pending-reviews", tags=["Admin Vendors"])
+async def list_vendor_pending_reviews(
+    limit: int = Query(default=200, ge=1, le=500),
+    current_user: dict = Depends(allow_admin),
+):
+    _ = current_user
     cursor = vendor_collection.find({"verification_status": PENDING_ADMIN_REVIEW})
-    docs = await cursor.to_list(length=200)
-    for doc in docs:
-        doc["id"] = str(doc["_id"])
-        doc["_id"] = str(doc["_id"])
-        doc["user_id"] = str(doc["user_id"])
-    return {"count": len(docs), "items": docs}
+    docs = await cursor.to_list(length=limit)
+    return _build_admin_list_response(
+        docs=docs,
+        verification_status=PENDING_ADMIN_REVIEW,
+        limit=limit,
+    )
+
+
+@router.get("/admin/manual-review", tags=["Admin Vendors"])
+async def list_vendor_manual_review_cases(
+    limit: int = Query(default=200, ge=1, le=500),
+    current_user: dict = Depends(allow_admin),
+):
+    # Backward-compatible alias of pending-reviews.
+    return await list_vendor_pending_reviews(limit=limit, current_user=current_user)
 
 
 @router.get("/admin/reviews", tags=["Admin Vendors"])
@@ -321,6 +391,7 @@ async def list_vendor_review_cases(
     limit: int = Query(default=200, ge=1, le=500),
     current_user: dict = Depends(allow_admin),
 ):
+    _ = current_user
     query: dict = {}
     if verification_status:
         query["verification_status"] = verification_status
@@ -328,19 +399,11 @@ async def list_vendor_review_cases(
         query["verification_status"] = PENDING_ADMIN_REVIEW
 
     docs = await vendor_collection.find(query).to_list(length=limit)
-    for doc in docs:
-        doc["id"] = str(doc["_id"])
-        doc["_id"] = str(doc["_id"])
-        doc["user_id"] = str(doc["user_id"])
-
-    return {
-        "count": len(docs),
-        "filter": {
-            "verification_status": verification_status,
-            "limit": limit,
-        },
-        "items": docs,
-    }
+    return _build_admin_list_response(
+        docs=docs,
+        verification_status=verification_status or PENDING_ADMIN_REVIEW,
+        limit=limit,
+    )
 
 
 @router.patch("/admin/{vendor_id}/decision", tags=["Admin Vendors"])
@@ -355,6 +418,7 @@ async def admin_decide_vendor_verification(
         raise HTTPException(status_code=404, detail="Vendor not found")
 
     new_status = "approved" if approved else "rejected"
+    now = datetime.now(timezone.utc)
     await vendor_collection.update_one(
         {"_id": vendor["_id"]},
         {
@@ -363,10 +427,18 @@ async def admin_decide_vendor_verification(
                 "verification_status": new_status,
                 "verification_decision": "manual_approved" if approved else "manual_rejected",
                 "review_notes": notes,
-                "reviewed_at": datetime.now(timezone.utc),
+                "reviewed_at": now,
                 "review_required": False,
-                "updated_at": datetime.now(timezone.utc),
-            }
+                "updated_at": now,
+            },
+            "$push": {
+                "status_history": _status_history_entry(
+                    status=new_status,
+                    source="admin_decision",
+                    note=notes,
+                    actor_id=current_user.get("id"),
+                )
+            },
         },
     )
 

@@ -311,7 +311,8 @@ def test_admin_decision_approve_updates_vendor(client: TestClient, setup_vendor_
 
     response = client.patch(
         f"/api/v1/vendors/admin/{vendor_id}/decision",
-        data={"approved": "true", "notes": "Documents look valid."},
+        params={"approved": "true"},
+        data={"notes": "Documents look valid."},
     )
 
     assert response.status_code == 200
