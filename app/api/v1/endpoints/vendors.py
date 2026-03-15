@@ -337,6 +337,13 @@ async def submit_vendor_for_verification(
             {"_id": job_result.inserted_id},
             {"$set": {"status": "queued_no_worker", "updated_at": datetime.now(timezone.utc)}},
         )
+        # ── Sync fallback: Redis not available — run OCR inline immediately ──
+        try:
+            from app.workers.verification_tasks import _run_vendor_verification_job
+            await _run_vendor_verification_job(str(job_result.inserted_id))
+            queue_enqueued = True  # treat as completed
+        except Exception:
+            pass  # OCR failed; admin can re-trigger via /admin/run-ocr/{vendor_id}
 
     await vendor_collection.update_one(
         {"_id": vendor["_id"]},
@@ -535,3 +542,103 @@ async def admin_decide_vendor_verification(
             "status": new_status,
             "rejection_comment": rejection_comment,
         }
+
+
+@router.post("/admin/run-ocr/{vendor_id}", tags=["Admin Vendors"])
+async def admin_run_ocr_for_vendor(
+    vendor_id: str,
+    current_user: dict = Depends(allow_admin),
+):
+    """
+    Manually trigger the OCR verification job for a vendor.
+
+    Use this endpoint when:
+      - Redis / the background worker is not running (development / local setup)
+      - The OCR job failed and needs to be retried
+      - ocr_score is still null after submission
+
+    The OCR runs synchronously and the result is saved immediately.
+    Refresh GET /admin/{vendor_id} afterwards to see the updated score and tier.
+    """
+    _ = current_user
+    try:
+        oid = ObjectId(vendor_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid vendor ID")
+
+    vendor = await vendor_collection.find_one({"_id": oid})
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    # Look up the most recent verification job for this vendor
+    job = await verification_job_collection.find_one(
+        {"entity_id": oid, "job_type": "vendor"},
+        sort=[("submitted_at", -1)],
+    )
+
+    if not job:
+        # No job record at all — create one from the current vendor documents
+        step_2 = vendor.get("step_2")
+        if not step_2:
+            raise HTTPException(status_code=400, detail="Vendor has no documents to verify (step 2 not completed)")
+
+        docs = step_2.get("required_documents", {})
+        business_doc = docs.get("business_license_or_registration_certificate")
+        gov_doc = docs.get("government_issued_id")
+
+        if not business_doc or not gov_doc:
+            raise HTTPException(status_code=400, detail="Required documents missing from vendor record")
+
+        now = datetime.now(timezone.utc)
+        job_payload = {
+            "job_type": "vendor",
+            "entity_id": vendor["_id"],
+            "user_id": vendor["user_id"],
+            "status": "queued",
+            "verification_status": PENDING_FOR_REVIEW,
+            "documents": {
+                "business_document": {
+                    "storage_key": business_doc["storage_key"],
+                    "content_type": business_doc.get("content_type", "application/octet-stream"),
+                },
+                "government_issued_id": {
+                    "storage_key": gov_doc["storage_key"],
+                    "content_type": gov_doc.get("content_type", "application/octet-stream"),
+                },
+            },
+            "submitted_data": {
+                "business_name": step_2["business_details"]["business_name"],
+            },
+            "submitted_at": now,
+        }
+        job_result = await verification_job_collection.insert_one(job_payload)
+        job_id = str(job_result.inserted_id)
+    else:
+        job_id = str(job["_id"])
+
+    # Run the OCR worker directly (no Redis needed)
+    try:
+        from app.workers.verification_tasks import _run_vendor_verification_job
+        await _run_vendor_verification_job(job_id)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"OCR processing failed: {exc}. Check that document files are accessible.",
+        )
+
+    # Return the updated vendor with fresh OCR results
+    updated_vendor = await vendor_collection.find_one({"_id": oid})
+    score = updated_vendor.get("verification_score")
+    serialized = _serialize_admin_vendor(updated_vendor)
+    serialized["ocr_score"] = score
+    serialized["ocr_tier"] = _ocr_tier(score)
+    serialized["recommendation"] = updated_vendor.get("verification_decision")
+
+    return {
+        "message": "OCR completed successfully.",
+        "vendor_id": vendor_id,
+        "ocr_score": score,
+        "ocr_tier": _ocr_tier(score),
+        "recommendation": updated_vendor.get("verification_decision"),
+        "vendor": serialized,
+    }

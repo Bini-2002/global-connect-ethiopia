@@ -351,6 +351,7 @@ def test_admin_detail_exposes_ocr_tier(client: TestClient, setup_vendor_mocks) -
 
 
 def test_admin_approve_activates_user(client: TestClient, setup_vendor_mocks, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Admin approves a vendor: vendor status becomes 'approved' and the user account is activated."""
     from app.api.v1.endpoints import vendors
 
     vendor_collection: FakeCollection = setup_vendor_mocks["vendors"]
@@ -366,6 +367,7 @@ def test_admin_approve_activates_user(client: TestClient, setup_vendor_mocks, mo
             "user_id": user_id,
             "verification_status": "pending_for_review",
             "status": "pending_for_review",
+            "verification_score": 80,
             "review_required": True,
         }
     )
@@ -385,14 +387,73 @@ def test_admin_approve_activates_user(client: TestClient, setup_vendor_mocks, mo
 
     assert response.status_code == 200
     body = response.json()
-    assert body["verification_status"] == "approved"
 
+    # Response fields
+    assert body["verification_status"] == "approved"
+    assert body["admin_note"] == "All good."
+    assert "OTP verification" in body["message"]
+
+    # Vendor record updated correctly
     saved_vendor = vendor_collection.docs[0]
     assert saved_vendor["status"] == "approved"
+    assert saved_vendor["verification_status"] == "approved"
     assert saved_vendor["verification_decision"] == "admin_approved"
+    assert saved_vendor["review_required"] is False
+    assert saved_vendor["admin_note"] == "All good."
+
+    # User account unlocked — vendor self-initiates OTP from here
+    saved_user = user_col.docs[0]
+    assert saved_user["is_active"] is True
+
+
+def test_admin_approve_with_no_notes(client: TestClient, setup_vendor_mocks, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Admin approves without providing notes — the approval should still succeed."""
+    from app.api.v1.endpoints import vendors
+
+    vendor_collection: FakeCollection = setup_vendor_mocks["vendors"]
+    user_col = FakeCollection()
+    monkeypatch.setattr(vendors, "user_collection", user_col)
+
+    vendor_id = ObjectId()
+    user_id = ObjectId()
+
+    vendor_collection.docs.append(
+        {
+            "_id": vendor_id,
+            "user_id": user_id,
+            "verification_status": "pending_for_review",
+            "status": "pending_for_review",
+            "review_required": True,
+        }
+    )
+    user_col.docs.append({"_id": user_id, "email": "vendor2@example.com", "is_active": False})
+
+    response = client.patch(
+        f"/api/v1/vendors/admin/{vendor_id}/decision",
+        params={"approved": "true"},
+        # deliberatly omit notes
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["verification_status"] == "approved"
+    assert body["admin_note"] is None
 
     saved_user = user_col.docs[0]
-    assert saved_user["is_active"] is True  # account unlocked; vendor initiates OTP themselves
+    assert saved_user["is_active"] is True
+
+
+def test_admin_approve_nonexistent_vendor_returns_404(client: TestClient, setup_vendor_mocks) -> None:
+    """Approving a vendor ID that doesn't exist must return 404."""
+    nonexistent_id = ObjectId()
+
+    response = client.patch(
+        f"/api/v1/vendors/admin/{nonexistent_id}/decision",
+        params={"approved": "true"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Vendor not found"
 
 
 def test_admin_reject_keeps_draft_with_comment(client: TestClient, setup_vendor_mocks) -> None:
