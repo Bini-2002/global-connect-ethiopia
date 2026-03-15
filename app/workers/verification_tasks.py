@@ -252,21 +252,21 @@ async def _run_vendor_verification_job(job_id: str) -> None:
             {
                 "$set": {
                     "verification_score": scoring["score"],
-                    # Keep admin-facing state stable; expose system recommendation separately.
-                    "verification_status": PENDING_ADMIN_REVIEW,
+                    # OCR done — status stays pending_for_review so admin can make final decision.
+                    "verification_status": PENDING_FOR_REVIEW,
                     "verification_decision": scoring["decision"],
                     "recommended_status": scoring.get("verification_status"),
                     "verification_job_id": str(job["_id"]),
                     "review_required": True,
                     "reviewed_at": None,
-                    "status": PENDING_ADMIN_REVIEW,
+                    "status": PENDING_FOR_REVIEW,
                     "updated_at": now,
                 },
                 "$push": {
                     "status_history": {
-                        "status": PENDING_ADMIN_REVIEW,
+                        "status": PENDING_FOR_REVIEW,
                         "source": "system_scoring",
-                        "note": f"Automated recommendation: {scoring['decision']}",
+                        "note": f"OCR recommendation: {scoring['decision']}",
                         "actor_id": None,
                         "changed_at": now,
                     }
@@ -290,16 +290,16 @@ async def _run_vendor_verification_job(job_id: str) -> None:
             {"_id": job["entity_id"]},
             {
                 "$set": {
-                    "verification_status": PENDING_ADMIN_REVIEW,
-                    "status": PENDING_ADMIN_REVIEW,
+                    "verification_status": PENDING_FOR_REVIEW,
+                    "status": PENDING_FOR_REVIEW,
                     "review_required": True,
                     "updated_at": fail_time,
                 },
                 "$push": {
                     "status_history": {
-                        "status": PENDING_ADMIN_REVIEW,
+                        "status": PENDING_FOR_REVIEW,
                         "source": "system_scoring_error",
-                        "note": "Automated verification failed; escalated to admin review",
+                        "note": "OCR verification failed; escalated to admin review",
                         "actor_id": None,
                         "changed_at": fail_time,
                     }
