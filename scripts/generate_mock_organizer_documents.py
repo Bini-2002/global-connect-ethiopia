@@ -27,7 +27,7 @@ class OrganizerSample:
 SAMPLES = [
     OrganizerSample(
         company_name="Blue Nile Events PLC",
-        rep_name="Lulit Demissie",
+        rep_name="Biniyam Getachew",
         rep_position="Program Manager",
         issue_date="2025/01/14",
         expiry_date="2028/01/13",
@@ -36,7 +36,7 @@ SAMPLES = [
     ),
     OrganizerSample(
         company_name="Selam Horizon Conferences PLC",
-        rep_name="Nahom Fikru",
+        rep_name="Biniyam Getachew",
         rep_position="Operations Lead",
         issue_date="2024/09/05",
         expiry_date="2027/09/04",
@@ -45,7 +45,7 @@ SAMPLES = [
     ),
     OrganizerSample(
         company_name="Addis Summit Organizers PLC",
-        rep_name="Meklit Girma",
+        rep_name="Biniyam Getachew",
         rep_position="Registration Coordinator",
         issue_date="2025/03/09",
         expiry_date="2028/03/08",
@@ -54,7 +54,7 @@ SAMPLES = [
     ),
     OrganizerSample(
         company_name="Unity Expo and Convention PLC",
-        rep_name="Samuel Ayele",
+        rep_name="Biniyam Getachew",
         rep_position="Senior Organizer",
         issue_date="2024/11/22",
         expiry_date="2027/11/21",
@@ -63,7 +63,7 @@ SAMPLES = [
     ),
     OrganizerSample(
         company_name="Ethio Connect Event Solutions PLC",
-        rep_name="Rahel Abebe",
+        rep_name="Biniyam Getachew",
         rep_position="Field Operations Officer",
         issue_date="2025/06/18",
         expiry_date="2028/06/17",
