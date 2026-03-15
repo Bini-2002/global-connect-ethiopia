@@ -262,8 +262,8 @@ def test_vendor_submit_moves_to_pending_admin_review(client: TestClient, setup_v
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "pending_admin_review"
-    assert body["verification_status"] == "pending_admin_review"
+    assert body["status"] == "pending_for_review"
+    assert body["verification_status"] == "pending_for_review"
     assert body["queue_status"] in {"queued", "queued_no_worker"}
 
 
@@ -275,8 +275,8 @@ def test_admin_manual_review_lists_pending_queue(client: TestClient, setup_vendo
             {
                 "_id": ObjectId(),
                 "user_id": ObjectId(),
-                "verification_status": "pending_admin_review",
-                "status": "pending_admin_review",
+                "verification_status": "pending_for_review",
+                "status": "pending_for_review",
             },
             {
                 "_id": ObjectId(),
@@ -287,12 +287,12 @@ def test_admin_manual_review_lists_pending_queue(client: TestClient, setup_vendo
         ]
     )
 
-    response = client.get("/api/v1/vendors/admin/manual-review")
+    response = client.get("/api/v1/vendors/admin/pending")
 
     assert response.status_code == 200
     body = response.json()
     assert body["count"] == 1
-    assert body["items"][0]["verification_status"] == "pending_admin_review"
+    assert body["items"][0]["verification_status"] == "pending_for_review"
 
 
 def test_admin_decision_approve_updates_vendor(client: TestClient, setup_vendor_mocks) -> None:
@@ -322,5 +322,106 @@ def test_admin_decision_approve_updates_vendor(client: TestClient, setup_vendor_
     saved = vendor_collection.docs[0]
     assert saved["verification_status"] == "approved"
     assert saved["status"] == "approved"
-    assert saved["verification_decision"] == "manual_approved"
-    assert saved["review_notes"] == "Documents look valid."
+    assert saved["verification_decision"] == "admin_approved"
+    assert saved["admin_note"] == "Documents look valid."
+
+
+def test_admin_detail_exposes_ocr_tier(client: TestClient, setup_vendor_mocks) -> None:
+    vendor_collection: FakeCollection = setup_vendor_mocks["vendors"]
+    vendor_id = ObjectId()
+
+    vendor_collection.docs.append(
+        {
+            "_id": vendor_id,
+            "user_id": ObjectId(),
+            "verification_status": "pending_for_review",
+            "status": "pending_for_review",
+            "verification_score": 80,
+            "verification_decision": "auto_approved",
+        }
+    )
+
+    response = client.get(f"/api/v1/vendors/admin/{vendor_id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ocr_score"] == 80
+    assert body["ocr_tier"] == "passed"
+    assert body["recommendation"] == "auto_approved"
+
+
+def test_admin_approve_activates_user(client: TestClient, setup_vendor_mocks, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.api.v1.endpoints import vendors
+
+    vendor_collection: FakeCollection = setup_vendor_mocks["vendors"]
+    user_col = FakeCollection()
+    monkeypatch.setattr(vendors, "user_collection", user_col)
+
+    vendor_id = ObjectId()
+    user_id = ObjectId()
+
+    vendor_collection.docs.append(
+        {
+            "_id": vendor_id,
+            "user_id": user_id,
+            "verification_status": "pending_for_review",
+            "status": "pending_for_review",
+            "review_required": True,
+        }
+    )
+    user_col.docs.append(
+        {
+            "_id": user_id,
+            "email": "vendor@example.com",
+            "is_active": False,
+        }
+    )
+
+    response = client.patch(
+        f"/api/v1/vendors/admin/{vendor_id}/decision",
+        params={"approved": "true"},
+        data={"notes": "All good."},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["verification_status"] == "approved"
+
+    saved_vendor = vendor_collection.docs[0]
+    assert saved_vendor["status"] == "approved"
+    assert saved_vendor["verification_decision"] == "admin_approved"
+
+    saved_user = user_col.docs[0]
+    assert saved_user["is_active"] is True  # account unlocked; vendor initiates OTP themselves
+
+
+def test_admin_reject_keeps_draft_with_comment(client: TestClient, setup_vendor_mocks) -> None:
+    vendor_collection: FakeCollection = setup_vendor_mocks["vendors"]
+    vendor_id = ObjectId()
+
+    vendor_collection.docs.append(
+        {
+            "_id": vendor_id,
+            "user_id": ObjectId(),
+            "verification_status": "pending_for_review",
+            "status": "pending_for_review",
+            "review_required": True,
+        }
+    )
+
+    response = client.patch(
+        f"/api/v1/vendors/admin/{vendor_id}/decision",
+        params={"approved": "false"},
+        data={"notes": "Blurry document scan."},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["verification_status"] == "rejected"
+    assert body["status"] == "draft"  # data preserved, not deleted
+    assert body["rejection_comment"] == "Blurry document scan."
+
+    saved = vendor_collection.docs[0]
+    assert saved["status"] == "draft"
+    assert saved["verification_status"] == "rejected"
+    assert saved["rejection_comment"] == "Blurry document scan."
