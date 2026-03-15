@@ -91,4 +91,5 @@ allow_vendor = RoleChecker([UserRole.ADMIN, UserRole.VENDOR])
 allow_organizer = RoleChecker([UserRole.ADMIN, UserRole.ORGANIZER])
 allow_ministry = RoleChecker([UserRole.MINISTRY_GOV])
 allow_municipal = RoleChecker([UserRole.MUNICIPAL_GOV])
+allow_police = RoleChecker([UserRole.POLICE])
 

@@ -21,7 +21,7 @@ def _to_response(proposal: dict) -> dict:
 
 @router.get("/", response_model=List[ProposalResponse])
 async def list_municipal_review_queue(current_user: dict = Depends(allow_municipal)):
-    cursor = proposal_collection.find({"status": ProposalStatus.ADMIN_APPROVED})
+    cursor = proposal_collection.find({"status": ProposalStatus.MINISTRY_APPROVED})
     proposals = await cursor.to_list(length=200)
     for proposal in proposals:
         proposal["id"] = str(proposal["_id"])
@@ -48,8 +48,8 @@ async def start_review(
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found")
 
-    if proposal.get("status") != ProposalStatus.ADMIN_APPROVED:
-        raise HTTPException(status_code=400, detail="Proposal must be admin approved first")
+    if proposal.get("status") != ProposalStatus.MINISTRY_APPROVED:
+        raise HTTPException(status_code=400, detail="Proposal must be ministry approved first")
 
     now = datetime.now(timezone.utc)
     await proposal_collection.update_one(
@@ -85,7 +85,7 @@ async def approve_under_review(
         {"_id": proposal["_id"]},
         {
             "$set": {
-                "status": ProposalStatus.MUNICIPAL_APPROVED,
+                "status": ProposalStatus.APPROVED,
                 "review_stage": "municipal",
                 "reviewed_at": now,
                 "updated_at": now,

@@ -7,4 +7,5 @@ class UserRole(str, Enum):
     VENDOR = 'vendor'
     MINISTRY_GOV = 'ministry_gov'
     MUNICIPAL_GOV = 'municipal_gov'
+    POLICE = 'police'
     ATTENDEE = 'attendee'
