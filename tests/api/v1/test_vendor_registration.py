@@ -293,7 +293,7 @@ def test_admin_manual_review_lists_pending_queue(client: TestClient, setup_vendo
         ]
     )
 
-    response = client.get("/api/v1/vendors/admin/pending")
+    response = client.get("/api/v1/admin/vendors/pending")
 
     assert response.status_code == 200
     body = response.json()
@@ -316,7 +316,7 @@ def test_admin_decision_approve_updates_vendor(client: TestClient, setup_vendor_
     )
 
     response = client.patch(
-        f"/api/v1/vendors/admin/{vendor_id}/decision",
+        f"/api/v1/admin/vendors/{vendor_id}/decision",
         params={"approved": "true"},
         data={"notes": "Documents look valid."},
     )
@@ -347,7 +347,7 @@ def test_admin_detail_exposes_ocr_tier(client: TestClient, setup_vendor_mocks) -
         }
     )
 
-    response = client.get(f"/api/v1/vendors/admin/{vendor_id}")
+    response = client.get(f"/api/v1/admin/vendors/{vendor_id}")
 
     assert response.status_code == 200
     body = response.json()
@@ -358,11 +358,11 @@ def test_admin_detail_exposes_ocr_tier(client: TestClient, setup_vendor_mocks) -
 
 def test_admin_approve_activates_user(client: TestClient, setup_vendor_mocks, monkeypatch: pytest.MonkeyPatch) -> None:
     """Admin approves a vendor: vendor status becomes 'approved' and the user account is activated."""
-    from app.api.v1.endpoints import vendors
+    from app.api.v1.endpoints import admin_vendors
 
     vendor_collection: FakeCollection = setup_vendor_mocks["vendors"]
     user_col = FakeCollection()
-    monkeypatch.setattr(vendors, "user_collection", user_col)
+    monkeypatch.setattr(admin_vendors, "user_collection", user_col)
 
     vendor_id = ObjectId()
     user_id = ObjectId()
@@ -386,7 +386,7 @@ def test_admin_approve_activates_user(client: TestClient, setup_vendor_mocks, mo
     )
 
     response = client.patch(
-        f"/api/v1/vendors/admin/{vendor_id}/decision",
+        f"/api/v1/admin/vendors/{vendor_id}/decision",
         params={"approved": "true"},
         data={"notes": "All good."},
     )
@@ -414,11 +414,11 @@ def test_admin_approve_activates_user(client: TestClient, setup_vendor_mocks, mo
 
 def test_admin_approve_with_no_notes(client: TestClient, setup_vendor_mocks, monkeypatch: pytest.MonkeyPatch) -> None:
     """Admin approves without providing notes — the approval should still succeed."""
-    from app.api.v1.endpoints import vendors
+    from app.api.v1.endpoints import admin_vendors
 
     vendor_collection: FakeCollection = setup_vendor_mocks["vendors"]
     user_col = FakeCollection()
-    monkeypatch.setattr(vendors, "user_collection", user_col)
+    monkeypatch.setattr(admin_vendors, "user_collection", user_col)
 
     vendor_id = ObjectId()
     user_id = ObjectId()
@@ -435,9 +435,9 @@ def test_admin_approve_with_no_notes(client: TestClient, setup_vendor_mocks, mon
     user_col.docs.append({"_id": user_id, "email": "vendor2@example.com", "is_active": False})
 
     response = client.patch(
-        f"/api/v1/vendors/admin/{vendor_id}/decision",
+        f"/api/v1/admin/vendors/{vendor_id}/decision",
         params={"approved": "true"},
-        # deliberatly omit notes
+        # deliberately omit notes
     )
 
     assert response.status_code == 200
@@ -454,7 +454,7 @@ def test_admin_approve_nonexistent_vendor_returns_404(client: TestClient, setup_
     nonexistent_id = ObjectId()
 
     response = client.patch(
-        f"/api/v1/vendors/admin/{nonexistent_id}/decision",
+        f"/api/v1/admin/vendors/{nonexistent_id}/decision",
         params={"approved": "true"},
     )
 
@@ -477,7 +477,7 @@ def test_admin_reject_keeps_draft_with_comment(client: TestClient, setup_vendor_
     )
 
     response = client.patch(
-        f"/api/v1/vendors/admin/{vendor_id}/decision",
+        f"/api/v1/admin/vendors/{vendor_id}/decision",
         params={"approved": "false"},
         data={"notes": "Blurry document scan."},
     )
