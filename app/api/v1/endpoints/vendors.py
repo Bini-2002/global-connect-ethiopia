@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from app.api.v1.deps import allow_admin, get_current_user
 from app.core.config import settings
 from app.core.queue import get_verification_queue
-from app.db.mongodb import vendor_collection, verification_job_collection
+from app.db.mongodb import user_collection, vendor_collection, verification_job_collection
 from app.models.roles import UserRole
 from app.schemas.vendor import (
     VendorReviewSummaryResponse,
@@ -17,10 +17,15 @@ from app.services.object_storage import ObjectStorageService
 
 router = APIRouter()
 
-PENDING_ADMIN_REVIEW = "pending_admin_review"
+# ─── Constants ────────────────────────────────────────────────────────────────
+
+PENDING_FOR_REVIEW = "pending_for_review"
 
 BUSINESS_DOCUMENT_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 ID_DOCUMENT_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
 def _get_file_extension(filename: str) -> str:
@@ -63,19 +68,22 @@ def _serialize_admin_vendor(doc: dict) -> dict:
     return serialized
 
 
-def _build_admin_list_response(*, docs: list[dict], verification_status: str | None, limit: int) -> dict:
-    items = [_serialize_admin_vendor(doc) for doc in docs]
-    return {
-        "count": len(items),
-        "meta": {
-            "count": len(items),
-            "limit": limit,
-        },
-        "filter": {
-            "verification_status": verification_status,
-        },
-        "items": items,
-    }
+def _ocr_tier(score: int | None) -> str:
+    """
+    Translate a numeric OCR similarity score into a human-readable tier.
+    Tiers are visible to admin only.
+
+      >= 75  → passed
+      50–74  → needs_review
+      < 50   → rejected
+    """
+    if score is None:
+        return "pending"
+    if score >= settings.AUTO_APPROVE_SCORE:
+        return "passed"
+    if score >= settings.MANUAL_REVIEW_MIN_SCORE:
+        return "needs_review"
+    return "rejected"
 
 
 async def _store_upload_file(file: UploadFile, folder: str, allowed_extensions: set[str]) -> dict:
@@ -111,6 +119,9 @@ async def _store_upload_file(file: UploadFile, folder: str, allowed_extensions: 
         "storage_provider": stored.storage_provider,
         "uploaded_at": datetime.now(timezone.utc),
     }
+
+
+# ─── Vendor Registration Endpoints ────────────────────────────────────────────
 
 
 @router.post("/verification/step-2", response_model=VendorVerificationResponse)
@@ -278,13 +289,13 @@ async def submit_vendor_for_verification(
                     "confirm_information_is_accurate": confirm_information_is_accurate,
                     "agree_terms_and_privacy": agree_terms_and_privacy,
                 },
-                "status": PENDING_ADMIN_REVIEW,
-                "verification_status": PENDING_ADMIN_REVIEW,
+                "status": PENDING_FOR_REVIEW,
+                "verification_status": PENDING_FOR_REVIEW,
                 "updated_at": now,
             },
             "$push": {
                 "status_history": _status_history_entry(
-                    status=PENDING_ADMIN_REVIEW,
+                    status=PENDING_FOR_REVIEW,
                     source="vendor_step_3_submit",
                     note="Vendor submitted registration for admin review",
                     actor_id=current_user["id"],
@@ -298,7 +309,7 @@ async def submit_vendor_for_verification(
         "entity_id": vendor["_id"],
         "user_id": vendor["user_id"],
         "status": "queued",
-        "verification_status": PENDING_ADMIN_REVIEW,
+        "verification_status": PENDING_FOR_REVIEW,
         "documents": {
             "business_document": {
                 "storage_key": business_doc["storage_key"],
@@ -350,9 +361,11 @@ async def get_vendor_verification_status(current_user: dict = Depends(get_curren
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor record not found")
 
+    score = vendor.get("verification_score")
     return {
         "verification_status": vendor.get("verification_status", "not_started"),
-        "verification_score": vendor.get("verification_score"),
+        "verification_score": score,
+        "ocr_tier": _ocr_tier(score),
         "verification_decision": vendor.get("verification_decision"),
         "review_required": vendor.get("review_required", False),
         "verification_job_id": vendor.get("verification_job_id"),
@@ -361,49 +374,62 @@ async def get_vendor_verification_status(current_user: dict = Depends(get_curren
     }
 
 
-@router.get("/admin/pending-reviews", tags=["Admin Vendors"])
-async def list_vendor_pending_reviews(
+# ─── Admin Endpoints ───────────────────────────────────────────────────────────
+
+
+@router.get("/admin/pending", tags=["Admin Vendors"])
+async def list_vendors_pending_for_review(
     limit: int = Query(default=200, ge=1, le=500),
     current_user: dict = Depends(allow_admin),
 ):
+    """
+    List all vendor applications that are waiting for admin review.
+    These are vendors who completed Step 3 (form submitted) and whose
+    OCR background job has run. The admin sees every case here and
+    makes the final call.
+    """
     _ = current_user
-    cursor = vendor_collection.find({"verification_status": PENDING_ADMIN_REVIEW})
+    cursor = vendor_collection.find({"verification_status": PENDING_FOR_REVIEW})
     docs = await cursor.to_list(length=limit)
-    return _build_admin_list_response(
-        docs=docs,
-        verification_status=PENDING_ADMIN_REVIEW,
-        limit=limit,
-    )
+    items = [_serialize_admin_vendor(doc) for doc in docs]
+    return {
+        "count": len(items),
+        "items": items,
+    }
 
 
-@router.get("/admin/manual-review", tags=["Admin Vendors"])
-async def list_vendor_manual_review_cases(
-    limit: int = Query(default=200, ge=1, le=500),
+@router.get("/admin/{vendor_id}", tags=["Admin Vendors"])
+async def get_vendor_detail_for_admin(
+    vendor_id: str,
     current_user: dict = Depends(allow_admin),
 ):
-    # Backward-compatible alias of pending-reviews.
-    return await list_vendor_pending_reviews(limit=limit, current_user=current_user)
+    """
+    Full vendor file for the admin review screen.
+    Includes OCR score, tier, per-check breakdown, and system recommendation.
 
-
-@router.get("/admin/reviews", tags=["Admin Vendors"])
-async def list_vendor_review_cases(
-    verification_status: str | None = Query(default=None),
-    limit: int = Query(default=200, ge=1, le=500),
-    current_user: dict = Depends(allow_admin),
-):
+    ocr_tier values (admin-only):
+      - passed       : score >= 75  — documents look good
+      - needs_review : score 50–74  — borderline, admin judgment required
+      - rejected     : score < 50   — documents did not pass OCR checks
+      - pending      : OCR not yet completed
+    """
     _ = current_user
-    query: dict = {}
-    if verification_status:
-        query["verification_status"] = verification_status
-    else:
-        query["verification_status"] = PENDING_ADMIN_REVIEW
+    try:
+        oid = ObjectId(vendor_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid vendor ID")
 
-    docs = await vendor_collection.find(query).to_list(length=limit)
-    return _build_admin_list_response(
-        docs=docs,
-        verification_status=verification_status or PENDING_ADMIN_REVIEW,
-        limit=limit,
-    )
+    vendor = await vendor_collection.find_one({"_id": oid})
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    score = vendor.get("verification_score")
+    serialized = _serialize_admin_vendor(vendor)
+    serialized["ocr_score"] = score
+    serialized["ocr_tier"] = _ocr_tier(score)
+    serialized["recommendation"] = vendor.get("verification_decision")
+
+    return serialized
 
 
 @router.patch("/admin/{vendor_id}/decision", tags=["Admin Vendors"])
@@ -413,38 +439,99 @@ async def admin_decide_vendor_verification(
     notes: str | None = Form(None),
     current_user: dict = Depends(allow_admin),
 ):
-    vendor = await vendor_collection.find_one({"_id": ObjectId(vendor_id)})
+    """
+    Admin makes the final decision on a vendor's registration.
+
+    On APPROVE:
+      - Vendor record → status: "approved"
+      - User account  → is_active: True  (unlocks the account)
+      - The vendor then self-initiates OTP verification to complete registration.
+
+    On REJECT:
+      - Vendor record → status: "draft"  (data is preserved, not deleted)
+      - rejection_comment is saved so the vendor knows why they were rejected.
+    """
+    try:
+        oid = ObjectId(vendor_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid vendor ID")
+
+    vendor = await vendor_collection.find_one({"_id": oid})
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
 
-    new_status = "approved" if approved else "rejected"
     now = datetime.now(timezone.utc)
-    await vendor_collection.update_one(
-        {"_id": vendor["_id"]},
-        {
-            "$set": {
-                "status": new_status,
-                "verification_status": new_status,
-                "verification_decision": "manual_approved" if approved else "manual_rejected",
-                "review_notes": notes,
-                "reviewed_at": now,
-                "review_required": False,
-                "updated_at": now,
-            },
-            "$push": {
-                "status_history": _status_history_entry(
-                    status=new_status,
-                    source="admin_decision",
-                    note=notes,
-                    actor_id=current_user.get("id"),
-                )
-            },
-        },
-    )
 
-    return {
-        "message": f"Vendor verification {new_status}",
-        "vendor_id": vendor_id,
-        "verification_status": new_status,
-        "review_notes": notes,
-    }
+    if approved:
+        # ── Approve: unlock the vendor's user account ──────────────────────
+        new_status = "approved"
+        await vendor_collection.update_one(
+            {"_id": vendor["_id"]},
+            {
+                "$set": {
+                    "status": new_status,
+                    "verification_status": new_status,
+                    "verification_decision": "admin_approved",
+                    "admin_note": notes,
+                    "reviewed_at": now,
+                    "review_required": False,
+                    "updated_at": now,
+                },
+                "$push": {
+                    "status_history": _status_history_entry(
+                        status=new_status,
+                        source="admin_decision",
+                        note=notes,
+                        actor_id=current_user.get("id"),
+                    )
+                },
+            },
+        )
+
+        # Activate the vendor's user account so they can log in and do OTP themselves
+        await user_collection.update_one(
+            {"_id": vendor["user_id"]},
+            {"$set": {"is_active": True, "updated_at": now}},
+        )
+
+        return {
+            "message": "Vendor approved. Their account is now active — they can proceed to OTP verification.",
+            "vendor_id": vendor_id,
+            "verification_status": new_status,
+            "admin_note": notes,
+        }
+
+    else:
+        # ── Reject: keep data as draft, store admin comment ────────────────
+        new_status = "draft"
+        rejection_comment = notes or "Application did not meet the required standards."
+        await vendor_collection.update_one(
+            {"_id": vendor["_id"]},
+            {
+                "$set": {
+                    "status": new_status,
+                    "verification_status": "rejected",
+                    "verification_decision": "admin_rejected",
+                    "rejection_comment": rejection_comment,
+                    "reviewed_at": now,
+                    "review_required": False,
+                    "updated_at": now,
+                },
+                "$push": {
+                    "status_history": _status_history_entry(
+                        status="rejected",
+                        source="admin_decision",
+                        note=rejection_comment,
+                        actor_id=current_user.get("id"),
+                    )
+                },
+            },
+        )
+
+        return {
+            "message": "Vendor rejected. Their data is kept as draft with your comment.",
+            "vendor_id": vendor_id,
+            "verification_status": "rejected",
+            "status": new_status,
+            "rejection_comment": rejection_comment,
+        }

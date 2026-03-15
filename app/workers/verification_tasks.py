@@ -11,7 +11,7 @@ from app.db.mongodb import vendor_collection
 from app.services.document_verification import DocumentVerificationService
 from app.services.object_storage import ObjectStorageService
 
-PENDING_ADMIN_REVIEW = "pending_admin_review"
+PENDING_FOR_REVIEW = "pending_for_review"
 
 
 async def _run_verification_job(job_id: str) -> None:

@@ -43,7 +43,10 @@ class VendorVerificationResponse(BaseModel):
     step_3_declaration: VendorDeclarationFlags | None = None
     verification_status: str
     verification_score: int | None = None
+    ocr_tier: str | None = None
     verification_decision: str | None = None
+    rejection_comment: str | None = None
+    admin_note: str | None = None
     review_required: bool = False
     verification_job_id: str | None = None
     queue_status: str | None = None
@@ -58,7 +61,9 @@ class VendorVerificationResponse(BaseModel):
 class VendorStatusResponse(BaseModel):
     verification_status: str
     verification_score: int | None = None
+    ocr_tier: str | None = None
     verification_decision: str | None = None
+    rejection_comment: str | None = None
     review_required: bool = False
     verification_job_id: str | None = None
     queue_status: str | None = None
