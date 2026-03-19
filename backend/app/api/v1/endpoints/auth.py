@@ -157,13 +157,6 @@ async def send_email_otp(payload: OtpSendRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email is already registered and verified"
     )
-    # if not user:
-    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    # if user.get("role", UserRole.ATTENDEE) != UserRole.ATTENDEE:
-    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email OTP is only available for attendee accounts")
-
-   
 
 
     otp_payload = _build_otp_payload()
@@ -191,8 +184,6 @@ async def verify_email_otp(payload: OtpVerifyRequest):
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # if user.get("role", UserRole.ATTENDEE) != UserRole.ATTENDEE:
-    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email OTP is only available for attendee accounts")
 
     otp_data = user.get("auth_otp")
     if not otp_data:
