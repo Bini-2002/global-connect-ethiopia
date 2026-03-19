@@ -39,7 +39,9 @@ class Settings(BaseSettings):
     ENABLE_DEBUG_OTP_RESPONSE: bool = True
 
     class Config:
+        # case_sensitive = False
         env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings() # type: ignore
