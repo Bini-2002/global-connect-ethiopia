@@ -20,24 +20,27 @@ export default function VerifyEmailPage() {
   const [loading, setLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
   const [success, setSuccess] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   // Auto-send OTP on mount
   useEffect(() => {
     if (email) sendOtp();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [email]);
 
   const sendOtp = async () => {
     try {
-      await fetch(`${BASE_URL}/auth/send-email-otp`, {
+      const res = await fetch(`${BASE_URL}/auth/send-email-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
+      if (!res.ok) {
+        console.error('Failed to send OTP');
+      }
     } catch (e) {
-      console.error('Failed to send OTP', e);
+      console.error('Network error while sending OTP', e);
     }
   };
 
@@ -63,8 +66,12 @@ export default function VerifyEmailPage() {
 
   const handleVerify = async () => {
     const enteredOtp = otp.join('');
-    if (enteredOtp.length < OTP_LENGTH) { setError('Please enter the complete OTP.'); return; }
-    setLoading(true); setError('');
+    if (enteredOtp.length < OTP_LENGTH) {
+      setError('Please enter the complete OTP.');
+      return;
+    }
+    setLoading(true);
+    setError('');
     try {
       const res = await fetch(`${BASE_URL}/auth/verify-email-otp`, {
         method: 'POST',
@@ -72,15 +79,17 @@ export default function VerifyEmailPage() {
         body: JSON.stringify({ email, otp: enteredOtp }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Verification failed' }));
-        setError(typeof err.detail === 'string' ? err.detail : 'Invalid OTP. Please try again.');
+        const err = await res.json().catch(() => null);
+        setError(err?.detail || 'Invalid OTP. Please try again.');
         return;
       }
       setSuccess(true);
-      // Redirect based on role
-      const dest = role === 'organizer' ? '/organizer/register'
-        : role === 'vendor' ? '/vendor/verification'
-        : ROLE_DASHBOARDS[role] || '/dashboard';
+      const dest =
+        role === 'organizer'
+          ? '/organizer/register'
+          : role === 'vendor'
+          ? '/vendor/verification'
+          : ROLE_DASHBOARDS[role] || '/dashboard';
       setTimeout(() => router.push(dest), 1200);
     } catch {
       setError('Network error. Please try again.');
@@ -90,17 +99,29 @@ export default function VerifyEmailPage() {
   };
 
   const handleResend = async () => {
+    if (cooldown > 0) return;
     await sendOtp();
     setResendMsg(`OTP resent to ${email}`);
+    setCooldown(30); // 30-second cooldown
     setTimeout(() => setResendMsg(''), 5000);
   };
+
+  // Countdown effect
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-green-50">
         <div className="bg-white p-8 rounded-2xl shadow-lg text-center animate-scale-in">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+            </svg>
           </div>
           <h1 className="text-2xl font-bold text-green-700 mb-2">Email Verified!</h1>
           <p className="text-slate-500 text-sm">Redirecting to your portal...</p>
@@ -126,7 +147,9 @@ export default function VerifyEmailPage() {
             </p>
           </div>
 
-          {resendMsg && <p className="text-green-600 text-sm text-center mb-3 bg-green-50 py-2 rounded-lg">{resendMsg}</p>}
+          {resendMsg && (
+            <p className="text-green-600 text-sm text-center mb-3 bg-green-50 py-2 rounded-lg">{resendMsg}</p>
+          )}
 
           <div className="flex items-center justify-center gap-3 mb-5">
             {otp.map((digit, index) => (
@@ -138,7 +161,10 @@ export default function VerifyEmailPage() {
                 value={digit}
                 onChange={(e) => handleChange(e.target.value, index)}
                 onKeyDown={(e) => handleKeyDown(e, index)}
-                ref={(el: HTMLInputElement | null) => { inputsRef.current[index] = el; }}
+                ref={(el: HTMLInputElement | null) => {
+                  inputsRef.current[index] = el;
+                }}
+                aria-label={`OTP digit ${index + 1}`}
                 className="w-14 h-14 text-center border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-[#062E22]/30 focus:border-[#062E22] text-xl font-bold text-slate-800 outline-none transition bg-slate-50"
               />
             ))}
@@ -157,9 +183,10 @@ export default function VerifyEmailPage() {
 
           <button
             onClick={handleResend}
-            className="w-full text-[#062E22] py-3 rounded-xl border border-[#062E22] hover:bg-[#062E22] hover:text-white transition text-sm font-medium"
+            disabled={cooldown > 0}
+            className="w-full text-[#062E22] py-3 rounded-xl border border-[#062E22] hover:bg-[#062E22] hover:text-white transition text-sm font-medium disabled:opacity-50"
           >
-            Resend OTP
+            {cooldown > 0 ? `Resend OTP in ${cooldown}s` : 'Resend OTP'}
           </button>
         </div>
       </div>

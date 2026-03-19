@@ -7,14 +7,13 @@ import { useRouter } from "next/navigation";
 import LoginHeader from "@/components/loginHeader";
 import PhoneInput from "react-phone-number-input";
 import { E164Number } from 'libphonenumber-js';
+import axios from "axios"; 
 
 export default function RegistrationForm() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    phone: "",
-    officeLocation: "",
     role: "", 
     password: "",
   });
@@ -22,10 +21,9 @@ export default function RegistrationForm() {
   const [passwordStrength, setPasswordStrength] = useState("Weak"); // Will calculate based on password
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
-  const handlePhoneChange = (value?: E164Number) => {
-    setFormData({ ...formData, phone: value || '' });
-  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -72,49 +70,41 @@ export default function RegistrationForm() {
   };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setLoading(true);
     setError("");
-
+  
     try {
-      const response = await fetch("http://localhost:8000/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          full_name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          office_location: formData.officeLocation,
-          role: formData.role,
-          password: formData.password,
-        }),
+      const response = await axios.post("http://localhost:8000/api/v1/auth/register", {
+        full_name: formData.fullName,
+        email: formData.email,
+        role: formData.role,
+        password: formData.password,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Registration failed");
-      }
-
-    
-
+  
+      // Axios automatically parses JSON, so response.data contains your backend response
+      const data = response.data;
+      localStorage.setItem("user_id", response.data.user_id);
+      // Redirect to verify-email page
       const params = new URLSearchParams({
         role: formData.role,
         email: formData.email,
       }).toString();
-      
+  
       router.push(`/verify-email?${params}`);
     } catch (err: unknown) {
-      if (err instanceof Error) {
+      if (axios.isAxiosError(err)) {
+        // Axios error: err.response?.data.detail might contain backend error message
+        const msg = err.response?.data?.detail || err.message || "Registration failed";
+        setError(msg);
+      } else if (err instanceof Error) {
         setError(err.message);
       } else {
         setError("An unexpected error occurred");
       }
     } finally {
       setLoading(false);
-    } }
+    }
+  };
   return (<>
   <LoginHeader/>
     <div className="min-h-screen mt-15 bg-gradient-to-br from-slate-50 to-slate-100  flex items-center justify-center p-4 py-12">
@@ -170,7 +160,7 @@ export default function RegistrationForm() {
             </div>
 
             {/* Phone Number */}
-            <div>
+          {/*<div>
               <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-1">
                 Phone Number
               </label>
@@ -188,7 +178,7 @@ export default function RegistrationForm() {
               />
             </div> </div>
 
-            {/* Office Location */}
+            Office Location 
             <div>
               <label htmlFor="officeLocation" className="block text-sm font-medium text-slate-700 mb-1">
                 Office Location
@@ -202,8 +192,8 @@ export default function RegistrationForm() {
                 placeholder="City, Building"
                 className="w-full px-4 py-2 border text-black border-slate-300 rounded-lg focus:ring-2 focus:ring-[#062E22] focus:border-[#062E22] outline-none transition"
                 required
-              />
-            </div>
+              />*/}
+            </div> 
           </div>
 
           {/* Professional Role Section */}
@@ -295,13 +285,18 @@ export default function RegistrationForm() {
           {/* Continue Button */}
           <div className="pt-4">
             <button
+            disabled={loading}
               type="submit"
               className="w-full bg-[#062E22] hover:bg-[#325b4f] text-white font-semibold py-3 px-4 rounded-lg transition duration-200 shadow-md hover:shadow-lg"
             >
-              Continue to Next Step →
+             {loading ? "Registering..." : "Continue to Next Step →"}
             </button>
           </div>
-
+          {error && (
+  <p className="text-red-500 text-sm mb-2">
+    {error}
+  </p>
+)}
           {/* Terms Agreement */}
           <p className="text-xs text-center text-slate-500">
             By clicking &quot;Continue&quot;, you agree to Global Connect Ethiopia&apos;s{" "}
