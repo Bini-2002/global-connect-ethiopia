@@ -74,10 +74,10 @@ async def _issue_access_token(email: str, password: str) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if user.get("role", UserRole.ATTENDEE) == UserRole.ATTENDEE and not user.get("email_verified", False):
+    if not user.get("email_verified", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email not verified. Please verify your OTP before logging in.",
+            detail="Please verify your email first.",
         )
 
     if not user.get("is_active", True):
@@ -96,43 +96,42 @@ async def _issue_access_token(email: str, password: str) -> dict:
         "token_type": "bearer"
     }
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register")
 async def register(user_in: UserCreate):
-    # 1. Check if the user already exists
     existing_user = await user_collection.find_one({"email": user_in.email})
+
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A user with this email already exists."
-        )
-
+        if existing_user.get("email_verified"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is already registered and verified"
+            )   
+        
+    # Create the user in the DB with is_active=False
     hashed_password = security.get_password_hash(user_in.password)
+    otp_payload = _build_otp_payload()
+    
+    new_user = {
+        "full_name": user_in.full_name,
+        "email": user_in.email,
+        "password_hash": hashed_password,
+        "role": user_in.role, 
+        "is_active": False,
+        "email_verified": False,
+        "auth_otp": otp_payload,
+        "updated_at": datetime.now(timezone.utc)
+    }
+    
+    await user_collection.update_one(
+        {"email": user_in.email},
+        {"$set": new_user},
+        upsert=True
+    )
 
-    # 3. Prepare the data to be saved in MongoDB
-    new_user_data = user_in.model_dump()
-    role = new_user_data.get("role", UserRole.ATTENDEE)
-    otp_payload = _build_otp_payload() if role == UserRole.ATTENDEE else None
-
-    new_user_data["password_hash"] = hashed_password
-    new_user_data["email_verified"] = role != UserRole.ATTENDEE
-    new_user_data["is_active"] = role != UserRole.ATTENDEE
-    if otp_payload:
-        new_user_data["auth_otp"] = otp_payload
-
-    del new_user_data["password"] 
-
-    # 4. Save to Local MongoDB
-    result = await user_collection.insert_one(new_user_data)
-    user_id = result.inserted_id
-
-    # 5. Return the response
-    return {
-        "id": str(user_id),
-        "full_name": new_user_data["full_name"],
-        "email": new_user_data["email"],
-        "role": new_user_data["role"],
-        "email_verified": new_user_data["email_verified"],
-        }
+    return _otp_response_payload(
+        message="User registered successfully. Please verify your email with the otp sent.",
+        otp_payload=otp_payload,
+    )
 
 @router.post("/login", response_model=Token)
 async def login(user_in: UserLogin):
@@ -150,22 +149,34 @@ async def token_login(form_data: OAuth2PasswordRequestForm = Depends()):
     return await _issue_access_token(email=form_data.username, password=form_data.password)
 
 
-@router.post("/send-email-otp", response_model=OtpSendResponse)
+@router.post("/email-otp", response_model=OtpSendResponse)
 async def send_email_otp(payload: OtpSendRequest):
     user = await user_collection.find_one({"email": payload.email})
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user and user.get("email_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is already registered and verified"
+    )
+    # if not user:
+    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    if user.get("role", UserRole.ATTENDEE) != UserRole.ATTENDEE:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email OTP is only available for attendee accounts")
+    # if user.get("role", UserRole.ATTENDEE) != UserRole.ATTENDEE:
+    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email OTP is only available for attendee accounts")
 
-    if user.get("email_verified", False):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already verified")
+   
+
 
     otp_payload = _build_otp_payload()
     await user_collection.update_one(
-        {"_id": user["_id"]},
-        {"$set": {"auth_otp": otp_payload, "is_active": False}},
+        {"email": payload.email},
+        {"$set": {
+            "email": payload.email,
+            "auth_otp": otp_payload,
+            "is_active": False,
+            "email_verified": False,
+            }
+            },
+            upsert=True
     )
 
     return _otp_response_payload(
@@ -180,8 +191,8 @@ async def verify_email_otp(payload: OtpVerifyRequest):
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    if user.get("role", UserRole.ATTENDEE) != UserRole.ATTENDEE:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email OTP is only available for attendee accounts")
+    # if user.get("role", UserRole.ATTENDEE) != UserRole.ATTENDEE:
+    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email OTP is only available for attendee accounts")
 
     otp_data = user.get("auth_otp")
     if not otp_data:
@@ -197,25 +208,15 @@ async def verify_email_otp(payload: OtpVerifyRequest):
 
     if otp_data.get("code") != payload.otp_code.strip():
         await user_collection.update_one(
-            {"_id": user["_id"]},
+            {"email": payload.email},
             {"$set": {"auth_otp.attempts": attempts + 1}},
         )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP code")
 
     await user_collection.update_one(
-        {"_id": user["_id"]},
-        {
-            "$set": {
-                "email_verified": True,
-                "is_active": True,
-                "auth_otp.verified": True,
-                "auth_otp.code": None,
-            }
-        },
+        {"email": payload.email},
+        {"$set": {"email_verified": True, "is_active": True, "auth_otp.verified": True, "auth_otp.code": None}},
     )
-
-    return {
-        "message": "Email verified successfully",
-        "email_verified": True,
-    }
+    
+    return {"message": "Email verified successfully", "email_verified": True}
 
