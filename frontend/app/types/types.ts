@@ -13,11 +13,12 @@ export type FormDataType = {
     description: string;
     licenseFile: File | null;
     NationalID: File | null;
-    hostedEventsBefore:string
+    hostedEventsBefore: string;
+    [key: string]: unknown;
   };
 export type Props = {
-    formData: FormDataType;
-    setFormData: React.Dispatch<React.SetStateAction<FormDataType>>;
+    formData: Record<string, unknown>;
+    setFormData: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
     handleChange: (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
       ) => void;

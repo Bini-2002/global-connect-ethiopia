@@ -8,13 +8,39 @@ import Step4OrgReg from "@/components/organizerComponents/step4orgreg";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 
+interface RegisterFormData {
+  registrationType: string;
+  user_id: string;
+  organization_name: string;
+  organization_type: string;
+  field_of_study: string;
+  employee_size: string;
+  website_url: string;
+  organization_description: string;
+  business_licence: File | null;
+  profession: string;
+  personal_bio: string;
+  social_media_link: string;
+  prior_experience: string;
+  national_id: File | null;
+  government_issued_id: File | null;
+  organization_contact: string;
+  alternative_contact: string;
+  confirm_information_is_accurate: boolean;
+  agree_terms_and_privacy: boolean;
+  workspace_id: File | null;
+  authorization_letter: File | null;
+  id_type: string;
+  [key: string]: unknown;
+}
+
 export default function OrganizationDetailsPage() {
   const router = useRouter();
-  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
   const [step, setStep] = useState(2);
   const [error, setError] = useState("");
-  const [formData, setFormData] = useState<FormDataType>({
+  const [formData, setFormData] = useState<RegisterFormData>({
     registrationType: "Organization",
     user_id: "",
     organization_name: "",
@@ -34,6 +60,9 @@ export default function OrganizationDetailsPage() {
     alternative_contact: "",
     confirm_information_is_accurate: false,
     agree_terms_and_privacy: false,
+    workspace_id: null,
+    authorization_letter: null,
+    id_type: "",
   });
 
   // Load user_id from localStorage

@@ -21,7 +21,7 @@ export default function RegistrationForm() {
   const [passwordStrength, setPasswordStrength] = useState("Weak"); // Will calculate based on password
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,7 +74,7 @@ export default function RegistrationForm() {
     setError("");
   
     try {
-      const response = await axios.post("http://localhost:8000/api/v1/auth/register", {
+      const response = await axios.post("/api/v1/auth/register", {
         full_name: formData.fullName,
         email: formData.email,
         role: formData.role,
