@@ -11,6 +11,7 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=8)
     role: UserRole = UserRole.ATTENDEE
 
+
     @field_validator('password')
     @classmethod
     def password_strength(cls, v: str) -> str:
