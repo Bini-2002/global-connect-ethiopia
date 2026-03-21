@@ -1,8 +1,11 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+
+const STORAGE_KEY = 'gce_';
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+  return sessionStorage.getItem(STORAGE_KEY + 'access_token') || 
+         localStorage.getItem(STORAGE_KEY + 'access_token');
 }
 
 async function request<T>(

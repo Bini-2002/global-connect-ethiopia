@@ -15,9 +15,12 @@ export function decodeToken(token: string): JWTPayload | null {
   }
 }
 
+const STORAGE_KEY = 'gce_';
+
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+  return sessionStorage.getItem(STORAGE_KEY + 'access_token') || 
+         localStorage.getItem(STORAGE_KEY + 'access_token');
 }
 
 export function getRole(): string | null {
@@ -37,10 +40,10 @@ export function isLoggedIn(): boolean {
 
 export function logout(): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('token_type');
-  sessionStorage.removeItem('access_token');
-  sessionStorage.removeItem('token_type');
+  localStorage.removeItem(STORAGE_KEY + 'access_token');
+  localStorage.removeItem(STORAGE_KEY + 'token_type');
+  sessionStorage.removeItem(STORAGE_KEY + 'access_token');
+  sessionStorage.removeItem(STORAGE_KEY + 'token_type');
 }
 
 export const ROLE_DASHBOARDS: Record<string, string> = {

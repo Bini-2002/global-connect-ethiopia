@@ -25,7 +25,7 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+      const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1'
       const response = await fetch(`${API}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,8 +46,16 @@ export default function LoginPage() {
 
       const tokenData: LoginResponse = data
       const storage = keepLoggedIn ? localStorage : sessionStorage
-      storage.setItem('access_token', tokenData.access_token)
-      storage.setItem('token_type', tokenData.token_type)
+      
+      // Clear old token keys to avoid conflicts
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('token_type')
+      sessionStorage.removeItem('access_token')
+      sessionStorage.removeItem('token_type')
+      
+      // Store with unique prefix for Global Connect Ethiopia
+      storage.setItem('gce_access_token', tokenData.access_token)
+      storage.setItem('gce_token_type', tokenData.token_type)
 
       router.push('/dashboard')
     } catch (err) {
