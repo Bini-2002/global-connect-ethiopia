@@ -186,6 +186,12 @@
       "namedRegex": "^/organizer/register(?:/)?$"
     },
     {
+      "page": "/organizer/under-review",
+      "regex": "^/organizer/under\\-review(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/organizer/under\\-review(?:/)?$"
+    },
+    {
       "page": "/police/proposals",
       "regex": "^/police/proposals(?:/)?$",
       "routeKeys": {},
