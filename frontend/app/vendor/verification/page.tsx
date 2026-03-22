@@ -107,17 +107,32 @@ export default function VendorVerificationPage() {
                     className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] outline-none transition text-slate-800" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Category <span className="text-red-500">*</span></label>
-                  <select name="business_category" value={form.business_category} onChange={handleChange} required
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] outline-none transition text-slate-800">
+                  <label htmlFor="business_category" className="block text-sm font-medium text-slate-700 mb-1">Category <span className="text-red-500">*</span></label>
+                  <select
+                    id="business_category"
+                    name="business_category"
+                    value={form.business_category}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] outline-none transition text-slate-800"
+                  >
                     <option value="">Select...</option>
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Years of Operation <span className="text-red-500">*</span></label>
-                  <input type="number" name="years_of_operation" value={form.years_of_operation} onChange={handleChange} required min="0"
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] outline-none transition text-slate-800" />
+                  <input
+                    type="number"
+                    name="years_of_operation"
+                    value={form.years_of_operation}
+                    onChange={handleChange}
+                    required
+                    min="0"
+                    placeholder="Number of years"
+                    title="Enter the number of years your business has been operating"
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] outline-none transition text-slate-800"
+                  />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Business Address <span className="text-red-500">*</span></label>
@@ -126,7 +141,7 @@ export default function VendorVerificationPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Registration Number</label>
-                  <input name="registration_number" value={form.registration_number} onChange={handleChange}
+                  <input name="registration_number" value={form.registration_number} onChange={handleChange} placeholder="Business registration number"
                     className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] outline-none transition text-slate-800" />
                 </div>
                 <div>
@@ -150,7 +165,7 @@ export default function VendorVerificationPage() {
                         <p className="text-xs text-slate-400 mt-1">Max 10MB</p>
                       </>
                     )}
-                    <input id="biz-doc" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={e => setBusinessDoc(e.target.files?.[0] || null)} />
+                    <input id="biz-doc" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" title="Upload business license or registration certificate" onChange={e => setBusinessDoc(e.target.files?.[0] || null)} />
                   </div>
                 </div>
                 <div>
@@ -165,7 +180,7 @@ export default function VendorVerificationPage() {
                         <p className="text-xs text-slate-400 mt-1">Max 10MB</p>
                       </>
                     )}
-                    <input id="gov-id" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={e => setGovId(e.target.files?.[0] || null)} />
+                    <input id="gov-id" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" title="Upload government issued ID document" onChange={e => setGovId(e.target.files?.[0] || null)} />
                   </div>
                 </div>
               </div>
