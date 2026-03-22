@@ -113,6 +113,12 @@ export default function OrganizerRegisterPage() {
   const [loading, setLoading] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
   const [error, setError] = useState("");
+  const [submissionState, setSubmissionState] = useState<SubmissionState | null>(null);
+
+  const isAwaitingApproval =
+    submissionState?.verificationStatus === "pending_for_review";
+  const isRejected =
+    submissionState?.verificationStatus === "rejected";
 
   useEffect(() => {
     const restoreDraft = async () => {
@@ -126,15 +132,27 @@ export default function OrganizerRegisterPage() {
           "/organizers/verification-status",
         );
 
-        if (
-          status.onboarding_status === "verification_submitted" ||
-          status.onboarding_status === "registration_submitted"
-        ) {
+        const verificationStatus = status.verification_status;
+        const profileType = status.profile_type;
+
+        if (verificationStatus === "approved" || status.status === "approved") {
           router.replace("/organizer/dashboard");
           return;
         }
 
-        if (status.profile_type === "organization") {
+        if (
+          verificationStatus === "pending_for_review" &&
+          profileType
+        ) {
+          setSubmissionState({
+            profileType,
+            verificationStatus,
+            rejectionComment: status.rejection_comment,
+            queueStatus: status.queue_status,
+          });
+        }
+
+        if (profileType === "organization") {
           const summary = await api.get<OrganizationReviewSummaryResponse>(
             "/organizers/organization/review-summary",
           );
@@ -155,14 +173,22 @@ export default function OrganizerRegisterPage() {
             rep_workspace_id: summary.representative?.workspace_id || "",
           }));
 
-          if (status.onboarding_status === "organization_step_1_completed") {
+          if (verificationStatus === "rejected") {
+            setSubmissionState({
+              profileType,
+              verificationStatus,
+              rejectionComment: status.rejection_comment,
+              queueStatus: status.queue_status,
+            });
+            setStep(4);
+          } else if (status.onboarding_status === "organization_step_1_completed") {
             setStep(3);
           } else if (status.onboarding_status === "organization_step_2_completed") {
             setStep(4);
           }
         }
 
-        if (status.profile_type === "individual") {
+        if (profileType === "individual") {
           const summary = await api.get<IndividualReviewSummaryResponse>(
             "/organizers/individual/review-summary",
           );
@@ -175,6 +201,15 @@ export default function OrganizerRegisterPage() {
             prior_experience: summary.prior_experience || "",
             social_media_link: summary.social_media_link || "",
           }));
+
+          if (verificationStatus === "rejected") {
+            setSubmissionState({
+              profileType,
+              verificationStatus,
+              rejectionComment: status.rejection_comment,
+              queueStatus: status.queue_status,
+            });
+          }
         }
       } catch {
         // No draft yet is a valid state for newly verified organizers.
@@ -184,7 +219,7 @@ export default function OrganizerRegisterPage() {
     };
 
     void restoreDraft();
-  }, []);
+  }, [router]);
 
   const setField = (name: keyof OrganizerRegisterForm, value: string | boolean | File | null) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -241,8 +276,17 @@ export default function OrganizerRegisterPage() {
         data.append("national_id", formData.national_id);
         data.append("government_issued_id", formData.government_issued_id);
 
-        await api.post("/organizers/individual/register", data);
-        router.push("/organizer/dashboard");
+        const response = await api.post<OrganizerVerificationStatusResponse>(
+          "/organizers/individual/register",
+          data,
+        );
+        setSubmissionState({
+          profileType: "individual",
+          verificationStatus: response.verification_status || "pending_for_review",
+          rejectionComment: response.rejection_comment,
+          queueStatus: response.queue_status,
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Step 2 submission failed.");
@@ -301,8 +345,17 @@ export default function OrganizerRegisterPage() {
       );
       data.append("agree_terms_and_privacy", String(formData.agree_terms_and_privacy));
 
-      await api.post("/organizers/organization/step-3/submit", data);
-      router.push("/organizer/dashboard");
+      const response = await api.post<OrganizerVerificationStatusResponse>(
+        "/organizers/organization/step-3/submit",
+        data,
+      );
+      setSubmissionState({
+        profileType: "organization",
+        verificationStatus: response.verification_status || "pending_for_review",
+        rejectionComment: response.rejection_comment,
+        queueStatus: response.queue_status,
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Final submission failed.");
     } finally {
@@ -333,6 +386,9 @@ export default function OrganizerRegisterPage() {
     </label>
   );
 
+  const submissionProfileLabel =
+    submissionState?.profileType === "individual" ? "individual organizer" : "organization";
+
   return (
     <>
       <LoginHeader />
@@ -345,6 +401,49 @@ export default function OrganizerRegisterPage() {
                 <p className="text-sm text-slate-500">Loading your registration draft...</p>
               </div>
             </div>
+          ) : (
+            <>
+          {isAwaitingApproval && submissionState ? (
+            <section className="space-y-6">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                  Registration Under Review
+                </p>
+                <h1 className="mt-2 text-2xl font-bold text-[#062E22]">
+                  Your {submissionProfileLabel} application has been submitted.
+                </h1>
+                <p className="mt-3 text-sm leading-6 text-slate-700">
+                  Your documents are now waiting for admin validation. Until your application is
+                  approved, organizer dashboard access stays locked and this page remains your
+                  current registration record.
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl bg-white p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Verification Status
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-amber-700">Pending admin review</p>
+                  </div>
+                  <div className="rounded-xl bg-white p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      OCR Queue
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-[#062E22]">
+                      {submissionState.queueStatus || "queued"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-6">
+                <h2 className="text-lg font-semibold text-[#062E22]">What happens next</h2>
+                <div className="mt-4 space-y-3 text-sm text-slate-600">
+                  <p>1. Admins review the documents you submitted.</p>
+                  <p>2. If everything checks out, your organizer access will be approved.</p>
+                  <p>3. Only after approval will the organizer dashboard unlock.</p>
+                </div>
+              </div>
+            </section>
           ) : (
             <>
           <div className="mb-8">
@@ -365,6 +464,20 @@ export default function OrganizerRegisterPage() {
               />
             </div>
           </div>
+
+          {isRejected && (
+            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <p className="font-semibold">Your previous submission was not approved.</p>
+              <p className="mt-1">
+                Update the required details and resubmit your registration for another review.
+              </p>
+              {submissionState?.rejectionComment && (
+                <p className="mt-2 text-red-800">
+                  Admin note: {submissionState.rejectionComment}
+                </p>
+              )}
+            </div>
+          )}
 
           {step === 2 && (
             <section className="space-y-6">
@@ -677,6 +790,8 @@ export default function OrganizerRegisterPage() {
           )}
 
           {error && <p className="mt-6 text-sm font-medium text-red-600">{error}</p>}
+            </>
+          )}
             </>
           )}
         </div>
