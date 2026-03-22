@@ -33,7 +33,7 @@ export default function Step3OrgReg({
           <span className="text-xs">90% Completed</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2 mt-2 mb-5">
-          <div className="bg-[#062E22] h-2 rounded-full" style={{ width: '90%' }} />
+          <div className="bg-[#062E22] h-2 rounded-full w-[90%]" />
         </div>
       </div>
 

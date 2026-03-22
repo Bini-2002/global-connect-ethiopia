@@ -29,8 +29,7 @@ export default function Step2orgReg({
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2 mt-2 mb-5">
             <div
-              className="bg-[#062E22] h-2 rounded-full"
-              style={{ width: "66%" }}
+              className="bg-[#062E22] h-2 rounded-full step2orgReg-progress"
             />
           </div>
           <span className="text-sm block">
