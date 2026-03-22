@@ -7,6 +7,49 @@ import api from "@/app/lib/api";
 
 type RegistrationType = "Organization" | "Individual";
 
+interface OrganizerVerificationStatusResponse {
+  profile_type?: "organization" | "individual";
+  onboarding_status?: string;
+  verification_status?: string;
+  status?: string;
+  rejection_comment?: string;
+  queue_status?: string;
+}
+
+interface OrganizationReviewSummaryResponse {
+  onboarding_status?: string;
+  verification_status?: string;
+  organization_name?: string;
+  organization_type?: string;
+  field_of_study?: string;
+  employee_size?: string;
+  website_url?: string;
+  organization_description?: string;
+  representative?: {
+    name?: string;
+    position?: string;
+    phone?: string;
+    national_id?: string;
+    workspace_id?: string;
+  };
+}
+
+interface IndividualReviewSummaryResponse {
+  onboarding_status?: string;
+  verification_status?: string;
+  profession?: string;
+  personal_bio?: string;
+  prior_experience?: string;
+  social_media_link?: string;
+}
+
+interface SubmissionState {
+  profileType: "organization" | "individual";
+  verificationStatus?: string;
+  rejectionComment?: string;
+  queueStatus?: string;
+}
+
 interface OrganizerRegisterForm {
   registrationType: RegistrationType;
   user_id: string;
@@ -68,13 +111,79 @@ export default function OrganizerRegisterPage() {
   const [step, setStep] = useState<2 | 3 | 4>(2);
   const [formData, setFormData] = useState<OrganizerRegisterForm>(initialForm);
   const [loading, setLoading] = useState(false);
+  const [bootstrapping, setBootstrapping] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const storedId = localStorage.getItem("user_id");
-    if (storedId) {
-      setFormData((prev) => ({ ...prev, user_id: storedId }));
-    }
+    const restoreDraft = async () => {
+      const storedId = localStorage.getItem("user_id");
+      if (storedId) {
+        setFormData((prev) => ({ ...prev, user_id: storedId }));
+      }
+
+      try {
+        const status = await api.get<OrganizerVerificationStatusResponse>(
+          "/organizers/verification-status",
+        );
+
+        if (
+          status.onboarding_status === "verification_submitted" ||
+          status.onboarding_status === "registration_submitted"
+        ) {
+          router.replace("/organizer/dashboard");
+          return;
+        }
+
+        if (status.profile_type === "organization") {
+          const summary = await api.get<OrganizationReviewSummaryResponse>(
+            "/organizers/organization/review-summary",
+          );
+
+          setFormData((prev) => ({
+            ...prev,
+            registrationType: "Organization",
+            organization_name: summary.organization_name || "",
+            organization_type: summary.organization_type || "",
+            field_of_study: summary.field_of_study || "",
+            employee_size: summary.employee_size || "",
+            website_url: summary.website_url || "",
+            organization_description: summary.organization_description || "",
+            rep_name: summary.representative?.name || "",
+            rep_position: summary.representative?.position || "",
+            rep_phone: summary.representative?.phone || "",
+            rep_national_id: summary.representative?.national_id || "",
+            rep_workspace_id: summary.representative?.workspace_id || "",
+          }));
+
+          if (status.onboarding_status === "organization_step_1_completed") {
+            setStep(3);
+          } else if (status.onboarding_status === "organization_step_2_completed") {
+            setStep(4);
+          }
+        }
+
+        if (status.profile_type === "individual") {
+          const summary = await api.get<IndividualReviewSummaryResponse>(
+            "/organizers/individual/review-summary",
+          );
+
+          setFormData((prev) => ({
+            ...prev,
+            registrationType: "Individual",
+            profession: summary.profession || "",
+            personal_bio: summary.personal_bio || "",
+            prior_experience: summary.prior_experience || "",
+            social_media_link: summary.social_media_link || "",
+          }));
+        }
+      } catch {
+        // No draft yet is a valid state for newly verified organizers.
+      } finally {
+        setBootstrapping(false);
+      }
+    };
+
+    void restoreDraft();
   }, []);
 
   const setField = (name: keyof OrganizerRegisterForm, value: string | boolean | File | null) => {
@@ -229,6 +338,15 @@ export default function OrganizerRegisterPage() {
       <LoginHeader />
       <main className="min-h-screen bg-slate-50 px-4 pb-16 pt-28">
         <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-[#8CB98820] p-6 shadow-xl sm:p-8">
+          {bootstrapping ? (
+            <div className="flex min-h-[320px] items-center justify-center">
+              <div className="flex flex-col items-center gap-4">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#062E22] border-t-transparent" />
+                <p className="text-sm text-slate-500">Loading your registration draft...</p>
+              </div>
+            </div>
+          ) : (
+            <>
           <div className="mb-8">
             <p className="mb-2 text-sm font-semibold text-amber-600">STEP {step} OF 4</p>
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -559,6 +677,8 @@ export default function OrganizerRegisterPage() {
           )}
 
           {error && <p className="mt-6 text-sm font-medium text-red-600">{error}</p>}
+            </>
+          )}
         </div>
       </main>
     </>

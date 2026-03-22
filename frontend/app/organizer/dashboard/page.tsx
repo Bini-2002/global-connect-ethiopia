@@ -27,7 +27,7 @@ import {
   Ticket,
   DollarSign,
 } from 'lucide-react';
-import { getToken } from '@/app/lib/auth';
+import { getOrganizerPortalRoute, getToken } from '@/app/lib/auth';
 
 interface Proposal {
   id: string;
@@ -119,42 +119,52 @@ export default function OrganizerDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      router.replace('/login');
-      return;
-    }
-
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-    
-    Promise.all([
-      axios.get(`${API_BASE_URL}/proposals`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }),
-      axios.get(`${API_BASE_URL}/users/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-    ])
-    .then(([proposalsRes, profileRes]) => {
-      setProposals(proposalsRes.data);
-      setUserProfile(profileRes.data);
-      setLoading(false);
-    })
-    .catch(err => {
-      console.error('Error fetching data:', err);
-      if (err.response?.status === 401) {
+    const loadDashboard = async () => {
+      const token = getToken();
+      if (!token) {
         router.replace('/login');
-      } else {
-        setError(err.message || 'Failed to load data');
-        setLoading(false);
+        return;
       }
-    });
+
+      const organizerRoute = await getOrganizerPortalRoute();
+      if (organizerRoute !== '/organizer/dashboard') {
+        router.replace(organizerRoute);
+        return;
+      }
+
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+
+      Promise.all([
+        axios.get(`${API_BASE_URL}/proposals`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+        axios.get(`${API_BASE_URL}/users/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+      ])
+        .then(([proposalsRes, profileRes]) => {
+          setProposals(proposalsRes.data);
+          setUserProfile(profileRes.data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error('Error fetching data:', err);
+          if (err.response?.status === 401) {
+            router.replace('/login');
+          } else {
+            setError(err.message || 'Failed to load data');
+            setLoading(false);
+          }
+        });
+    };
+
+    void loadDashboard();
   }, [router]);
 
   // Calculate real proposal counts

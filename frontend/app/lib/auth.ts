@@ -5,6 +5,22 @@ export interface JWTPayload {
   iat?: number;
 }
 
+interface OrganizerVerificationStatus {
+  profile_type?: "organization" | "individual";
+  onboarding_status?: string;
+  status?: string;
+  verification_status?: string;
+}
+
+function organizerIsApproved(status?: OrganizerVerificationStatus): boolean {
+  if (!status) return false;
+
+  return (
+    status.verification_status === "approved" ||
+    status.status === "approved"
+  );
+}
+
 export function decodeToken(token: string): JWTPayload | null {
   try {
     const payload = token.split('.')[1];
@@ -44,6 +60,43 @@ export function logout(): void {
   localStorage.removeItem(STORAGE_KEY + 'token_type');
   sessionStorage.removeItem(STORAGE_KEY + 'access_token');
   sessionStorage.removeItem(STORAGE_KEY + 'token_type');
+}
+
+export async function getOrganizerPortalRoute(): Promise<string> {
+  const token = getToken();
+  if (!token) return '/login';
+
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+
+  try {
+    const res = await fetch(`${apiBase}/organizers/verification-status`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: 'no-store',
+    });
+
+    if (res.status === 401) {
+      return '/login';
+    }
+
+    if (res.status === 404) {
+      return '/organizer/register';
+    }
+
+    if (!res.ok) {
+      return '/organizer/register';
+    }
+
+    const data = (await res.json()) as OrganizerVerificationStatus;
+    if (organizerIsApproved(data)) {
+      return '/organizer/dashboard';
+    }
+
+    return '/organizer/register';
+  } catch {
+    return '/organizer/register';
+  }
 }
 
 export const ROLE_DASHBOARDS: Record<string, string> = {

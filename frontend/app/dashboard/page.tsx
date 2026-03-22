@@ -2,19 +2,36 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getRole, isLoggedIn, ROLE_DASHBOARDS } from '@/app/lib/auth';
+import {
+  getOrganizerPortalRoute,
+  getRole,
+  isLoggedIn,
+  ROLE_DASHBOARDS,
+} from '@/app/lib/auth';
 
 export default function DashboardRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.replace('/login');
-      return;
-    }
-    const role = getRole();
-    const dest = role ? ROLE_DASHBOARDS[role] ?? '/' : '/';
-    router.replace(dest);
+    const redirectUser = async () => {
+      if (!isLoggedIn()) {
+        router.replace('/login');
+        return;
+      }
+
+      const role = getRole();
+
+      if (role === 'organizer') {
+        const organizerRoute = await getOrganizerPortalRoute();
+        router.replace(organizerRoute);
+        return;
+      }
+
+      const dest = role ? ROLE_DASHBOARDS[role] ?? '/' : '/';
+      router.replace(dest);
+    };
+
+    void redirectUser();
   }, [router]);
 
   return (
