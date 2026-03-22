@@ -1,8 +1,11 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import Image from 'next/image'
 import { Props } from '@/app/types/types'
 
 export default function OrgIndividualReg({formData, setFormData,handleChange,handleFileUpload,handleSubmit,handleDrop}:Props ) {
+  const nationalIdRef = useRef<HTMLInputElement | null>(null);
+  const governmentIdRef = useRef<HTMLInputElement | null>(null);
+
   return (
     <>
            <label className=" block text-sm font-medium text-slate-700 mb-1">Profession /Role <span className='text-orange-600'>*</span></label>
@@ -10,7 +13,7 @@ export default function OrgIndividualReg({formData, setFormData,handleChange,han
              type="text"
              name="profession"
              placeholder="eg Freelance Event Planner "
-             value={formData.orgName}
+             value={formData.profession}
              onChange={handleChange}
              className="w-full  border  border-slate-300 rounded-lg p-2"
              required
@@ -79,34 +82,42 @@ export default function OrgIndividualReg({formData, setFormData,handleChange,han
   </div>
            {/* File Upload */}
            <label className=" block text-sm font-medium text-slate-700 mb-1"> National ID/ Passport Verification <span className='text-orange-600'>*</span></label>
-           <div className="border-dashed border-2 border-gray-300 rounded-lg p-4 justify-center items-center text-center"
-           onDrop={handleDrop}                
-           onDragOver={(e) => e.preventDefault()}>
+           <div
+             className="border-dashed border-2 border-gray-300 rounded-lg p-4 justify-center items-center text-center cursor-pointer"
+             onClick={() => nationalIdRef.current?.click()}
+             onDrop={(e) => handleDrop?.(e, "national_id")}
+             onDragOver={(e) => e.preventDefault()}
+           >
              <input
+               ref={nationalIdRef}
                type="file"
-               name="NationalID" 
-               accept=".pdf,.jpg,.png"
+               name="national_id" 
+               accept=".pdf,.jpg,.jpeg,.png,.webp"
                onChange={handleFileUpload}
                className="hidden"
-               id="NationalID"
+               id="national_id"
              />
              <div className="flex flex-col justify-center items-center p-3">
              <Image src='/icon.png' width={30} height={30} alt=''/>
-             <label htmlFor="NationalID" className="cursor-pointer mt-5">
+             <label htmlFor="national_id" className="cursor-pointer mt-5">
                Click to upload or drag and drop PDF, JPG, or PNG (max. 5MB)
              </label>
-             {formData.NationalID && (
-               <p className="text-sm text-gray-600 mt-2">{formData.NationalID.name}</p>
+             {formData.national_id && (
+               <p className="text-sm text-gray-600 mt-2">{formData.national_id.name}</p>
              )}</div>
            </div>
            <label className=" block text-sm font-medium text-slate-700 mb-1"> Government Issued ID <span className='text-orange-600'>*</span></label>
-           <div className="border-dashed border-2 border-gray-300 rounded-lg p-4 justify-center items-center text-center"
-           onDrop={handleDrop}                
-           onDragOver={(e) => e.preventDefault()}>
+           <div
+             className="border-dashed border-2 border-gray-300 rounded-lg p-4 justify-center items-center text-center cursor-pointer"
+             onClick={() => governmentIdRef.current?.click()}
+             onDrop={(e) => handleDrop?.(e, "government_issued_id")}
+             onDragOver={(e) => e.preventDefault()}
+           >
              <input
+               ref={governmentIdRef}
                type="file"
                name="government_issued_id" 
-               accept=".pdf,.jpg,.png"
+               accept=".pdf,.jpg,.jpeg,.png,.webp"
                onChange={handleFileUpload}
                className="hidden"
                id="government_issued_id"
