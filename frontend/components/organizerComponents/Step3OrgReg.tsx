@@ -120,6 +120,8 @@ export default function Step3OrgReg({
               accept=".pdf,.jpg,.jpeg,.png,.webp"
               className="hidden"
               onChange={(e) => updateFile("government_issued_id", e.target.files?.[0] || null)}
+              title="Upload Government ID (PDF, JPG, max 5MB)"
+              placeholder="Upload Government ID"
             />
             <p>Upload Government ID (PDF, JPG, max 5MB)</p>
             {formData.government_issued_id && (
@@ -146,6 +148,8 @@ export default function Step3OrgReg({
               accept=".pdf,.jpg,.jpeg,.png,.webp"
               className="hidden"
               onChange={(e) => updateFile("workspace_id", e.target.files?.[0] || null)}
+              title="Upload your workspace ID (PDF, JPG, max 5MB)"
+              placeholder="Upload your workspace ID"
             />
             <p>Upload Workspace ID (PDF, JPG, max 5MB)</p>
             {formData.workspace_id && (
@@ -175,6 +179,7 @@ export default function Step3OrgReg({
               accept=".pdf,.jpg,.jpeg,.png,.webp"
               className="hidden"
               onChange={(e) => updateFile("authorization_letter", e.target.files?.[0] || null)}
+              title="Upload Authorization Letter"
             />
             <p>Upload Authorization Letter</p>
             {formData.authorization_letter && (

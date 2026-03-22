@@ -35,8 +35,9 @@ export default function OrgorgReg({formData, Error,handleChange,handleFileUpload
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Organization Type */}
       <div>
-      <label className=" block text-sm font-medium text-slate-700 mb-1">Organization Type <span className='text-orange-600'>*</span></label>
+      <label htmlFor="organization_type" className=" block text-sm font-medium text-slate-700 mb-1">Organization Type <span className='text-orange-600'>*</span></label>
       <select
+        id="organization_type"
         name="organization_type"
         value={formData.organization_type}
         onChange={handleChange}
@@ -51,8 +52,9 @@ export default function OrgorgReg({formData, Error,handleChange,handleFileUpload
       </div>
       <div>
       {/* Industry */}
-      <label className=" block text-sm font-medium text-slate-700 mb-1">Industry <span className='text-orange-600'>*</span></label>
+      <label htmlFor="field_of_study" className=" block text-sm font-medium text-slate-700 mb-1">Industry <span className='text-orange-600'>*</span></label>
       <select
+        id="field_of_study"
         name="field_of_study"
         value={formData.field_of_study}
         onChange={handleChange}
@@ -67,8 +69,9 @@ export default function OrgorgReg({formData, Error,handleChange,handleFileUpload
       </select>
       </div></div>
       {/* Company Size */}
-      <label className=" block text-sm font-medium text-slate-700 mb-1">Organization size <span className='text-orange-600'>*</span></label>
+      <label htmlFor="employee_size" className=" block text-sm font-medium text-slate-700 mb-1">Organization size <span className='text-orange-600'>*</span></label>
       <select
+        id="employee_size"
         name="employee_size"
         value={formData.employee_size}
         onChange={handleChange}
