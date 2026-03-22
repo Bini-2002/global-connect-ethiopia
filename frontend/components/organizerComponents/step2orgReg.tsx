@@ -10,7 +10,7 @@ export default function Step2orgReg({
   handleFileUpload,
   handleDrop,
   nextStep,
-  Error,
+  error,
   handleSubmit,
 }: Props) {
   const registerType = ["Individual", "Organization"];
@@ -72,7 +72,7 @@ export default function Step2orgReg({
               handleDrop={handleDrop}
               handleChange={handleChange}
               handleSubmit={handleSubmit}
-              Error={Error}
+              Error={error}
               handleFileUpload={handleFileUpload}
             />
           ) : (
@@ -87,7 +87,7 @@ export default function Step2orgReg({
           )}
 
           {/* Error Display */}
-          {Error && <p className="text-red-500 text-sm mt-2">{Error}</p>}
+          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
           {/* Buttons */}
           <div className="flex flex-col sm:flex-row justify-between gap-2 mt-4">

@@ -55,7 +55,7 @@ export default function VendorVerificationPage() {
       fd.append('confirm_information_is_accurate', 'true');
       fd.append('agree_terms_and_privacy', 'true');
       await api.post('/vendors/verification/step-3/submit', fd);
-      setSuccess('Verification submitted! We'll review your application and notify you.');
+      setSuccess("Verification submitted! We'll review your application and notify you.");
       setStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Submission failed');

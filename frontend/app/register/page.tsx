@@ -5,9 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LoginHeader from "@/components/loginHeader";
-import PhoneInput from "react-phone-number-input";
-import { E164Number } from 'libphonenumber-js';
-import axios from "axios"; 
+import api from "@/app/lib/api";
 
 export default function RegistrationForm() {
   const router = useRouter();
@@ -21,7 +19,6 @@ export default function RegistrationForm() {
   const [passwordStrength, setPasswordStrength] = useState("Weak"); // Will calculate based on password
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,16 +71,17 @@ export default function RegistrationForm() {
     setError("");
   
     try {
-      const response = await axios.post("/api/v1/auth/register", {
+      const response = await api.post<{ user_id?: string }>("/auth/register", {
         full_name: formData.fullName,
         email: formData.email,
         role: formData.role,
         password: formData.password,
       });
   
-      // Axios automatically parses JSON, so response.data contains your backend response
-      const data = response.data;
-      localStorage.setItem("user_id", response.data.user_id);
+      if (response.user_id) {
+        localStorage.setItem("user_id", response.user_id);
+      }
+
       // Redirect to verify-email page
       const params = new URLSearchParams({
         role: formData.role,
@@ -92,11 +90,7 @@ export default function RegistrationForm() {
   
       router.push(`/verify-email?${params}`);
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        // Axios error: err.response?.data.detail might contain backend error message
-        const msg = err.response?.data?.detail || err.message || "Registration failed";
-        setError(msg);
-      } else if (err instanceof Error) {
+      if (err instanceof Error) {
         setError(err.message);
       } else {
         setError("An unexpected error occurred");
