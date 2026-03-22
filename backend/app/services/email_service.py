@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Optional
 from urllib import error, request
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class EmailDeliveryError(RuntimeError):
@@ -21,6 +24,7 @@ class ResendEmailService:
     @classmethod
     def send_otp_email(cls, recipient_email: str, otp_code: str, expiry_minutes: int) -> Optional[str]:
         if not settings.RESEND_ENABLED:
+            logger.info("OTP email sending skipped because Resend is disabled for %s", recipient_email)
             return None
 
         if not cls._is_configured():
@@ -54,14 +58,26 @@ class ResendEmailService:
         )
 
         try:
+            logger.info("Sending OTP email via Resend to %s", recipient_email)
             with request.urlopen(req, timeout=10) as response:
                 body = response.read().decode("utf-8")
                 response_json = json.loads(body) if body else {}
+                logger.info(
+                    "Resend accepted OTP email for %s with id=%s",
+                    recipient_email,
+                    response_json.get("id"),
+                )
                 return response_json.get("id")
         except error.HTTPError as exc:
             details = exc.read().decode("utf-8", errors="replace")
+            logger.error(
+                "Resend HTTP error while sending OTP to %s: %s",
+                recipient_email,
+                details,
+            )
             raise EmailDeliveryError(
                 f"Resend API error ({exc.code}): {details}"
             ) from exc
         except (error.URLError, TimeoutError) as exc:
+            logger.error("Resend request failed for %s: %s", recipient_email, exc)
             raise EmailDeliveryError(f"Resend request failed: {exc}") from exc

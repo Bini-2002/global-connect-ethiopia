@@ -1,4 +1,5 @@
 import secrets
+import logging
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -19,6 +20,7 @@ from app.db.mongodb import user_collection
 from app.services.email_service import EmailDeliveryError, ResendEmailService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 OTP_EXPIRY_MINUTES = 5
 
@@ -98,6 +100,7 @@ async def _issue_access_token(email: str, password: str) -> dict:
 
 @router.post("/register")
 async def register(user_in: UserCreate):
+    logger.info("Register request received for %s with role=%s", user_in.email, user_in.role)
     existing_user = await user_collection.find_one({"email": user_in.email})
 
     if existing_user:
@@ -127,6 +130,7 @@ async def register(user_in: UserCreate):
         {"$set": new_user},
         upsert=True
     )
+    saved_user = await user_collection.find_one({"email": user_in.email})
 
     try:
         ResendEmailService.send_otp_email(
@@ -134,7 +138,18 @@ async def register(user_in: UserCreate):
             otp_code=otp_payload["code"],
             expiry_minutes=OTP_EXPIRY_MINUTES,
         )
+        logger.info("Registration OTP dispatch completed for %s", user_in.email)
     except EmailDeliveryError as exc:
+        logger.warning("Registration OTP delivery failed for %s: %s", user_in.email, exc)
+        if settings.ENABLE_DEBUG_OTP_RESPONSE:
+            logger.info("Returning debug OTP for %s because debug mode is enabled", user_in.email)
+            return _otp_response_payload(
+                message=(
+                    "User registered, but OTP email delivery failed in debug mode. "
+                    f"Use the returned OTP code to continue. Delivery error: {exc}"
+                ),
+                otp_payload=otp_payload,
+            ) | {"user_id": str(saved_user["_id"]) if saved_user else None}
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to send OTP email: {exc}",
@@ -143,7 +158,7 @@ async def register(user_in: UserCreate):
     return _otp_response_payload(
         message="User registered successfully. Please verify your email with the otp sent.",
         otp_payload=otp_payload,
-    )
+    ) | {"user_id": str(saved_user["_id"]) if saved_user else None}
 
 @router.post("/login", response_model=Token)
 async def login(user_in: UserLogin):
@@ -163,6 +178,7 @@ async def token_login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @router.post("/email-otp", response_model=OtpSendResponse)
 async def send_email_otp(payload: OtpSendRequest):
+    logger.info("Resend OTP request received for %s", payload.email)
     user = await user_collection.find_one({"email": payload.email})
     if user and user.get("email_verified", False):
         raise HTTPException(
@@ -190,7 +206,18 @@ async def send_email_otp(payload: OtpSendRequest):
             otp_code=otp_payload["code"],
             expiry_minutes=OTP_EXPIRY_MINUTES,
         )
+        logger.info("OTP resend dispatch completed for %s", payload.email)
     except EmailDeliveryError as exc:
+        logger.warning("OTP resend delivery failed for %s: %s", payload.email, exc)
+        if settings.ENABLE_DEBUG_OTP_RESPONSE:
+            logger.info("Returning debug OTP for %s because debug mode is enabled", payload.email)
+            return _otp_response_payload(
+                message=(
+                    "OTP generated, but email delivery failed in debug mode. "
+                    f"Use the returned OTP code to continue. Delivery error: {exc}"
+                ),
+                otp_payload=otp_payload,
+            )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to send OTP email: {exc}",
@@ -204,6 +231,7 @@ async def send_email_otp(payload: OtpSendRequest):
 
 @router.post("/verify-email-otp", response_model=OtpVerifyResponse)
 async def verify_email_otp(payload: OtpVerifyRequest):
+    logger.info("OTP verification attempt for %s", payload.email)
     user = await user_collection.find_one({"email": payload.email})
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -222,6 +250,7 @@ async def verify_email_otp(payload: OtpVerifyRequest):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OTP expired. Please request a new OTP")
 
     if otp_data.get("code") != payload.otp_code.strip():
+        logger.warning("Invalid OTP submitted for %s", payload.email)
         await user_collection.update_one(
             {"email": payload.email},
             {"$set": {"auth_otp.attempts": attempts + 1}},
@@ -232,6 +261,19 @@ async def verify_email_otp(payload: OtpVerifyRequest):
         {"email": payload.email},
         {"$set": {"email_verified": True, "is_active": True, "auth_otp.verified": True, "auth_otp.code": None}},
     )
-    
-    return {"message": "Email verified successfully", "email_verified": True}
+
+    access_token = security.create_access_token(
+        subject=str(user["_id"]),
+        role=user.get("role", "attendee"),
+    )
+    logger.info("OTP verification succeeded for %s", payload.email)
+
+    return {
+        "message": "Email verified successfully",
+        "email_verified": True,
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": str(user["_id"]),
+        "role": user.get("role", "attendee"),
+    }
 

@@ -5,7 +5,17 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import LoginHeader from '@/components/loginHeader';
 import { ROLE_DASHBOARDS } from '@/app/lib/auth';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+
+interface VerifyEmailResponse {
+  message: string;
+  email_verified: boolean;
+  otp_code?: string | null;
+  access_token?: string;
+  token_type?: string;
+  user_id?: string;
+  role?: string;
+}
 
 function VerifyEmailPageContent() {
   const searchParams = useSearchParams();
@@ -14,13 +24,14 @@ function VerifyEmailPageContent() {
   const role = searchParams.get('role') ?? '';
   const email = searchParams.get('email') ?? '';
 
-  const OTP_LENGTH = 4;
+  const OTP_LENGTH = 6;
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(''));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
   const [success, setSuccess] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [debugOtp, setDebugOtp] = useState('');
 
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -31,15 +42,36 @@ function VerifyEmailPageContent() {
 
   const sendOtp = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/auth/send-email-otp`, {
+      const res = await fetch(`${BASE_URL}/auth/email-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        console.error('Failed to send OTP');
+        const detail =
+          data && typeof data.detail === 'string'
+            ? data.detail
+            : 'Failed to send OTP';
+        setError(detail);
+        console.error(detail);
+        return;
+      }
+
+      if (data?.otp_code) {
+        setDebugOtp(String(data.otp_code));
+      } else {
+        setDebugOtp('');
+      }
+
+      setError('');
+
+      if (typeof data?.message === 'string') {
+        setResendMsg(data.message);
+        setTimeout(() => setResendMsg(''), 8000);
       }
     } catch (e) {
+      setError('Network error while sending OTP.');
       console.error('Network error while sending OTP', e);
     }
   };
@@ -76,13 +108,28 @@ function VerifyEmailPageContent() {
       const res = await fetch(`${BASE_URL}/auth/verify-email-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp: enteredOtp }),
+        body: JSON.stringify({ email, otp_code: enteredOtp }),
       });
+      const data: VerifyEmailResponse = await res.json().catch(() => ({
+        message: 'Invalid OTP. Please try again.',
+        email_verified: false,
+      }));
+
       if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        setError(err?.detail || 'Invalid OTP. Please try again.');
+        setError((data as { detail?: string }).detail || data.message || 'Invalid OTP. Please try again.');
         return;
       }
+
+      if (data.access_token) {
+        localStorage.setItem('gce_access_token', data.access_token);
+      }
+      if (data.token_type) {
+        localStorage.setItem('gce_token_type', data.token_type);
+      }
+      if (data.user_id) {
+        localStorage.setItem('user_id', data.user_id);
+      }
+
       setSuccess(true);
       const dest =
         role === 'organizer'
@@ -101,9 +148,7 @@ function VerifyEmailPageContent() {
   const handleResend = async () => {
     if (cooldown > 0) return;
     await sendOtp();
-    setResendMsg(`OTP resent to ${email}`);
-    setCooldown(30); // 30-second cooldown
-    setTimeout(() => setResendMsg(''), 5000);
+    setCooldown(30);
   };
 
   // Countdown effect
@@ -149,6 +194,12 @@ function VerifyEmailPageContent() {
 
           {resendMsg && (
             <p className="text-green-600 text-sm text-center mb-3 bg-green-50 py-2 rounded-lg">{resendMsg}</p>
+          )}
+
+          {debugOtp && (
+            <p className="text-amber-700 text-sm text-center mb-3 bg-amber-50 py-2 rounded-lg">
+              Dev OTP: <span className="font-semibold tracking-widest">{debugOtp}</span>
+            </p>
           )}
 
           <div className="flex items-center justify-center gap-3 mb-5">

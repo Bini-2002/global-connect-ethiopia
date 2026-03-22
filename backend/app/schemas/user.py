@@ -76,3 +76,7 @@ class OtpVerifyRequest(BaseModel):
 class OtpVerifyResponse(BaseModel):
     message: str
     email_verified: bool
+    access_token: Optional[str] = None
+    token_type: Optional[str] = None
+    user_id: Optional[str] = None
+    role: Optional[str] = None
