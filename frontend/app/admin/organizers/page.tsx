@@ -9,7 +9,7 @@ import { api } from '@/app/lib/api';
 interface OrganizerApp {
   id: string;
   user_id: string;
-  organizer_type?: string;
+  profile_type?: string;
   full_name?: string;
   organization_name?: string;
   status: string;
@@ -18,13 +18,21 @@ interface OrganizerApp {
   updated_at: string;
 }
 
+interface OrganizerPendingResponse {
+  count: number;
+  items: OrganizerApp[];
+}
+
 export default function AdminOrganizersPage() {
   const [apps, setApps] = useState<OrganizerApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    api.get<OrganizerApp[]>('/admin/organizers/pending').then(setApps).catch(console.error).finally(() => setLoading(false));
+    api.get<OrganizerPendingResponse>('/admin/organizers/pending')
+      .then((response) => setApps(response.items || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = apps.filter(a =>
@@ -74,7 +82,7 @@ export default function AdminOrganizersPage() {
                       <p className="font-semibold text-[#062E22] text-sm">{a.full_name || a.organization_name || 'N/A'}</p>
                       <p className="text-xs font-mono text-slate-400">{a.user_id.substring(0, 8)}</p>
                     </div>
-                    <div className="col-span-2 text-sm text-slate-600 capitalize">{a.organizer_type || '—'}</div>
+                    <div className="col-span-2 text-sm text-slate-600 capitalize">{a.profile_type || '—'}</div>
                     <div className="col-span-2">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
