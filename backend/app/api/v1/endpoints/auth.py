@@ -16,6 +16,7 @@ from app.models.roles import UserRole
 from app.core.config import settings
 from app.core import security
 from app.db.mongodb import user_collection
+from app.services.email_service import EmailDeliveryError, ResendEmailService
 
 router = APIRouter()
 
@@ -127,6 +128,18 @@ async def register(user_in: UserCreate):
         upsert=True
     )
 
+    try:
+        ResendEmailService.send_otp_email(
+            recipient_email=user_in.email,
+            otp_code=otp_payload["code"],
+            expiry_minutes=OTP_EXPIRY_MINUTES,
+        )
+    except EmailDeliveryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to send OTP email: {exc}",
+        ) from exc
+
     return _otp_response_payload(
         message="User registered successfully. Please verify your email with the otp sent.",
         otp_payload=otp_payload,
@@ -171,8 +184,20 @@ async def send_email_otp(payload: OtpSendRequest):
             upsert=True
     )
 
+    try:
+        ResendEmailService.send_otp_email(
+            recipient_email=payload.email,
+            otp_code=otp_payload["code"],
+            expiry_minutes=OTP_EXPIRY_MINUTES,
+        )
+    except EmailDeliveryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to send OTP email: {exc}",
+        ) from exc
+
     return _otp_response_payload(
-        message="OTP generated. Integrate email provider before production use.",
+        message="OTP sent to your email.",
         otp_payload=otp_payload,
     )
 

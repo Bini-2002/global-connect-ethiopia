@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     MANUAL_REVIEW_MIN_SCORE: int = 50
     ENABLE_DEBUG_OTP_RESPONSE: bool = True
 
+    # Resend email delivery (OTP)
+    RESEND_ENABLED: bool = False
+    RESEND_API_KEY: Optional[str] = None
+    RESEND_FROM_EMAIL: Optional[str] = None
+    RESEND_OTP_SUBJECT: str = "Your Global Connect Ethiopia verification code"
+
     class Config:
         # case_sensitive = False
         env_file = ".env"
