@@ -289,6 +289,7 @@ export default function OrganizerRegisterPage() {
                       value={formData.organization_type}
                       onChange={handleChange}
                       className="w-full rounded-lg border border-slate-300 p-3"
+                      aria-label="Organization type"
                     >
                       <option value="">Select organization type</option>
                       <option value="ngo">NGO</option>
@@ -300,6 +301,7 @@ export default function OrganizerRegisterPage() {
                       value={formData.field_of_study}
                       onChange={handleChange}
                       className="w-full rounded-lg border border-slate-300 p-3"
+                      aria-label="Field of study or industry"
                     >
                       <option value="">Select industry</option>
                       <option value="tech">Technology</option>
@@ -313,6 +315,7 @@ export default function OrganizerRegisterPage() {
                     value={formData.employee_size}
                     onChange={handleChange}
                     className="w-full rounded-lg border border-slate-300 p-3"
+                    aria-label="Organization size"
                   >
                     <option value="">Select organization size</option>
                     <option value="1-10">1-10</option>
@@ -444,11 +447,16 @@ export default function OrganizerRegisterPage() {
                   placeholder="Representative phone number"
                   className="w-full rounded-lg border border-slate-300 p-3"
                 />
+                <label htmlFor="rep_national_id" className="sr-only">
+                  Representative ID type
+                </label>
                 <select
+                  id="rep_national_id"
                   name="rep_national_id"
                   value={formData.rep_national_id}
                   onChange={handleChange}
                   className="w-full rounded-lg border border-slate-300 p-3"
+                  aria-label="Representative ID type"
                 >
                   <option value="">Select ID type</option>
                   <option value="national">National ID</option>
