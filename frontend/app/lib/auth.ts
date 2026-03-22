@@ -93,6 +93,10 @@ export async function getOrganizerPortalRoute(): Promise<string> {
       return '/organizer/dashboard';
     }
 
+    if (data.verification_status === 'pending_for_review') {
+      return '/organizer/under-review';
+    }
+
     return '/organizer/register';
   } catch {
     return '/organizer/register';

@@ -115,6 +115,8 @@ export default function OrganizerDashboard() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [accessAllowed, setAccessAllowed] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,15 +124,22 @@ export default function OrganizerDashboard() {
     const loadDashboard = async () => {
       const token = getToken();
       if (!token) {
+        setAccessChecked(true);
+        setAccessAllowed(false);
         router.replace('/login');
         return;
       }
 
       const organizerRoute = await getOrganizerPortalRoute();
       if (organizerRoute !== '/organizer/dashboard') {
+        setAccessChecked(true);
+        setAccessAllowed(false);
         router.replace(organizerRoute);
         return;
       }
+
+      setAccessAllowed(true);
+      setAccessChecked(true);
 
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -177,6 +186,21 @@ export default function OrganizerDashboard() {
   };
 
   const hasEvents = proposals.length > 0;
+
+  if (!accessChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-500 text-sm">Checking organizer access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!accessAllowed) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

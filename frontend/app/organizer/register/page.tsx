@@ -115,8 +115,6 @@ export default function OrganizerRegisterPage() {
   const [error, setError] = useState("");
   const [submissionState, setSubmissionState] = useState<SubmissionState | null>(null);
 
-  const isAwaitingApproval =
-    submissionState?.verificationStatus === "pending_for_review";
   const isRejected =
     submissionState?.verificationStatus === "rejected";
 
@@ -140,16 +138,9 @@ export default function OrganizerRegisterPage() {
           return;
         }
 
-        if (
-          verificationStatus === "pending_for_review" &&
-          profileType
-        ) {
-          setSubmissionState({
-            profileType,
-            verificationStatus,
-            rejectionComment: status.rejection_comment,
-            queueStatus: status.queue_status,
-          });
+        if (verificationStatus === "pending_for_review") {
+          router.replace("/organizer/under-review");
+          return;
         }
 
         if (profileType === "organization") {
@@ -280,13 +271,10 @@ export default function OrganizerRegisterPage() {
           "/organizers/individual/register",
           data,
         );
-        setSubmissionState({
-          profileType: "individual",
-          verificationStatus: response.verification_status || "pending_for_review",
-          rejectionComment: response.rejection_comment,
-          queueStatus: response.queue_status,
-        });
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (response.verification_status === "pending_for_review") {
+          router.replace("/organizer/under-review");
+          return;
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Step 2 submission failed.");
@@ -349,13 +337,10 @@ export default function OrganizerRegisterPage() {
         "/organizers/organization/step-3/submit",
         data,
       );
-      setSubmissionState({
-        profileType: "organization",
-        verificationStatus: response.verification_status || "pending_for_review",
-        rejectionComment: response.rejection_comment,
-        queueStatus: response.queue_status,
-      });
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (response.verification_status === "pending_for_review") {
+        router.replace("/organizer/under-review");
+        return;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Final submission failed.");
     } finally {
@@ -385,10 +370,6 @@ export default function OrganizerRegisterPage() {
       {file && <p className="mt-3 text-sm font-semibold text-[#062E22]">{file.name}</p>}
     </label>
   );
-
-  const submissionProfileLabel =
-    submissionState?.profileType === "individual" ? "individual organizer" : "organization";
-
   return (
     <>
       <LoginHeader />
@@ -401,49 +382,6 @@ export default function OrganizerRegisterPage() {
                 <p className="text-sm text-slate-500">Loading your registration draft...</p>
               </div>
             </div>
-          ) : (
-            <>
-          {isAwaitingApproval && submissionState ? (
-            <section className="space-y-6">
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
-                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
-                  Registration Under Review
-                </p>
-                <h1 className="mt-2 text-2xl font-bold text-[#062E22]">
-                  Your {submissionProfileLabel} application has been submitted.
-                </h1>
-                <p className="mt-3 text-sm leading-6 text-slate-700">
-                  Your documents are now waiting for admin validation. Until your application is
-                  approved, organizer dashboard access stays locked and this page remains your
-                  current registration record.
-                </p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl bg-white p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Verification Status
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-amber-700">Pending admin review</p>
-                  </div>
-                  <div className="rounded-xl bg-white p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      OCR Queue
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-[#062E22]">
-                      {submissionState.queueStatus || "queued"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                <h2 className="text-lg font-semibold text-[#062E22]">What happens next</h2>
-                <div className="mt-4 space-y-3 text-sm text-slate-600">
-                  <p>1. Admins review the documents you submitted.</p>
-                  <p>2. If everything checks out, your organizer access will be approved.</p>
-                  <p>3. Only after approval will the organizer dashboard unlock.</p>
-                </div>
-              </div>
-            </section>
           ) : (
             <>
           <div className="mb-8">
@@ -790,8 +728,6 @@ export default function OrganizerRegisterPage() {
           )}
 
           {error && <p className="mt-6 text-sm font-medium text-red-600">{error}</p>}
-            </>
-          )}
             </>
           )}
         </div>
