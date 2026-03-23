@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
+import { getRole, getToken } from '@/app/lib/auth';
 
 interface OrganizerApp {
   id: string;
@@ -24,16 +26,32 @@ interface OrganizerPendingResponse {
 }
 
 export default function AdminOrganizersPage() {
+  const router = useRouter();
   const [apps, setApps] = useState<OrganizerApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
+    const token = getToken();
+    const role = getRole();
+
+    if (!token || (role !== 'admin' && role !== 'super_admin')) {
+      setLoading(false);
+      router.replace('/login');
+      return;
+    }
+
     api.get<OrganizerPendingResponse>('/admin/organizers/pending')
       .then((response) => setApps(response.items || []))
-      .catch(console.error)
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
+        console.error(err);
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [router]);
 
   const filtered = apps.filter(a =>
     (a.full_name || a.organization_name || '').toLowerCase().includes(query.toLowerCase())

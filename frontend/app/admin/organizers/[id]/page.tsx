@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
-import { getToken } from '@/app/lib/auth';
+import { getRole, getToken } from '@/app/lib/auth';
 
 interface OrganizerDetail {
   id: string;
@@ -51,6 +51,7 @@ const DOCUMENT_LABELS: Record<string, string> = {
 
 export default function AdminOrganizerDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
   const [org, setOrg] = useState<OrganizerDetail | null>(null);
   const [documents, setDocuments] = useState<AdminDocumentItem[]>([]);
@@ -64,9 +65,25 @@ export default function AdminOrganizerDetailPage() {
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
+    const token = getToken();
+    const role = getRole();
+
+    if (!token || (role !== 'admin' && role !== 'super_admin')) {
+      setLoading(false);
+      setDocsLoading(false);
+      router.replace('/login');
+      return;
+    }
+
     api.get<OrganizerDetail>(`/admin/organizers/${id}`)
       .then(setOrg)
-      .catch(() => setError('Not found'))
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
+        setError('Not found');
+      })
       .finally(() => setLoading(false));
 
     api.get<AdminDocumentListResponse>(`/admin/documents?owner_type=organizer&entity_id=${id}`)
@@ -75,10 +92,14 @@ export default function AdminOrganizerDetailPage() {
         setDocsError('');
       })
       .catch((err) => {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
         setDocsError(err instanceof Error ? err.message : 'Failed to load documents');
       })
       .finally(() => setDocsLoading(false));
-  }, [id]);
+  }, [id, router]);
 
   const doDecision = async (decision: 'approved' | 'rejected') => {
     setActionLoading(decision); setError(''); setSuccess('');

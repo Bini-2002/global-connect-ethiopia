@@ -1,7 +1,7 @@
 {
   "version": 4,
   "routes": {
-    "/admin/organizers": {
+    "/admin/vendors": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -14,8 +14,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/admin/organizers",
-      "dataRoute": "/admin/organizers.rsc",
+      "srcRoute": "/admin/vendors",
+      "dataRoute": "/admin/vendors.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -73,7 +73,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/admin/proposals": {
+    "/municipal/proposals": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -86,32 +86,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/admin/proposals",
-      "dataRoute": "/admin/proposals.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/organizer/create-event": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/organizer/create-event",
-      "dataRoute": "/organizer/create-event.rsc",
+      "srcRoute": "/municipal/proposals",
+      "dataRoute": "/municipal/proposals.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -145,7 +121,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/municipal/proposals": {
+    "/organizer/create-event": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -158,8 +134,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/municipal/proposals",
-      "dataRoute": "/municipal/proposals.rsc",
+      "srcRoute": "/organizer/create-event",
+      "dataRoute": "/organizer/create-event.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -265,8 +241,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/_not-found": {
-      "initialStatus": 404,
+    "/organizer/proposals/create": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -279,8 +254,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/_not-found",
-      "dataRoute": "/_not-found.rsc",
+      "srcRoute": "/organizer/proposals/create",
+      "dataRoute": "/organizer/proposals/create.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -314,7 +289,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/organizer/proposals/create": {
+    "/organizer/under-review": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -327,32 +302,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/organizer/proposals/create",
-      "dataRoute": "/organizer/proposals/create.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/",
-      "dataRoute": "/index.rsc",
+      "srcRoute": "/organizer/under-review",
+      "dataRoute": "/organizer/under-review.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -386,7 +337,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/vendor/verification": {
+    "/": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -399,8 +350,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/vendor/verification",
-      "dataRoute": "/vendor/verification.rsc",
+      "srcRoute": "/",
+      "dataRoute": "/index.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -425,6 +376,79 @@
       "initialRevalidateSeconds": false,
       "srcRoute": "/register",
       "dataRoute": "/register.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/verify-email": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/verify-email",
+      "dataRoute": "/verify-email.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/vendor/verification": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/vendor/verification",
+      "dataRoute": "/vendor/verification.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/_not-found": {
+      "initialStatus": 404,
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/_not-found",
+      "dataRoute": "/_not-found.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -463,7 +487,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/verify-email": {
+    "/admin/organizers": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -476,8 +500,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/verify-email",
-      "dataRoute": "/verify-email.rsc",
+      "srcRoute": "/admin/organizers",
+      "dataRoute": "/admin/organizers.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -487,7 +511,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/organizer/under-review": {
+    "/admin/proposals": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -500,32 +524,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/organizer/under-review",
-      "dataRoute": "/organizer/under-review.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/admin/vendors": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/admin/vendors",
-      "dataRoute": "/admin/vendors.rsc",
+      "srcRoute": "/admin/proposals",
+      "dataRoute": "/admin/proposals.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
