@@ -23,6 +23,20 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 OTP_EXPIRY_MINUTES = 5
+INTERNAL_LOGIN_ROLES = {
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MINISTRY_GOV,
+    UserRole.MUNICIPAL_GOV,
+    UserRole.POLICE,
+}
+
+
+def _role_skips_otp(role: str | UserRole | None) -> bool:
+    try:
+        return UserRole(role) in INTERNAL_LOGIN_ROLES
+    except Exception:
+        return False
 
 
 def _build_otp_payload() -> dict:
@@ -76,7 +90,24 @@ async def _issue_access_token(email: str, password: str) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not user.get("email_verified", False):
+    role = user.get("role", "attendee")
+    skips_otp = _role_skips_otp(role)
+
+    if skips_otp and not user.get("email_verified", False):
+        await user_collection.update_one(
+            {"_id": user["_id"]},
+            {
+                "$set": {
+                    "email_verified": True,
+                    "is_active": True,
+                    "updated_at": datetime.now(timezone.utc),
+                },
+                "$unset": {"auth_otp": ""},
+            },
+        )
+        user["email_verified"] = True
+        user["is_active"] = True
+    elif not user.get("email_verified", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Please verify your email first.",
@@ -90,7 +121,7 @@ async def _issue_access_token(email: str, password: str) -> dict:
 
     access_token = security.create_access_token(
         subject=str(user["_id"]),
-        role=user.get("role", "attendee")  # type: ignore
+        role=role  # type: ignore
     )
 
     return {
@@ -110,17 +141,17 @@ async def register(user_in: UserCreate):
                 detail="Email is already registered and verified"
             )   
         
-    # Create the user in the DB with is_active=False
+    skips_otp = _role_skips_otp(user_in.role)
     hashed_password = security.get_password_hash(user_in.password)
-    otp_payload = _build_otp_payload()
+    otp_payload = None if skips_otp else _build_otp_payload()
     
     new_user = {
         "full_name": user_in.full_name,
         "email": user_in.email,
         "password_hash": hashed_password,
         "role": user_in.role, 
-        "is_active": False,
-        "email_verified": False,
+        "is_active": skips_otp,
+        "email_verified": skips_otp,
         "auth_otp": otp_payload,
         "updated_at": datetime.now(timezone.utc)
     }
@@ -132,10 +163,18 @@ async def register(user_in: UserCreate):
     )
     saved_user = await user_collection.find_one({"email": user_in.email})
 
+    if skips_otp:
+        logger.info("Created trusted internal account for %s without OTP verification", user_in.email)
+        return {
+            "message": "Internal account created successfully. You can log in directly without OTP verification.",
+            "user_id": str(saved_user["_id"]) if saved_user else None,
+            "otp_code": None,
+        }
+
     try:
         ResendEmailService.send_otp_email(
             recipient_email=user_in.email,
-            otp_code=otp_payload["code"],
+            otp_code=otp_payload["code"],  # type: ignore[index]
             expiry_minutes=OTP_EXPIRY_MINUTES,
         )
         logger.info("Registration OTP dispatch completed for %s", user_in.email)
@@ -148,7 +187,7 @@ async def register(user_in: UserCreate):
                     "User registered, but OTP email delivery failed in debug mode. "
                     f"Use the returned OTP code to continue. Delivery error: {exc}"
                 ),
-                otp_payload=otp_payload,
+                otp_payload=otp_payload,  # type: ignore[arg-type]
             ) | {"user_id": str(saved_user["_id"]) if saved_user else None}
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -157,7 +196,7 @@ async def register(user_in: UserCreate):
 
     return _otp_response_payload(
         message="User registered successfully. Please verify your email with the otp sent.",
-        otp_payload=otp_payload,
+        otp_payload=otp_payload,  # type: ignore[arg-type]
     ) | {"user_id": str(saved_user["_id"]) if saved_user else None}
 
 @router.post("/login", response_model=Token)

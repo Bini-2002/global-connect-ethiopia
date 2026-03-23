@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
+import { getToken } from '@/app/lib/auth';
 
 interface OrganizerDetail {
   id: string;
@@ -56,6 +57,7 @@ export default function AdminOrganizerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState('');
   const [docsLoading, setDocsLoading] = useState(true);
+  const [documentLoadingKey, setDocumentLoadingKey] = useState('');
   const [error, setError] = useState('');
   const [docsError, setDocsError] = useState('');
   const [success, setSuccess] = useState('');
@@ -109,6 +111,63 @@ export default function AdminOrganizerDetailPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OCR failed');
     } finally { setActionLoading(''); }
+  };
+
+  const openDocument = async (doc: AdminDocumentItem) => {
+    const token = getToken();
+    if (!token) {
+      setDocsError('Your session expired. Please log in again.');
+      return;
+    }
+
+    setDocsError('');
+    setDocumentLoadingKey(doc.document_key);
+
+    try {
+      const response = await fetch(doc.download_endpoint, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to access document (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const responseContentType = response.headers.get('Content-Type') || '';
+      const fileName = (doc.filename || '').toLowerCase();
+      const isInlineViewable =
+        responseContentType.includes('pdf') ||
+        responseContentType.startsWith('image/') ||
+        fileName.endsWith('.pdf') ||
+        fileName.endsWith('.png') ||
+        fileName.endsWith('.jpg') ||
+        fileName.endsWith('.jpeg') ||
+        fileName.endsWith('.webp') ||
+        fileName.endsWith('.gif');
+
+      if (isInlineViewable) {
+        const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
+        if (!opened) {
+          throw new Error('Popup blocked while opening document. Please allow popups for this site.');
+        }
+      } else {
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = doc.filename || 'document';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (err) {
+      setDocsError(err instanceof Error ? err.message : 'Failed to open document');
+    } finally {
+      setDocumentLoadingKey('');
+    }
   };
 
   const getTier = (score?: number) => {
@@ -217,14 +276,14 @@ export default function AdminOrganizerDetailPage() {
                               {doc.storage_provider || 'unknown'} {doc.uploaded_at ? `• ${new Date(doc.uploaded_at).toLocaleString()}` : ''}
                             </p>
                           </div>
-                          <a
-                            href={doc.download_endpoint}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => openDocument(doc)}
+                            disabled={documentLoadingKey === doc.document_key}
                             className="shrink-0 rounded-lg border border-[#062E22] px-3 py-2 text-xs font-semibold text-[#062E22] transition hover:bg-[#062E22] hover:text-white"
                           >
-                            Open
-                          </a>
+                            {documentLoadingKey === doc.document_key ? 'Opening...' : 'Open'}
+                          </button>
                         </div>
                       ))}
                     </div>
