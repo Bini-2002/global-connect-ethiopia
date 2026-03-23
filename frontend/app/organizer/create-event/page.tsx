@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import { isLoggedIn } from "@/app/lib/auth";
+import { eventsService } from "@/app/services/eventsService";
+import { PastEvent, EventStats } from "@/app/types/event";
 import { 
   Plus, 
   Sparkles, 
@@ -21,76 +22,125 @@ import {
   Megaphone, 
   Phone,
   Users,
-  Calendar
+  Calendar,
+  Loader2
 } from "lucide-react";
+import Image from "next/image";
 
 export default function CreateEventPage() {
   const router = useRouter();
+  const [pastEvents, setPastEvents] = useState<PastEvent[]>([]);
+  const [stats, setStats] = useState<EventStats>({ totalEvents: 0, thisMonth: 0, drafts: 0 });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!isLoggedIn()) {
       router.replace("/login");
+      return;
     }
+
+    const fetchData = async () => {
+      try {
+        const [eventsData, statsData] = await Promise.all([
+          eventsService.getPastEvents(),
+          eventsService.getEventStats(),
+        ]);
+        setPastEvents(eventsData);
+        setStats(statsData);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen ">
       <Sidebar role="organizer" />
       <DashboardHeader searchPlaceholder="Search events..." />
+            <div className="fixed top-6 md:left-60 left-0 -z-10 pointer-events-none">
+              <Image
+                src="/Ellipse2.png"
+                alt=""
+                width={200}
+                height={400}
+                className="opacity-80"
+              />
+            </div>
+            <div className="fixed bottom-6  right-0 -z-10 pointer-events-none">
+              <Image
+                src="/Ellipse3.png"
+                alt=""
+                width={200}
+                height={400}
+                className="opacity-80"
+              />
+            </div>
       <main className="md:ml-60 pt-3 md:pt-16">
         <div className="p-4 md:p-8 lg:p-10 max-w-7xl mx-auto">
           
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-[#062E22] mb-2">Create a New Event</h1>
-            <p className="text-gray-500">Choose how you want to start your event creation journey</p>
+            <p className="text-gray-500 text-base">Choose how you want to start your event creation journey</p>
           </div>
 
           {/* Quick Start Options */}
           <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">Choose Your Starting Point</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <QuickStartCard 
-                icon={<Plus className="w-5 h-5" />}
-                title="Start from Scratch"
-                description="Full control over your event"
-                href="/organizer/proposals/create"
-              />
-              <QuickStartCard 
-                icon={<Sparkles className="w-5 h-5" />}
-                title="Use AI Assistant"
-                description="Generate event details with AI"
-                href="/organizer/ai-assistant"
-              />
-              <QuickStartCard 
-                icon={<Copy className="w-5 h-5" />}
-                title="Clone from Existing"
-                description="Use previous event details"
-                href="#"
-              />
-              <QuickStartCard 
-                icon={<LayoutTemplate className="w-5 h-5" />}
-                title="Use Template Gallery"
-                description="Choose from predefined templates"
-                href="#"
-              />
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <h2 className="text-xl font-bold text-[#062E22] mb-6">Let's Get Started</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <QuickStartCard 
+                  icon={<Plus className="w-6 h-6" />}
+                  iconBg="bg-emerald-100 text-emerald-600"
+                  title="Start from Scratch"
+                  description="Full control over your event"
+                  href="/organizer/proposals/create"
+                />
+                <QuickStartCard 
+                  icon={<Sparkles className="w-6 h-6" />}
+                  iconBg="bg-orange-100 text-orange-600"
+                  title="Use AI Assistant"
+                  description="Generate event details with AI"
+                  href="/organizer/ai-assistant"
+                />
+                <QuickStartCard 
+                  icon={<Copy className="w-6 h-6" />}
+                  iconBg="bg-blue-100 text-blue-600"
+                  title="Clone from Existing"
+                  description="Use previous event details"
+                  href="#"
+                />
+                <QuickStartCard 
+                  icon={<LayoutTemplate className="w-6 h-6" />}
+                  iconBg="bg-purple-100 text-purple-600"
+                  title="Use Template Gallery"
+                  description="Choose from predefined templates"
+                  href="#"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3  gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
               
               {/* Steps Card */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div className="p-5 border-b border-gray-100">
-                  <h3 className="text-lg font-semibold text-[#062E22] flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-[#EC5B13]" />
-                    Event Creation Steps
+              <div className="bg-white rounded-2xl shadow-md border border-gray-200">
+                <div className="p-4 border-b border-gray-100">
+                  <h3 className="text-lg font-bold text-[#062E22] flex items-center gap-3">
+                    <span className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-emerald-600" />
+                    </span>
+                    Start from Scratch
                   </h3>
                 </div>
-                <div className="p-5">
-                  <div className="space-y-4">
+                <div className="p-4">
+                  <div className="space-y-2">
                     <StepItem 
                       number={1} 
                       title="Submit Proposal" 
@@ -115,108 +165,81 @@ export default function CreateEventPage() {
                 </div>
               </div>
 
-              {/* AI Assistant with Image */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="p-5 border-b border-gray-100">
-                  <h3 className="text-lg font-semibold text-[#062E22] flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-[#EC5B13]" />
-                    AI Event Assistant
-                  </h3>
-                  <p className="text-gray-500 text-sm mt-1">Let AI help you create the perfect event</p>
+{/* AI Assistant with Image */}
+              <div className="bg-[#0F47AF]/5 rounded-2xl shadow-md border-2 border-dashed border-blue-300 overflow-hidden relative">
+                <div className="absolute top-4 right-4">
+                  <Image 
+                    src="/ai.png" 
+                    alt="AI Assistant" 
+                    width={60}
+                    height={60}
+                  />
                 </div>
-                <div className="p-5">
-                  <div className="flex gap-6 items-start">
-                    <div className="flex-shrink-0">
-                      <Image 
-                        src="/ai.png" 
-                        alt="AI Assistant" 
-                        width={120}
-                        height={120}
-                        className="rounded-xl"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-gray-600 mb-4">
-                        Our AI assistant can help you plan your event by suggesting event types, 
-                        budget allocations, security requirements, and more. Get personalized 
-                        recommendations based on your needs.
-                      </p>
-                      <div className="flex gap-3">
-                        <input
-                          type="number"
-                          placeholder="Enter budget (ETB)"
-                          className="flex-1 border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] bg-gray-50"
-                        />
-                        <button className="px-5 py-3 bg-[#062E22] text-white rounded-lg font-medium hover:bg-[#0a4a37] transition-colors flex items-center gap-2">
-                          <Sparkles className="w-4 h-4" />
-                          Generate
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-[#062E22] flex items-center gap-3 mb-2">
+                    <span className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-orange-600" />
+                    </span>
+                    AI Assistant Feature
+                  </h3>
+                  <p className="text-gray-500 text-sm mb-4">Your Vision</p>
+                  <input
+                    type="text"
+                    placeholder="Describe your event vision..."
+                    className="w-full border border-gray-200 rounded-xl px-4 py-4 text-lg focus:outline-none focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] bg-white mb-4"
+                  />
+                  <button className="w-full px-6 py-4 bg-[#062E22] text-white rounded-xl font-semibold hover:bg-[#0a4a37] transition-colors flex items-center justify-center gap-2 shadow-md">
+                    <Sparkles className="w-5 h-5" />
+                    Generate AI Draft
+                  </button>
                 </div>
               </div>
 
               {/* Clone from Existing */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div className="p-5 border-b border-gray-100">
-                  <h3 className="text-lg font-semibold text-[#062E22] flex items-center gap-2">
-                    <Copy className="w-5 h-5 text-[#EC5B13]" />
+              <div className="bg-white rounded-2xl shadow-md border border-gray-200">
+                <div className="p-6 border-b border-gray-100">
+                  <h3 className="text-xl font-bold text-[#062E22] flex items-center gap-3">
+                    <span className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <Copy className="w-5 h-5 text-blue-600" />
+                    </span>
                     Clone from Existing Event
                   </h3>
-                  <p className="text-gray-500 text-sm mt-1">Start quickly with a proven event structure</p>
+                  <p className="text-gray-500 text-sm mt-2">Start quickly with a proven event structure</p>
                 </div>
                 <div className="p-4">
-                  <div className="space-y-2">
-                    <CloneItem 
-                      title="National Innovation Summit 2024"
-                      date="March 15, 2024"
-                    />
-                    <CloneItem 
-                      title="Regional Farmers Workshop"
-                      date="February 20, 2024"
-                    />
-                    <CloneItem 
-                      title="Digital Health Expo"
-                      date="January 10, 2024"
-                    />
-                  </div>
+                  {loading ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="w-6 h-6 animate-spin text-[#062E22]" />
+                    </div>
+                  ) : pastEvents.length === 0 ? (
+                    <p className="text-gray-500 text-sm text-center py-4">No past events available</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {pastEvents.map(event => (
+                        <CloneItem 
+                          key={event.id}
+                          title={event.title}
+                          date={event.date}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-
-              {/* Template Gallery */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div className="p-5 border-b border-gray-100">
-                  <h3 className="text-lg font-semibold text-[#062E22] flex items-center gap-2">
-                    <LayoutTemplate className="w-5 h-5 text-[#EC5B13]" />
-                    Template Gallery
-                  </h3>
-                  <p className="text-gray-500 text-sm mt-1">Quick start with professionally designed templates</p>
-                </div>
-                <div className="p-4">
-                  <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                    <TemplateCard icon={<Users />} title="Conference" color="bg-blue-100 text-blue-600" />
-                    <TemplateCard icon={<Calendar />} title="Concert" color="bg-purple-100 text-purple-600" />
-                    <TemplateCard icon={<FileText />} title="Workshop" color="bg-green-100 text-green-600" />
-                    <TemplateCard icon={<Building2 />} title="Trade Fair" color="bg-orange-100 text-orange-600" />
-                    <TemplateCard icon={<Sparkles />} title="Festival" color="bg-red-100 text-red-600" />
-                    <TemplateCard icon={<Calendar />} title="Gala" color="bg-yellow-100 text-yellow-600" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
+</div>
+</div>
             {/* Sidebar */}
             <div className="space-y-6">
               {/* Help & Resources */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div className="p-5 border-b border-gray-100">
-                  <h3 className="text-lg font-semibold text-[#062E22] flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5 text-[#EC5B13]" />
+              <div className="bg-white rounded-2xl shadow-md border border-gray-200">
+                <div className="p-4 border-b border-gray-100">
+                  <h3 className="text-lg font-bold text-[#062E22] flex items-center gap-3">
+                    <span className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <HelpCircle className="w-4 h-4 text-gray-600" />
+                    </span>
                     Help & Resources
                   </h3>
                 </div>
-                <div className="p-4">
+                <div className="p-3">
                   <ul className="space-y-1">
                     <ResourceLink icon={<BookOpen className="w-4 h-4" />} title="Hosting Guide" href="#" />
                     <ResourceLink icon={<Scale className="w-4 h-4" />} title="Legal FAQs" href="#" />
@@ -228,50 +251,60 @@ export default function CreateEventPage() {
               </div>
 
               {/* Tips & Best Practices */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div className="p-5 border-b border-gray-100">
-                  <h3 className="text-lg font-semibold text-[#062E22] flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-[#EC5B13]" />
+              <div className="bg-white rounded-2xl shadow-md border border-gray-200">
+                <div className="p-4 border-b border-gray-100">
+                  <h3 className="text-lg font-bold text-[#062E22] flex items-center gap-3">
+                    <span className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-orange-600" />
+                    </span>
                     Tips & Best Practices
                   </h3>
                 </div>
-                <div className="p-4">
-                  <ul className="space-y-3">
-                    <TipItem 
-                      text="Submit your proposal at least 21 business days before the event"
-                    />
-                    <TipItem 
-                      text="Prepare all required documents in advance"
-                    />
-                    <TipItem 
-                      text="Include detailed security plans for large events"
-                    />
-                    <TipItem 
-                      text="Budget for at least 10% contingency"
-                    />
+                <div className="p-3">
+                  <ul className="space-y-2">
+                    <TipItem text="Submit your proposal at least 21 business days before" />
+                    <TipItem text="Prepare all required documents in advance" />
+                    <TipItem text="Include detailed security plans for large events" />
+                    <TipItem text="Budget for at least 10% contingency" />
                   </ul>
                 </div>
               </div>
 
               {/* Quick stats */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                <h3 className="font-semibold text-[#062E22] mb-4">Your Event Stats</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
+              <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-4">
+                <h3 className="font-bold text-[#062E22] mb-3">Your Event Stats</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center py-1">
                     <span className="text-gray-500 text-sm">Total Events</span>
-                    <span className="font-semibold text-[#062E22]">12</span>
+                    <span className="font-bold text-[#062E22]">{loading ? '-' : stats.totalEvents}</span>
                   </div>
                   <div className="h-px bg-gray-100" />
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center py-1">
                     <span className="text-gray-500 text-sm">This Month</span>
-                    <span className="font-semibold text-[#062E22]">3</span>
+                    <span className="font-bold text-[#062E22]">{loading ? '-' : stats.thisMonth}</span>
                   </div>
                   <div className="h-px bg-gray-100" />
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center py-1">
                     <span className="text-gray-500 text-sm">Drafts</span>
-                    <span className="font-semibold text-[#062E22]">2</span>
+                    <span className="font-bold text-[#062E22]">{loading ? '-' : stats.drafts}</span>
                   </div>
                 </div>
+              </div>
+            </div>
+         
+          </div>
+
+          {/* Template Gallery - Full Width */}
+          <div className="mt-6">
+            <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-4">
+              <h3 className="text-lg font-bold text-[#062E22] mb-3">Template Gallery</h3>
+              <div className="grid grid-cols-3 md:grid-cols-3 gap-3">
+                <TemplateCard icon={<Users />} title="Conference" color="bg-[#F1F3F5] text-blue-600" />
+                <TemplateCard icon={<Calendar />} title="Concert" color="bg-[#F1F3F5]  text-purple-600" />
+                <TemplateCard icon={<FileText />} title="Workshop" color="bg-[#F1F3F5]  text-emerald-600" />
+                <TemplateCard icon={<Building2 />} title="Trade Fair" color="bg-[#F1F3F5]  text-orange-600" />
+                <TemplateCard icon={<Sparkles />} title="Festival" color="bg-[#F1F3F5] ext-red-600" />
+                <TemplateCard icon={<Calendar />} title="Gala" color="bg-[#F1F3F5] text-yellow-600" />
               </div>
             </div>
           </div>
@@ -282,18 +315,15 @@ export default function CreateEventPage() {
 }
 
 // Components
-function QuickStartCard({ icon, title, description, href }: any) {
+function QuickStartCard({ icon, iconBg, title, description, href }: any) {
   return (
     <Link href={href}>
-      <div className="bg-white rounded-xl p-5 border border-gray-200 hover:border-[#062E22] hover:shadow-md transition-all cursor-pointer group">
-        <div className="w-10 h-10 bg-[#062E22]/10 rounded-lg flex items-center justify-center mb-3 text-[#062E22] group-hover:bg-[#062E22] group-hover:text-white transition-colors">
+      <div className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-[#062E22] hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer group h-full">
+        <div className={`w-12 h-12 ${iconBg} rounded-xl flex items-center justify-center mb-4 transition-colors`}>
           {icon}
         </div>
-        <h3 className="font-semibold text-[#062E22] mb-1">{title}</h3>
+        <h3 className="font-bold text-lg text-[#062E22] mb-2">{title}</h3>
         <p className="text-gray-500 text-sm">{description}</p>
-        <div className="mt-3 flex items-center gap-1 text-sm font-medium text-[#EC5B13]">
-          Get Started <ArrowRight className="w-4 h-4" />
-        </div>
       </div>
     </Link>
   );
@@ -301,13 +331,13 @@ function QuickStartCard({ icon, title, description, href }: any) {
 
 function StepItem({ number, title, description }: any) {
   return (
-    <div className="flex gap-4 items-start">
-      <div className="flex-shrink-0 w-8 h-8 bg-[#062E22] text-white rounded-full flex items-center justify-center font-semibold text-sm">
+    <div className="flex gap-3 items-start p-2 rounded-xl hover:bg-gray-50 transition-colors">
+      <div className="flex-shrink-0 w-6 h-6 bg-[#062E22] text-white rounded-full flex items-center justify-center font-semibold text-xs">
         {number}
       </div>
-      <div className="flex-1 pt-1">
-        <h4 className="font-medium text-[#062E22]">{title}</h4>
-        <p className="text-gray-500 text-sm">{description}</p>
+      <div className="flex-1 pt-0.5">
+        <h4 className="font-medium text-[#062E22] text-sm">{title}</h4>
+        <p className="text-gray-500 text-xs mt-0.5">{description}</p>
       </div>
     </div>
   );
@@ -315,23 +345,25 @@ function StepItem({ number, title, description }: any) {
 
 function CloneItem({ title, date }: any) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-[#062E22]/30 hover:bg-green-50/50 transition-colors cursor-pointer group">
+    <div className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-[#062E22]/30 hover:bg-green-50/50 transition-all cursor-pointer group">
       <div>
-        <h4 className="font-medium text-gray-800 group-hover:text-[#062E22] transition-colors">{title}</h4>
-        <p className="text-sm text-gray-400">{date}</p>
+        <h4 className="font-semibold text-gray-800 group-hover:text-[#062E22] transition-colors">{title}</h4>
+        <p className="text-sm text-gray-400 mt-1">{date}</p>
       </div>
-      <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#EC5B13] transition-colors" />
+      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-orange-100 transition-colors">
+        <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-orange-600 transition-colors" />
+      </div>
     </div>
   );
 }
 
 function TemplateCard({ icon, title, color }: any) {
   return (
-    <div className={`flex flex-col items-center gap-2 p-4 rounded-xl cursor-pointer hover:shadow-sm transition-all ${color}`}>
-      <div className="w-10 h-10 bg-white rounded-lg shadow-sm flex items-center justify-center">
+    <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all ${color} border border-transparent hover:border-current/20`}>
+      <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
         {icon}
       </div>
-      <span className="text-xs font-medium text-gray-700">{title}</span>
+      <span className="text-xs font-semibold text-gray-700">{title}</span>
     </div>
   );
 }

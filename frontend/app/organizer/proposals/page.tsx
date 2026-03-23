@@ -8,6 +8,7 @@ import { RefreshCw } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { getToken } from '@/app/lib/auth';
+import Image from 'next/image';
 
 interface Proposal {
   id: string;
@@ -118,7 +119,25 @@ export default function OrganizerProposalsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen ">
+                  <div className="fixed top-6 md:left-60 left-0 -z-10 pointer-events-none">
+                    <Image
+                      src="/Ellipse2.png"
+                      alt=""
+                      width={200}
+                      height={400}
+                      className="opacity-80"
+                    />
+                  </div>
+                  <div className="fixed bottom-6  right-0 -z-10 pointer-events-none">
+                    <Image
+                      src="/Ellipse3.png"
+                      alt=""
+                      width={200}
+                      height={400}
+                      className="opacity-80"
+                    />
+                  </div>
       <Sidebar role="organizer" />
       <DashboardHeader searchPlaceholder="Search proposals..." onSearch={setQuery} />
       <main className="md:ml-60 pt-16 p-6">

@@ -7,7 +7,7 @@ import DashboardHeader from "@/components/DashboardHeader";
 import Link from "next/link";
 import { getToken } from "@/app/lib/auth";
 import { Calendar, MapPin, Users, DollarSign, Shield, FileText, CheckCircle, Clock, AlertCircle, ArrowLeft, Send } from "lucide-react";
-
+import Image from "next/image";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 interface SessionProposalData {
@@ -191,7 +191,8 @@ export default function ProposalReview() {
 
   if (showSuccess) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen ">
+
         <div className="bg-white rounded-2xl shadow-xl p-8 text-center max-w-md">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-10 h-10 text-green-600" />
@@ -232,7 +233,24 @@ export default function ProposalReview() {
     <>
       <Sidebar role="organizer" />
       <DashboardHeader searchPlaceholder="Search proposals..." />
-
+      <div className="fixed top-6 md:left-60 left-0 -z-10 pointer-events-none">
+                      <Image
+                        src="/Ellipse2.png"
+                        alt=""
+                        width={200}
+                        height={400}
+                        className="opacity-80"
+                      />
+                    </div>
+                    <div className="fixed bottom-6  right-0 -z-10 pointer-events-none">
+                      <Image
+                        src="/Ellipse3.png"
+                        alt=""
+                        width={200}
+                        height={400}
+                        className="opacity-80"
+                      />
+                    </div>
       <div className="md:ml-60 pt-16 p-6 md:p-8 lg:p-10">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
