@@ -121,6 +121,14 @@ function VerifyEmailPageContent() {
       }
 
       if (data.access_token) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('token_type');
+        localStorage.removeItem('gce_access_token');
+        localStorage.removeItem('gce_token_type');
+        sessionStorage.removeItem('access_token');
+        sessionStorage.removeItem('token_type');
+        sessionStorage.removeItem('gce_access_token');
+        sessionStorage.removeItem('gce_token_type');
         localStorage.setItem('gce_access_token', data.access_token);
       }
       if (data.token_type) {

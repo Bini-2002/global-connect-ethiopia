@@ -50,8 +50,12 @@ export default function LoginPage() {
       // Clear old token keys to avoid conflicts
       localStorage.removeItem('access_token')
       localStorage.removeItem('token_type')
+      localStorage.removeItem('gce_access_token')
+      localStorage.removeItem('gce_token_type')
       sessionStorage.removeItem('access_token')
       sessionStorage.removeItem('token_type')
+      sessionStorage.removeItem('gce_access_token')
+      sessionStorage.removeItem('gce_token_type')
       
       // Store with unique prefix for Global Connect Ethiopia
       storage.setItem('gce_access_token', tokenData.access_token)

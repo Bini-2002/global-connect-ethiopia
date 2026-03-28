@@ -1,12 +1,6 @@
+import { getToken } from './auth';
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-
-const STORAGE_KEY = 'gce_';
-
-function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return sessionStorage.getItem(STORAGE_KEY + 'access_token') || 
-         localStorage.getItem(STORAGE_KEY + 'access_token');
-}
 
 async function request<T>(
   path: string,

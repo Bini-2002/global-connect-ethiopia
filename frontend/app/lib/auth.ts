@@ -47,10 +47,31 @@ export function decodeToken(token: string): JWTPayload | null {
 
 const STORAGE_KEY = 'gce_';
 
+function getStorageToken(storage: Storage): string | null {
+  return (
+    storage.getItem(STORAGE_KEY + 'access_token') ||
+    storage.getItem('access_token')
+  );
+}
+
+function isTokenUsable(token: string | null): token is string {
+  if (!token) return false;
+  const payload = decodeToken(token);
+  if (!payload?.exp) return true;
+  return Date.now() / 1000 < payload.exp;
+}
+
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return sessionStorage.getItem(STORAGE_KEY + 'access_token') || 
-         localStorage.getItem(STORAGE_KEY + 'access_token');
+
+  const sessionToken = getStorageToken(sessionStorage);
+  const localToken = getStorageToken(localStorage);
+
+  // Prefer a valid token; if both are valid, keep the more persistent local token.
+  if (isTokenUsable(localToken)) return localToken;
+  if (isTokenUsable(sessionToken)) return sessionToken;
+
+  return localToken || sessionToken;
 }
 
 export function getRole(): string | null {
