@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   getOrganizerPortalRoute,
+  getVendorPortalRoute,
   getRole,
   isLoggedIn,
   ROLE_DASHBOARDS,
@@ -24,6 +25,12 @@ export default function DashboardRedirect() {
       if (role === 'organizer') {
         const organizerRoute = await getOrganizerPortalRoute();
         router.replace(organizerRoute);
+        return;
+      }
+
+      if (role === 'vendor') {
+        const vendorRoute = await getVendorPortalRoute();
+        router.replace(vendorRoute);
         return;
       }
 

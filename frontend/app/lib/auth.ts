@@ -21,6 +21,20 @@ function organizerIsApproved(status?: OrganizerVerificationStatus): boolean {
   );
 }
 
+interface VendorVerificationStatus {
+  status?: string;
+  verification_status?: string;
+}
+
+function vendorIsApproved(status?: VendorVerificationStatus): boolean {
+  if (!status) return false;
+
+  return (
+    status.verification_status === "approved" ||
+    status.status === "approved"
+  );
+}
+
 export function decodeToken(token: string): JWTPayload | null {
   try {
     const payload = token.split('.')[1];
@@ -100,6 +114,47 @@ export async function getOrganizerPortalRoute(): Promise<string> {
     return '/organizer/register';
   } catch {
     return '/organizer/register';
+  }
+}
+
+export async function getVendorPortalRoute(): Promise<string> {
+  const token = getToken();
+  if (!token) return '/login';
+
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+
+  try {
+    const res = await fetch(`${apiBase}/vendors/verification/status`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: 'no-store',
+    });
+
+    if (res.status === 401) {
+      return '/login';
+    }
+
+    if (res.status === 404) {
+      return '/vendor/verification';
+    }
+
+    if (!res.ok) {
+      return '/vendor/verification';
+    }
+
+    const data = (await res.json()) as VendorVerificationStatus;
+    if (vendorIsApproved(data)) {
+      return '/vendor/dashboard';
+    }
+
+    if (data.verification_status === 'pending_for_review') {
+      return '/vendor/under-review';
+    }
+
+    return '/vendor/verification';
+  } catch {
+    return '/vendor/verification';
   }
 }
 
