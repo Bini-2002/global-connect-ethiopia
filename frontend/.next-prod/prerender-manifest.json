@@ -1,12 +1,7 @@
 {
   "version": 4,
   "routes": {
-    "/favicon.ico": {
-      "initialHeaders": {
-        "cache-control": "public, max-age=0, must-revalidate",
-        "content-type": "image/x-icon",
-        "x-next-cache-tags": "_N_T_/layout,_N_T_/favicon.ico/layout,_N_T_/favicon.ico/route,_N_T_/favicon.ico"
-      },
+    "/admin/organizers": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -19,8 +14,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/favicon.ico",
-      "dataRoute": null,
+      "srcRoute": "/admin/organizers",
+      "dataRoute": "/admin/organizers.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -30,7 +25,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/admin/proposals": {
+    "/admin/vendors": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -43,8 +38,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/admin/proposals",
-      "dataRoute": "/admin/proposals.rsc",
+      "srcRoute": "/admin/vendors",
+      "dataRoute": "/admin/vendors.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -102,8 +97,12 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/_not-found": {
-      "initialStatus": 404,
+    "/favicon.ico": {
+      "initialHeaders": {
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-type": "image/x-icon",
+        "x-next-cache-tags": "_N_T_/layout,_N_T_/favicon.ico/layout,_N_T_/favicon.ico/route,_N_T_/favicon.ico"
+      },
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -116,32 +115,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/_not-found",
-      "dataRoute": "/_not-found.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/admin/vendors": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/admin/vendors",
-      "dataRoute": "/admin/vendors.rsc",
+      "srcRoute": "/favicon.ico",
+      "dataRoute": null,
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -223,7 +198,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/organizer/events": {
+    "/organizer/proposal-review": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -236,8 +211,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/organizer/events",
-      "dataRoute": "/organizer/events.rsc",
+      "srcRoute": "/organizer/proposal-review",
+      "dataRoute": "/organizer/proposal-review.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -271,7 +246,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/organizer/proposal-review": {
+    "/organizer/events": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -284,8 +259,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/organizer/proposal-review",
-      "dataRoute": "/organizer/proposal-review.rsc",
+      "srcRoute": "/organizer/events",
+      "dataRoute": "/organizer/events.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -319,7 +294,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/organizer/proposals": {
+    "/organizer/under-review": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -332,8 +307,32 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/organizer/proposals",
-      "dataRoute": "/organizer/proposals.rsc",
+      "srcRoute": "/organizer/under-review",
+      "dataRoute": "/organizer/under-review.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/admin/proposals": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/admin/proposals",
+      "dataRoute": "/admin/proposals.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -367,7 +366,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/organizer/under-review": {
+    "/": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -380,8 +379,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/organizer/under-review",
-      "dataRoute": "/organizer/under-review.rsc",
+      "srcRoute": "/",
+      "dataRoute": "/index.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -415,7 +414,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/vendor/dashboard": {
+    "/vendor/under-review": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -428,8 +427,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/vendor/dashboard",
-      "dataRoute": "/vendor/dashboard.rsc",
+      "srcRoute": "/vendor/under-review",
+      "dataRoute": "/vendor/under-review.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -454,6 +453,30 @@
       "initialRevalidateSeconds": false,
       "srcRoute": "/register",
       "dataRoute": "/register.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/vendor/dashboard": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/vendor/dashboard",
+      "dataRoute": "/vendor/dashboard.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -511,7 +534,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/vendor/under-review": {
+    "/organizer/proposals": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -524,8 +547,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/vendor/under-review",
-      "dataRoute": "/vendor/under-review.rsc",
+      "srcRoute": "/organizer/proposals",
+      "dataRoute": "/organizer/proposals.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -535,7 +558,8 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/admin/organizers": {
+    "/_not-found": {
+      "initialStatus": 404,
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -548,32 +572,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/admin/organizers",
-      "dataRoute": "/admin/organizers.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/",
-      "dataRoute": "/index.rsc",
+      "srcRoute": "/_not-found",
+      "dataRoute": "/_not-found.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",

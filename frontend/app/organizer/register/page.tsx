@@ -71,6 +71,7 @@ interface OrganizerRegisterForm {
   rep_phone: string;
   rep_national_id: string;
   rep_workspace_id: string;
+  representative_id_document: File | null;
   authorization_proof: File | null;
   organization_contact: string;
   alternative_contact: string;
@@ -99,6 +100,7 @@ const initialForm: OrganizerRegisterForm = {
   rep_phone: "",
   rep_national_id: "",
   rep_workspace_id: "",
+  representative_id_document: null,
   authorization_proof: null,
   organization_contact: "",
   alternative_contact: "",
@@ -288,8 +290,10 @@ export default function OrganizerRegisterPage() {
     setLoading(true);
 
     try {
-      if (!formData.authorization_proof) {
-        throw new Error("Please upload the authorization proof letter.");
+      if (!formData.representative_id_document || !formData.authorization_proof) {
+        throw new Error(
+          "Please upload both the representative ID document and authorization proof letter.",
+        );
       }
 
       const data = new FormData();
@@ -298,6 +302,7 @@ export default function OrganizerRegisterPage() {
       data.append("rep_phone", formData.rep_phone);
       data.append("rep_national_id", formData.rep_national_id);
       data.append("rep_workspace_id", formData.rep_workspace_id);
+      data.append("representative_id_document", formData.representative_id_document);
       data.append("authorization_proof", formData.authorization_proof);
 
       await api.post("/organizers/organization/step-2", data);
@@ -641,12 +646,20 @@ export default function OrganizerRegisterPage() {
                 placeholder="Workspace ID / employee number"
                 className="w-full rounded-lg border border-slate-300 p-3"
               />
-              {fileCard(
-                "authorization_proof",
-                "Upload Authorization Proof Letter",
-                formData.authorization_proof,
-                handleFileChange("authorization_proof"),
-              )}
+              <div className="grid gap-4 md:grid-cols-2">
+                {fileCard(
+                  "representative_id_document",
+                  "Upload Representative ID / Passport",
+                  formData.representative_id_document,
+                  handleFileChange("representative_id_document"),
+                )}
+                {fileCard(
+                  "authorization_proof",
+                  "Upload Authorization Proof Letter",
+                  formData.authorization_proof,
+                  handleFileChange("authorization_proof"),
+                )}
+              </div>
 
               <div className="flex justify-between gap-3">
                 <button

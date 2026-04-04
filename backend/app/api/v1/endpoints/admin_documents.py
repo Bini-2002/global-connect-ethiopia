@@ -59,6 +59,8 @@ def _extract_document(owner_type: str, entity: dict, document_key: str) -> dict:
             "business_license_or_registration_document",
         }:
             return step_1.get("business_licence") or step_1.get("business_license_or_registration_document") or {}
+        if document_key in {"representative_id_document", "government_id_document"}:
+            return step_2.get("representative_id_document") or {}
         if document_key in {"authorization_proof", "authorization_letter"}:
             return step_2.get("authorization_proof") or {}
 
@@ -133,6 +135,13 @@ async def list_documents(
                     organizer,
                     "business_licence",
                     step_1.get("business_licence"),
+                )
+                _append_if_valid(
+                    items,
+                    "organizer",
+                    organizer,
+                    "representative_id_document",
+                    step_2.get("representative_id_document"),
                 )
                 _append_if_valid(
                     items,

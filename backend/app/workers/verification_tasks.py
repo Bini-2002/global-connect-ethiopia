@@ -29,34 +29,41 @@ async def _run_verification_job(job_id: str) -> None:
 
     try:
         docs = job["documents"]
+        representative_doc = docs.get("representative_id_document") or docs.get("government_id_document")
+        authorization_doc = docs.get("authorization_proof") or docs.get("authorization_letter")
+        business_doc = docs.get("business_licence") or docs.get("business_license")
+        organizer_id = job.get("entity_id") or job.get("organizer_id")
 
-        id_doc_bytes = storage.read_bytes(docs["government_id_document"]["storage_key"])
-        auth_doc_bytes = storage.read_bytes(docs["authorization_letter"]["storage_key"])
-        license_bytes = storage.read_bytes(docs["business_license"]["storage_key"])
+        if not representative_doc or not authorization_doc or not business_doc or not organizer_id:
+            raise KeyError("Organizer verification job is missing required documents")
+
+        id_doc_bytes = storage.read_bytes(representative_doc["storage_key"])
+        auth_doc_bytes = storage.read_bytes(authorization_doc["storage_key"])
+        license_bytes = storage.read_bytes(business_doc["storage_key"])
 
         id_ocr = verifier.extract_structured_data(
             content=id_doc_bytes,
-            content_type=docs["government_id_document"]["content_type"],
+            content_type=representative_doc["content_type"],
             document_type="representative_id",
         )
         auth_ocr = verifier.extract_structured_data(
             content=auth_doc_bytes,
-            content_type=docs["authorization_letter"]["content_type"],
+            content_type=authorization_doc["content_type"],
             document_type="authorization_letter",
         )
         license_ocr = verifier.extract_structured_data(
             content=license_bytes,
-            content_type=docs["business_license"]["content_type"],
+            content_type=business_doc["content_type"],
             document_type="business_license",
         )
 
         id_detection = verifier.detect_signature_and_stamp(
             content=id_doc_bytes,
-            content_type=docs["government_id_document"]["content_type"],
+            content_type=representative_doc["content_type"],
         )
         auth_detection = verifier.detect_signature_and_stamp(
             content=auth_doc_bytes,
-            content_type=docs["authorization_letter"]["content_type"],
+            content_type=authorization_doc["content_type"],
         )
 
         scoring = verifier.score_application(
@@ -70,8 +77,9 @@ async def _run_verification_job(job_id: str) -> None:
         now = datetime.now(timezone.utc)
         result_payload: dict[str, Any] = {
             "job_id": job["_id"],
+            "job_type": job.get("job_type"),
             "user_id": job["user_id"],
-            "organizer_id": job["organizer_id"],
+            "entity_id": organizer_id,
             "ocr": {
                 "representative_id": id_ocr,
                 "authorization_letter": auth_ocr,
@@ -113,7 +121,7 @@ async def _run_verification_job(job_id: str) -> None:
         )
 
         await organizer_collection.update_one(
-            {"_id": job["organizer_id"]},
+            {"_id": organizer_id},
             {
                 "$set": {
                     "verification_score": scoring["score"],
@@ -139,7 +147,7 @@ async def _run_verification_job(job_id: str) -> None:
             },
         )
         await organizer_collection.update_one(
-            {"_id": job["organizer_id"]},
+            {"_id": organizer_id},
             {
                 "$set": {
                     "verification_status": "manual_review",

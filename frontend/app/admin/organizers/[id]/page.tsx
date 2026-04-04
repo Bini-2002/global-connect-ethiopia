@@ -44,6 +44,7 @@ interface AdminDocumentListResponse {
 
 const DOCUMENT_LABELS: Record<string, string> = {
   business_licence: 'Business licence / registration document',
+  representative_id_document: 'Representative ID / passport',
   authorization_proof: 'Authorization proof letter',
   national_id: 'National ID / passport',
   government_issued_id: 'Government-issued ID',

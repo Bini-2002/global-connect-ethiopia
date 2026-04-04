@@ -417,13 +417,15 @@ async def create_or_update_organization_step_2(
     rep_phone: str = Form(...),
     rep_national_id: str = Form(...),
     rep_workspace_id: str = Form(...),
+    representative_id_document: UploadFile = File(...),
     authorization_proof: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
 ):
     """
     Organization step 2 — representative data and authorization proof.
     Fields: rep_name, rep_position, rep_phone, rep_national_id,
-            rep_workspace_id, authorization_proof (file)
+            rep_workspace_id, representative_id_document (file),
+            authorization_proof (file)
     """
     _require_organizer(current_user)
     user_oid = ObjectId(current_user["id"])
@@ -443,6 +445,11 @@ async def create_or_update_organization_step_2(
     if not rep_phone.strip():
         raise HTTPException(status_code=400, detail="rep_phone is required")
 
+    representative_id_meta = await _store_upload_file(
+        file=representative_id_document,
+        folder="organizers/organization/representative_id_document",
+        allowed_extensions=ID_DOCUMENT_EXTENSIONS,
+    )
     auth_proof_meta = await _store_upload_file(
         file=authorization_proof,
         folder="organizers/organization/authorization_proof",
@@ -458,6 +465,7 @@ async def create_or_update_organization_step_2(
             "national_id": rep_national_id.strip(),
             "workspace_id": rep_workspace_id.strip(),
         },
+        "representative_id_document": representative_id_meta,
         "authorization_proof": auth_proof_meta,
     }
 
@@ -554,11 +562,17 @@ async def submit_organization_for_verification(
     step_1 = existing["organization_profile"]["step_1"]
     step_2 = existing["organization_profile"]["step_2"]
     business_licence = step_1.get("business_licence")
+    representative_id_document = step_2.get("representative_id_document")
     auth_proof = step_2.get("authorization_proof")
     rep_national_id_str = step_2["representative"]["national_id"]
 
     if not business_licence or not business_licence.get("storage_key"):
         raise HTTPException(status_code=400, detail="Business licence document missing from step 1")
+    if not representative_id_document or not representative_id_document.get("storage_key"):
+        raise HTTPException(
+            status_code=400,
+            detail="Representative ID document missing from step 2",
+        )
     if not auth_proof or not auth_proof.get("storage_key"):
         raise HTTPException(status_code=400, detail="Authorization proof document missing from step 2")
 
@@ -572,6 +586,13 @@ async def submit_organization_for_verification(
             "business_licence": {
                 "storage_key": business_licence["storage_key"],
                 "content_type": business_licence.get("content_type", "application/octet-stream"),
+            },
+            "representative_id_document": {
+                "storage_key": representative_id_document["storage_key"],
+                "content_type": representative_id_document.get(
+                    "content_type",
+                    "application/octet-stream",
+                ),
             },
             "authorization_proof": {
                 "storage_key": auth_proof["storage_key"],
@@ -626,6 +647,9 @@ async def get_organization_review_summary(current_user: dict = Depends(get_curre
         "organization_description": step_1.get("organization_description"),
         "business_licence_filename": (step_1.get("business_licence") or {}).get("filename"),
         "representative": step_2.get("representative"),
+        "representative_id_document_filename": (
+            step_2.get("representative_id_document") or {}
+        ).get("filename"),
         "authorization_proof_filename": (step_2.get("authorization_proof") or {}).get("filename"),
     }
 
@@ -655,5 +679,4 @@ async def get_verification_status(current_user: dict = Depends(get_current_user)
         "onboarding_status": profile.get("onboarding_status"),
         "status": profile.get("status"),
     }
-
 
