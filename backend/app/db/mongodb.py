@@ -21,3 +21,12 @@ verification_result_collection = db.verification_results
 
 # proposals collection
 proposal_collection = db.proposals
+
+# marketplace collections
+vendor_service_collection = db.vendor_services
+request_collection = db.requests
+contract_collection = db.contracts
+transaction_collection = db.transactions
+wallet_collection = db.wallets
+withdrawal_collection = db.withdrawals
+message_collection = db.messages
