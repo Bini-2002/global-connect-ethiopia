@@ -33,8 +33,24 @@ export default function AdminVendorDetailPage() {
   const [success, setSuccess] = useState('');
   const [notes, setNotes] = useState('');
 
+  const mapVendor = (res: any): VendorDetail => ({
+    id: res.id,
+    user_id: res.user_id,
+    business_name: res.step_2?.business_details?.business_name,
+    business_category: res.step_2?.business_details?.business_category,
+    business_address: res.step_2?.business_details?.business_address,
+    registration_number: res.step_2?.business_details?.registration_number,
+    years_of_operation: res.step_2?.business_details?.years_of_operation,
+    website_url: res.step_2?.business_details?.website_url,
+    status: res.status,
+    ocr_score: res.ocr_score,
+    ocr_tier: res.ocr_tier,
+    recommendation: res.recommendation,
+    created_at: res.created_at || new Date().toISOString(),
+  });
+
   useEffect(() => {
-    api.get<VendorDetail>(`/admin/vendors/${id}`).then(setVendor).catch(() => setError('Not found')).finally(() => setLoading(false));
+    api.get<any>(`/admin/vendors/${id}`).then(res => setVendor(mapVendor(res))).catch(() => setError('Not found')).finally(() => setLoading(false));
   }, [id]);
 
   const doDecision = async (decision: 'approved' | 'rejected') => {
@@ -42,8 +58,8 @@ export default function AdminVendorDetailPage() {
     try {
       await api.patch(`/admin/vendors/${id}/decision`, { decision, notes });
       setSuccess(`Vendor ${decision} successfully.`);
-      const updated = await api.get<VendorDetail>(`/admin/vendors/${id}`);
-      setVendor(updated);
+      const updated = await api.get<any>(`/admin/vendors/${id}`);
+      setVendor(mapVendor(updated));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');
     } finally { setActionLoading(''); }

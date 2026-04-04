@@ -22,7 +22,21 @@ export default function AdminVendorsPage() {
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    api.get<VendorApp[]>('/admin/vendors/pending').then(setApps).catch(console.error).finally(() => setLoading(false));
+    api.get<{ items: any[] }>('/admin/vendors/pending')
+      .then((res) => {
+        const mappedApps: VendorApp[] = (res.items || []).map((item: any) => ({
+          id: item.id,
+          user_id: item.user_id,
+          business_name: item.step_2?.business_details?.business_name,
+          business_category: item.step_2?.business_details?.business_category,
+          status: item.status,
+          ocr_score: item.verification_score,
+          created_at: item.created_at || new Date().toISOString(),
+        }));
+        setApps(mappedApps);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = apps.filter(a =>
