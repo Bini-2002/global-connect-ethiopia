@@ -59,9 +59,10 @@ class RequestMessageSummary(BaseModel):
 
 
 class RequestCreate(BaseModel):
-    proposal_id: str
+    proposal_id: str | None = None
     service_id: str
     message: str = Field(..., min_length=5)
+    offered_amount: float | None = Field(default=None, ge=0)
     proposed_amount: float | None = Field(default=None, ge=0)
     currency: str = "ETB"
     event_date: datetime | None = None
@@ -100,8 +101,9 @@ class RequestResponse(BaseModel):
 class ContractCreate(BaseModel):
     request_id: str
     title: str
-    scope: str
-    amount: float = Field(..., gt=0)
+    scope: str | None = None
+    amount: float | None = Field(default=None, gt=0)
+    total_amount: float | None = Field(default=None, gt=0)
     currency: str = "ETB"
     terms: str | None = None
     start_date: datetime | None = None
@@ -153,11 +155,14 @@ class PaymentDepositPayload(BaseModel):
 
 class PaymentReleasePayload(BaseModel):
     contract_id: str
+    amount: float | None = Field(default=None, gt=0)
     notes: str | None = None
+    confirm_completed: bool = True
 
 
 class PaymentRefundPayload(BaseModel):
     contract_id: str
+    amount: float | None = Field(default=None, gt=0)
     reason: str | None = None
 
 
