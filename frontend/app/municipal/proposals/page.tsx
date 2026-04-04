@@ -15,7 +15,7 @@ export default function MunicipalProposalsPage() {
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    api.get<Proposal[]>('/municipal/proposals/').then(setProposals).catch(console.error).finally(() => setLoading(false));
+    api.get<ProposalRecord[]>('/municipal/proposals/').then(setProposals).catch(console.error).finally(() => setLoading(false));
   }, []);
 
   const filtered = proposals.filter(p => {

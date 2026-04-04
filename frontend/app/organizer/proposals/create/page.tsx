@@ -332,7 +332,7 @@ export default function CreateProposalPage() {
               </button>
               <button
                 type="button"
-                onClick={handleSaveDraft}
+                onClick={() => void handleSaveDraft()}
                 disabled={loading}
                 className="px-4 py-2 border border-[#CBD5E1] text-[#062E22] rounded-lg hover:bg-gray-100 text-sm md:text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >

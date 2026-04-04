@@ -15,7 +15,7 @@ export default function MinistryProposalsPage() {
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    api.get<Proposal[]>('/ministry/proposals/').then(setProposals).catch(console.error).finally(() => setLoading(false));
+    api.get<ProposalRecord[]>('/ministry/proposals/').then(setProposals).catch(console.error).finally(() => setLoading(false));
   }, []);
 
   const filtered = proposals.filter(p => {
