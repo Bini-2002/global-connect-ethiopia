@@ -12,6 +12,8 @@ class PermitResponse(BaseModel):
     permit_number: str
     issued_at: datetime
     issued_by_role: str | None = None
+    issued_by_user_id: str | None = None
+    issued_by_office_name: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

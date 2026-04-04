@@ -12,6 +12,7 @@ from app.models.proposal_states import ProposalStatus
 from app.models.roles import UserRole
 from app.schemas.proposal import ProposalCreate, ProposalResponse, ProposalUpdate
 from app.services.object_storage import ObjectStorageService
+from app.services.review_offices import resolve_review_office
 
 router = APIRouter()
 
@@ -43,10 +44,53 @@ def _to_response(proposal: dict) -> dict:
         "document_url": proposal.get("document_url"),
         "document_name": proposal.get("document_name"),
         "document_size": proposal.get("document_size"),
+        "review_stage": proposal.get("review_stage"),
+        "office_assignments": proposal.get("office_assignments"),
+        "review_decisions": proposal.get("review_decisions", []),
+        "organizer_updates": proposal.get("organizer_updates", []),
+        "security_assignment": proposal.get("security_assignment"),
+        "approval_certificate_id": proposal.get("approval_certificate_id"),
+        "approval_certificate_number": proposal.get("approval_certificate_number"),
+        "rejection_reason": proposal.get("rejection_reason"),
+        "change_request_note": proposal.get("change_request_note"),
         "status": proposal["status"],
         "created_at": proposal["created_at"],
         "updated_at": proposal["updated_at"],
     }
+
+
+async def _build_office_assignments(
+    ministry_office_id: str | None,
+    municipal_office_id: str | None,
+    police_office_id: str | None,
+) -> dict | None:
+    assignments: dict[str, dict] = {}
+
+    if ministry_office_id:
+        assignments["ministry"] = await resolve_review_office(
+            ministry_office_id,
+            UserRole.MINISTRY_GOV,
+        )
+    if municipal_office_id:
+        assignments["municipal"] = await resolve_review_office(
+            municipal_office_id,
+            UserRole.MUNICIPAL_GOV,
+        )
+    if police_office_id:
+        assignments["police"] = await resolve_review_office(
+            police_office_id,
+            UserRole.POLICE,
+        )
+
+    return assignments or None
+
+
+def _missing_review_offices(assignments: dict | None) -> list[str]:
+    missing: list[str] = []
+    for key in ("ministry", "municipal", "police"):
+        if not (assignments or {}).get(key, {}).get("user_id"):
+            missing.append(key)
+    return missing
 
 
 @router.post("", response_model=ProposalResponse, status_code=status.HTTP_201_CREATED)
@@ -65,6 +109,9 @@ async def create_proposal(
     target_audience: Optional[str] = Form(None),
     security_level: Optional[str] = Form(None),
     personnel_count: Optional[int] = Form(None),
+    ministry_office_id: Optional[str] = Form(None),
+    municipal_office_id: Optional[str] = Form(None),
+    police_office_id: Optional[str] = Form(None),
     document: UploadFile | None = None,
     current_user: dict = Depends(get_current_user)
 ):
@@ -91,6 +138,12 @@ async def create_proposal(
         document_name = document.filename
         document_size = stored.size_bytes
 
+    office_assignments = await _build_office_assignments(
+        ministry_office_id,
+        municipal_office_id,
+        police_office_id,
+    )
+
     new_proposal = {
         "title": title,
         "description": description,
@@ -112,6 +165,9 @@ async def create_proposal(
         "document_url": document_url,
         "document_name": document_name,
         "document_size": document_size,
+        "office_assignments": office_assignments,
+        "review_decisions": [],
+        "organizer_updates": [],
     }
 
     result = await proposal_collection.insert_one(new_proposal)
@@ -136,6 +192,9 @@ async def update_proposal(
     target_audience: Optional[str] = Form(None),
     security_level: Optional[str] = Form(None),
     personnel_count: Optional[int] = Form(None),
+    ministry_office_id: Optional[str] = Form(None),
+    municipal_office_id: Optional[str] = Form(None),
+    police_office_id: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_user)
 ):
     _require_organizer(current_user)
@@ -187,6 +246,20 @@ async def update_proposal(
         update_data["security_level"] = security_level
     if personnel_count is not None:
         update_data["personnel_count"] = personnel_count
+    if any(value is not None for value in (ministry_office_id, municipal_office_id, police_office_id)):
+        existing_assignments = dict(proposal.get("office_assignments", {}))
+        new_assignments = await _build_office_assignments(
+            ministry_office_id,
+            municipal_office_id,
+            police_office_id,
+        ) or {}
+        if ministry_office_id:
+            existing_assignments["ministry"] = new_assignments["ministry"]
+        if municipal_office_id:
+            existing_assignments["municipal"] = new_assignments["municipal"]
+        if police_office_id:
+            existing_assignments["police"] = new_assignments["police"]
+        update_data["office_assignments"] = existing_assignments
 
     if len(update_data) > 1:
         await proposal_collection.update_one(
@@ -215,6 +288,17 @@ async def submit_proposal(
 
     if proposal.get("status") not in {ProposalStatus.DRAFT, ProposalStatus.CHANGES_REQUESTED}:
         raise HTTPException(status_code=400, detail="Only draft or changes requested proposals can be submitted")
+
+    missing_offices = _missing_review_offices(proposal.get("office_assignments"))
+    if missing_offices:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "Missing review office assignments",
+                "message": "Select ministry, municipal, and police offices before submitting.",
+                "missing": missing_offices,
+            },
+        )
 
     required_fields = [
         "event_type",
@@ -250,6 +334,8 @@ async def submit_proposal(
         {
             "$set": {
                 "status": ProposalStatus.SUBMITTED,
+                "review_stage": "ministry_queue",
+                "submitted_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc)
             }
         }
