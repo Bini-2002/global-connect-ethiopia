@@ -3,6 +3,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from passlib.exc import PasswordValueError, UnknownHashError
+from pymongo.errors import PyMongoError
 from app.schemas.user import (
     OtpSendRequest,
     OtpSendResponse,
@@ -81,9 +83,29 @@ def _to_utc_aware(value: datetime) -> datetime:
 
 
 async def _issue_access_token(email: str, password: str) -> dict:
-    user = await user_collection.find_one({"email": email})
+    try:
+        user = await user_collection.find_one({"email": email})
+    except PyMongoError as exc:
+        logger.exception("Login lookup failed for %s: %s", email, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service temporarily unavailable.",
+        ) from exc
 
-    if not user or not security.verify_password(password, user["password_hash"]):
+    password_hash = user.get("password_hash") if user else None
+
+    try:
+        password_is_valid = bool(
+            user
+            and isinstance(password_hash, str)
+            and password_hash
+            and security.verify_password(password, password_hash)
+        )
+    except (PasswordValueError, UnknownHashError, ValueError, TypeError) as exc:
+        logger.warning("Invalid stored password hash for %s: %s", email, exc)
+        password_is_valid = False
+
+    if not user or not password_is_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -94,17 +116,24 @@ async def _issue_access_token(email: str, password: str) -> dict:
     skips_otp = _role_skips_otp(role)
 
     if skips_otp and not user.get("email_verified", False):
-        await user_collection.update_one(
-            {"_id": user["_id"]},
-            {
-                "$set": {
-                    "email_verified": True,
-                    "is_active": True,
-                    "updated_at": datetime.now(timezone.utc),
+        try:
+            await user_collection.update_one(
+                {"_id": user["_id"]},
+                {
+                    "$set": {
+                        "email_verified": True,
+                        "is_active": True,
+                        "updated_at": datetime.now(timezone.utc),
+                    },
+                    "$unset": {"auth_otp": ""},
                 },
-                "$unset": {"auth_otp": ""},
-            },
-        )
+            )
+        except PyMongoError as exc:
+            logger.exception("Login activation update failed for %s: %s", email, exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service temporarily unavailable.",
+            ) from exc
         user["email_verified"] = True
         user["is_active"] = True
     elif not user.get("email_verified", False):
