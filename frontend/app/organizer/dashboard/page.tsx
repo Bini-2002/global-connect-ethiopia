@@ -144,7 +144,7 @@ export default function OrganizerDashboard() {
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
       Promise.all([
-        axios.get(`${API_BASE_URL}/proposals`, {
+        axios.get(`${API_BASE_URL}/proposals/`, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',

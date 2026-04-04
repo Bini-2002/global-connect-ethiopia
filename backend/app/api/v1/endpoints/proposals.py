@@ -49,6 +49,7 @@ def _to_response(proposal: dict) -> dict:
     }
 
 
+@router.post("", response_model=ProposalResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=ProposalResponse, status_code=status.HTTP_201_CREATED)
 async def create_proposal(
     title: str = Form(...),
@@ -258,6 +259,7 @@ async def submit_proposal(
     return _to_response(updated_proposal)
 
 
+@router.get("", response_model=List[ProposalResponse])
 @router.get("/", response_model=List[ProposalResponse])
 async def list_my_proposals(current_user: dict = Depends(get_current_user)):
     _require_organizer(current_user)
