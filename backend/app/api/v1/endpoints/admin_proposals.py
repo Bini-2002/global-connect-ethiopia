@@ -37,6 +37,7 @@ async def _get_proposal_or_404(proposal_id: str) -> dict:
     return proposal
 
 
+@router.get("", response_model=List[ProposalResponse], include_in_schema=False)
 @router.get("/", response_model=List[ProposalResponse])
 async def list_admin_review_queue(current_user: dict = Depends(allow_admin)):
     _ = current_user

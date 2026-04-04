@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import LoginHeader from "../../components/loginHeader"
+import { saveAuthSession } from '@/app/lib/auth'
 
 interface LoginResponse {
   access_token: string
@@ -45,21 +46,7 @@ export default function LoginPage() {
       }
 
       const tokenData: LoginResponse = data
-      const storage = keepLoggedIn ? localStorage : sessionStorage
-      
-      // Clear old token keys to avoid conflicts
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('token_type')
-      localStorage.removeItem('gce_access_token')
-      localStorage.removeItem('gce_token_type')
-      sessionStorage.removeItem('access_token')
-      sessionStorage.removeItem('token_type')
-      sessionStorage.removeItem('gce_access_token')
-      sessionStorage.removeItem('gce_token_type')
-      
-      // Store with unique prefix for Global Connect Ethiopia
-      storage.setItem('gce_access_token', tokenData.access_token)
-      storage.setItem('gce_token_type', tokenData.token_type)
+      saveAuthSession(tokenData.access_token, tokenData.token_type, keepLoggedIn)
 
       router.push('/dashboard')
     } catch (err) {

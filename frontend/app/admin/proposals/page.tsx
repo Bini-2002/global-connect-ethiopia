@@ -42,7 +42,7 @@ export default function AdminProposalsPage() {
       return;
     }
 
-    api.get<Proposal[]>('/admin/proposals/')
+    api.get<Proposal[]>('/admin/proposals')
       .then(setProposals)
       .catch((err) => {
         if (err instanceof Error && err.message === 'Not authenticated') {

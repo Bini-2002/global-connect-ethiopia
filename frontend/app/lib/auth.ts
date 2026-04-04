@@ -5,6 +5,8 @@ export interface JWTPayload {
   iat?: number;
 }
 
+let inMemoryToken: string | null = null;
+
 function normalizeRole(role: string | null | undefined): string | null {
   if (!role) return null;
 
@@ -64,19 +66,52 @@ export function decodeToken(token: string): JWTPayload | null {
 }
 
 const STORAGE_KEY = 'gce_';
+const ACCESS_TOKEN_KEY = 'access_token';
+const TOKEN_TYPE_KEY = 'token_type';
+
+function getCookieValue(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+
+  const prefix = `${name}=`;
+  const match = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix));
+
+  return match ? decodeURIComponent(match.slice(prefix.length)) : null;
+}
+
+function setCookieValue(name: string, value: string, persistent: boolean): void {
+  if (typeof document === 'undefined') return;
+
+  const maxAge = persistent ? '; Max-Age=2592000' : '';
+  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; SameSite=Lax${maxAge}`;
+}
+
+function clearCookieValue(name: string): void {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+}
 
 function getStorageToken(storage: Storage): string | null {
   return (
     storage.getItem(STORAGE_KEY + 'access_token') ||
-    storage.getItem('access_token')
+    storage.getItem(ACCESS_TOKEN_KEY)
   );
 }
 
 function clearStorageTokens(storage: Storage): void {
-  storage.removeItem(STORAGE_KEY + 'access_token');
-  storage.removeItem(STORAGE_KEY + 'token_type');
-  storage.removeItem('access_token');
-  storage.removeItem('token_type');
+  storage.removeItem(STORAGE_KEY + ACCESS_TOKEN_KEY);
+  storage.removeItem(STORAGE_KEY + TOKEN_TYPE_KEY);
+  storage.removeItem(ACCESS_TOKEN_KEY);
+  storage.removeItem(TOKEN_TYPE_KEY);
+}
+
+function setStorageTokens(storage: Storage, token: string, tokenType: string): void {
+  storage.setItem(STORAGE_KEY + ACCESS_TOKEN_KEY, token);
+  storage.setItem(STORAGE_KEY + TOKEN_TYPE_KEY, tokenType);
+  storage.setItem(ACCESS_TOKEN_KEY, token);
+  storage.setItem(TOKEN_TYPE_KEY, tokenType);
 }
 
 function isTokenUsable(token: string | null): token is string {
@@ -89,15 +124,33 @@ function isTokenUsable(token: string | null): token is string {
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
 
+  if (isTokenUsable(inMemoryToken)) return inMemoryToken;
+
   const sessionToken = getStorageToken(sessionStorage);
   const localToken = getStorageToken(localStorage);
+  const cookieToken = getCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY) || getCookieValue(ACCESS_TOKEN_KEY);
 
   // Prefer a valid token; if both are valid, keep the more persistent local token.
-  if (isTokenUsable(localToken)) return localToken;
-  if (isTokenUsable(sessionToken)) return sessionToken;
+  if (isTokenUsable(localToken)) {
+    inMemoryToken = localToken;
+    return localToken;
+  }
+  if (isTokenUsable(sessionToken)) {
+    inMemoryToken = sessionToken;
+    return sessionToken;
+  }
+  if (isTokenUsable(cookieToken)) {
+    inMemoryToken = cookieToken;
+    return cookieToken;
+  }
 
   if (localToken) clearStorageTokens(localStorage);
   if (sessionToken) clearStorageTokens(sessionStorage);
+  if (cookieToken) {
+    clearCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY);
+    clearCookieValue(ACCESS_TOKEN_KEY);
+  }
+  inMemoryToken = null;
   return null;
 }
 
@@ -118,8 +171,32 @@ export function isLoggedIn(): boolean {
 
 export function logout(): void {
   if (typeof window === 'undefined') return;
+  inMemoryToken = null;
   clearStorageTokens(localStorage);
   clearStorageTokens(sessionStorage);
+  clearCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY);
+  clearCookieValue(ACCESS_TOKEN_KEY);
+  clearCookieValue(STORAGE_KEY + TOKEN_TYPE_KEY);
+  clearCookieValue(TOKEN_TYPE_KEY);
+}
+
+export function saveAuthSession(token: string, tokenType: string, persistent = false): void {
+  if (typeof window === 'undefined') return;
+
+  clearStorageTokens(localStorage);
+  clearStorageTokens(sessionStorage);
+  clearCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY);
+  clearCookieValue(ACCESS_TOKEN_KEY);
+  clearCookieValue(STORAGE_KEY + TOKEN_TYPE_KEY);
+  clearCookieValue(TOKEN_TYPE_KEY);
+
+  const storage = persistent ? localStorage : sessionStorage;
+  setStorageTokens(storage, token, tokenType);
+  setCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY, token, persistent);
+  setCookieValue(ACCESS_TOKEN_KEY, token, persistent);
+  setCookieValue(STORAGE_KEY + TOKEN_TYPE_KEY, tokenType, persistent);
+  setCookieValue(TOKEN_TYPE_KEY, tokenType, persistent);
+  inMemoryToken = token;
 }
 
 export async function getOrganizerPortalRoute(): Promise<string> {

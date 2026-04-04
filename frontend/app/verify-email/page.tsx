@@ -3,7 +3,7 @@
 import { Suspense, useState, useRef, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import LoginHeader from '@/components/loginHeader';
-import { ROLE_DASHBOARDS } from '@/app/lib/auth';
+import { ROLE_DASHBOARDS, saveAuthSession } from '@/app/lib/auth';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -121,18 +121,7 @@ function VerifyEmailPageContent() {
       }
 
       if (data.access_token) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('token_type');
-        localStorage.removeItem('gce_access_token');
-        localStorage.removeItem('gce_token_type');
-        sessionStorage.removeItem('access_token');
-        sessionStorage.removeItem('token_type');
-        sessionStorage.removeItem('gce_access_token');
-        sessionStorage.removeItem('gce_token_type');
-        localStorage.setItem('gce_access_token', data.access_token);
-      }
-      if (data.token_type) {
-        localStorage.setItem('gce_token_type', data.token_type);
+        saveAuthSession(data.access_token, data.token_type || 'bearer', true);
       }
       if (data.user_id) {
         localStorage.setItem('user_id', data.user_id);

@@ -19,6 +19,7 @@ def _to_response(proposal: dict) -> dict:
     return proposal
 
 
+@router.get("", response_model=List[ProposalResponse], include_in_schema=False)
 @router.get("/", response_model=List[ProposalResponse])
 async def list_municipal_review_queue(current_user: dict = Depends(allow_municipal)):
     cursor = proposal_collection.find({"status": ProposalStatus.MINISTRY_APPROVED})
