@@ -6,21 +6,8 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
-
-interface Proposal {
-  id: string;
-  title: string;
-  description?: string;
-  event_type?: string;
-  location?: string;
-  start_date?: string;
-  end_date?: string;
-  expected_attendees?: number;
-  budget_estimate?: number;
-  organizer_id: string;
-  status: string;
-  updated_at: string;
-}
+import { getOfficeLabel, PROPOSAL_STATUS_META } from '@/app/lib/proposals';
+import { ProposalRecord } from '@/app/types/proposal';
 
 const TIMELINE_STEPS = [
   { key: 'submitted', label: 'Submitted' },
@@ -33,7 +20,7 @@ const TIMELINE_STEPS = [
 export default function MinistryProposalDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [proposal, setProposal] = useState<ProposalRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState('');
   const [error, setError] = useState('');
@@ -42,7 +29,7 @@ export default function MinistryProposalDetailPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
 
   useEffect(() => {
-    api.get<Proposal>(`/ministry/proposals/${id}`).then(setProposal).catch(() => api.get<Proposal>(`/proposals/${id}`).then(setProposal)).catch(() => setError('Not found')).finally(() => setLoading(false));
+    api.get<ProposalRecord>(`/ministry/proposals/${id}`).then(setProposal).catch(() => setError('Not found')).finally(() => setLoading(false));
   }, [id]);
 
   const doAction = async (action: string, body?: Record<string, string>) => {
@@ -50,9 +37,13 @@ export default function MinistryProposalDetailPage() {
     try {
       if (action === 'start_review') await api.post(`/ministry/proposals/${id}/start-review`);
       else if (action === 'approve') await api.post(`/ministry/proposals/${id}/approve`);
-      else if (action === 'reject') await api.post(`/ministry/proposals/${id}/reject`, { reason: body?.reason });
+      else if (action === 'reject') {
+        const formData = new FormData();
+        formData.append('notes', body?.reason || '');
+        await api.post(`/ministry/proposals/${id}/reject`, formData);
+      }
       setSuccess('Action applied successfully.');
-      const updated = await api.get<Proposal>(`/ministry/proposals/${id}`).catch(() => api.get<Proposal>(`/proposals/${id}`));
+      const updated = await api.get<ProposalRecord>(`/ministry/proposals/${id}`);
       setProposal(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');
@@ -76,7 +67,9 @@ export default function MinistryProposalDetailPage() {
               <Link href="/ministry/proposals" className="hover:text-[#062E22]">Ministry Review Queue</Link>
               <span>/</span>
               <span className="px-2 py-1 border border-slate-200 rounded text-slate-600 text-[10px] font-mono">PROP-{proposal.id.substring(0, 8).toUpperCase()}</span>
-              <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded text-[10px] font-medium">{proposal.status}</span>
+              <span className={`px-2 py-1 rounded text-[10px] font-medium ${PROPOSAL_STATUS_META[proposal.status]?.cls || 'bg-slate-100 text-slate-600'}`}>
+                {PROPOSAL_STATUS_META[proposal.status]?.label || proposal.status}
+              </span>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -111,6 +104,10 @@ export default function MinistryProposalDetailPage() {
                     <div><p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Location</p><p className="text-sm font-medium text-slate-800">{proposal.location || '—'}</p></div>
                   </div>
                   {proposal.description && <p className="text-sm text-slate-600 mb-4 leading-relaxed">{proposal.description}</p>}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div><p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Program Overview</p><p className="text-sm text-slate-600">{proposal.program_overview || '—'}</p></div>
+                    <div><p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Event Objectives</p><p className="text-sm text-slate-600">{proposal.event_objectives || '—'}</p></div>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-slate-50 rounded-xl p-4"><p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Start Date</p><p className="text-sm font-bold text-[#062E22]">{proposal.start_date ? new Date(proposal.start_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</p></div>
                     <div className="bg-slate-50 rounded-xl p-4"><p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">End Date</p><p className="text-sm font-bold text-[#062E22]">{proposal.end_date ? new Date(proposal.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</p></div>
@@ -135,6 +132,23 @@ export default function MinistryProposalDetailPage() {
                     <div><p className="font-semibold text-[#062E22] text-sm">Organizer</p><p className="text-xs text-slate-400 font-mono">{proposal.organizer_id.substring(0, 16)}</p></div>
                   </div>
                   <div className="flex justify-between text-xs"><span className="text-slate-400">Verification</span><span className="font-semibold text-green-600 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Verified</span></div>
+                </div>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Routing</p>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <p className="text-slate-400 text-[10px] uppercase tracking-widest">Assigned Ministry Office</p>
+                      <p className="font-semibold text-[#062E22]">{getOfficeLabel(proposal.office_assignments?.ministry)}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 text-[10px] uppercase tracking-widest">Next Municipal Office</p>
+                      <p className="font-semibold text-[#062E22]">{getOfficeLabel(proposal.office_assignments?.municipal)}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 text-[10px] uppercase tracking-widest">Police Coordination</p>
+                      <p className="font-semibold text-[#062E22]">{getOfficeLabel(proposal.office_assignments?.police)}</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Review Timeline</p>

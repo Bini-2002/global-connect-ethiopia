@@ -6,26 +6,17 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
-
-interface Permit {
-  id: string;
-  proposal_id: string;
-  organizer_id: string;
-  permit_number: string;
-  issued_at: string;
-  issued_by_role: string;
-  created_at: string;
-}
+import { PermitRecord } from '@/app/types/proposal';
 
 export default function OrganizerPermitPage() {
   const params = useParams();
   const id = params.id as string;
-  const [permit, setPermit] = useState<Permit | null>(null);
+  const [permit, setPermit] = useState<PermitRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<Permit>(`/permits/${id}`).then(setPermit).catch(() => setError('Permit not found or not yet issued.')).finally(() => setLoading(false));
+    api.get<PermitRecord>(`/permits/${id}`).then(setPermit).catch(() => setError('Permit not found or not yet issued.')).finally(() => setLoading(false));
   }, [id]);
 
   return (
@@ -105,7 +96,7 @@ export default function OrganizerPermitPage() {
                           <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Issued By</p>
                         </div>
-                        <p className="text-sm font-bold text-[#062E22] capitalize">{permit.issued_by_role?.replace(/_/g, ' ')}</p>
+                        <p className="text-sm font-bold text-[#062E22] capitalize">{permit.issued_by_office_name || permit.issued_by_role?.replace(/_/g, ' ')}</p>
                       </div>
                     </div>
                   </div>

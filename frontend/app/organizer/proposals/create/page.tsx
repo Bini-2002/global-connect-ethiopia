@@ -2,27 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
 import Link from "next/link";
 import { ArrowLeft, X } from "lucide-react";
 import DashboardHeader from "@/components/DashboardHeader";
 import Sidebar from "@/components/Sidebar";
 import AIModal from "@/components/organizer/AIModal";
-import { getToken } from "@/app/lib/auth";
-import ProposalForm, { ProposalFormData } from "./ProposalForm";
+import { api } from "@/app/lib/api";
+import {
+  appendProposalFields,
+  buildSessionProposalData,
+  isPersistedProposal,
+  normalizeSessionProposalData,
+} from "@/app/lib/proposals";
+import { ProposalFormData, ProposalRecord, ReviewTargetsResponse } from "@/app/types/proposal";
+import ProposalForm from "./ProposalForm";
 import ProposalSidebar, { MobileLicensingCard, FloatingAIButton } from "./ProposalSidebar";
 import Image from "next/image";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
-};
 
 const initialFormData: ProposalFormData = {
   title: "",
@@ -38,6 +33,9 @@ const initialFormData: ProposalFormData = {
   targetAudience: ["Youth", "Investors"],
   securityLevel: "Standard (Private Security)",
   personnelCount: 0,
+  ministryOfficeId: "",
+  municipalOfficeId: "",
+  policeOfficeId: "",
   documents: null,
 };
 
@@ -50,27 +48,50 @@ export default function CreateProposalPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [formData, setFormData] = useState<ProposalFormData>(initialFormData);
   const [hadDocument, setHadDocument] = useState(false);
+  const [proposalId, setProposalId] = useState<string | null>(null);
+  const [reviewTargets, setReviewTargets] = useState<ReviewTargetsResponse>({
+    ministry: [],
+    municipal: [],
+    police: [],
+  });
+  const [reviewTargetsLoading, setReviewTargetsLoading] = useState(true);
+  const [reviewTargetsError, setReviewTargetsError] = useState<string | null>(null);
 
   useEffect(() => {
+    api.get<ReviewTargetsResponse>('/offices/review-targets')
+      .then((data) => {
+        setReviewTargets(data);
+        setReviewTargetsError(null);
+      })
+      .catch((err) => {
+        console.error("Error loading review targets:", err);
+        setReviewTargetsError(err instanceof Error ? err.message : "Failed to load review offices");
+      })
+      .finally(() => setReviewTargetsLoading(false));
+
     const savedData = localStorage.getItem('pendingProposal');
     if (savedData) {
       try {
-        const parsed = JSON.parse(savedData);
+        const parsed = normalizeSessionProposalData(JSON.parse(savedData));
+        setProposalId(parsed.id);
         setHadDocument(!!parsed.document_name);
         setFormData({
-          title: parsed.title || "",
-          description: parsed.description || "",
-          event_type: parsed.event_type || "",
+          title: parsed.title,
+          description: parsed.description,
+          event_type: parsed.event_type,
           start_date: parsed.start_date ? parsed.start_date.split('T')[0] : "",
           end_date: parsed.end_date ? parsed.end_date.split('T')[0] : "",
-          location: parsed.location || "",
-          expected_attendees: parsed.expected_attendees || 0,
-          budget_estimate: parsed.budget_estimate || parsed.budget || '',
-          programOverview: parsed.programOverview || parsed.program_overview || "",
-          eventObjectives: parsed.eventObjectives || parsed.event_objectives || "",
-          targetAudience: parsed.targetAudience || parsed.target_audience || ["Youth", "Investors"],
-          securityLevel: parsed.securityLevel || parsed.security_level || "Standard (Private Security)",
-          personnelCount: parsed.personnelCount || parsed.personnel_count || 0,
+          location: parsed.location,
+          expected_attendees: parsed.expected_attendees,
+          budget_estimate: parsed.budget_estimate ? String(parsed.budget_estimate) : '',
+          programOverview: parsed.programOverview,
+          eventObjectives: parsed.eventObjectives,
+          targetAudience: parsed.targetAudience,
+          securityLevel: parsed.securityLevel,
+          personnelCount: parsed.personnelCount,
+          ministryOfficeId: parsed.ministryOfficeId,
+          municipalOfficeId: parsed.municipalOfficeId,
+          policeOfficeId: parsed.policeOfficeId,
           documents: null,
         });
       } catch (e) {
@@ -86,24 +107,9 @@ export default function CreateProposalPage() {
   };
 
   const saveToSession = async (data: ProposalFormData) => {
-    const documentData = data.documents 
-      ? {
-          document_base64: await fileToBase64(data.documents),
-          document_name: data.documents.name,
-          document_size: data.documents.size,
-        }
-      : { document_base64: null, document_name: null, document_size: null };
-
-    const proposalData = {
-      ...data,
-      ...documentData,
-      documents: null,
-      id: `temp-${Date.now()}`,
-      status: 'draft',
-      createdAt: new Date().toISOString(),
-    };
-
+    const proposalData = await buildSessionProposalData(data, proposalId);
     localStorage.setItem('pendingProposal', JSON.stringify(proposalData));
+    setProposalId(proposalData.id);
     return proposalData;
   };
 
@@ -121,6 +127,9 @@ export default function CreateProposalPage() {
     if (!formData.programOverview.trim()) errors.push("Program overview is required");
     if (!formData.eventObjectives.trim()) errors.push("Event objectives is required");
     if (formData.targetAudience.length === 0) errors.push("At least one target audience is required");
+    if (!formData.ministryOfficeId) errors.push("Ministry office selection is required");
+    if (!formData.municipalOfficeId) errors.push("Municipal office selection is required");
+    if (!formData.policeOfficeId) errors.push("Police office selection is required");
 
     if (errors.length > 0) {
       setError(errors.join(". "));
@@ -153,46 +162,39 @@ export default function CreateProposalPage() {
     }
   };
 
-  const handleSaveDraft = async () => {
+  const persistDraft = async (): Promise<ProposalRecord> => {
+    const formDataToSend = new FormData();
+    appendProposalFields(formDataToSend, formData);
+
+    if (formData.documents) {
+      formDataToSend.append('document', formData.documents);
+    }
+
+    if (isPersistedProposal(proposalId)) {
+      return api.patch<ProposalRecord>(`/proposals/${proposalId}`, formDataToSend);
+    }
+
+    return api.post<ProposalRecord>('/proposals/', formDataToSend);
+  };
+
+  const handleSaveDraft = async (redirectTo = '/organizer/proposals') => {
     setLoading(true);
     setError(null);
 
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('title', formData.title || '');
-      formDataToSend.append('description', formData.description || '');
-      formDataToSend.append('event_type', formData.event_type || '');
-      formDataToSend.append('start_date', formData.start_date || '');
-      formDataToSend.append('end_date', formData.end_date || '');
-      formDataToSend.append('location', formData.location || '');
-      formDataToSend.append('expected_attendees', String(formData.expected_attendees || 0));
-      formDataToSend.append('budget_estimate', String(formData.budget_estimate || 0));
-      formDataToSend.append('program_overview', formData.programOverview || '');
-      formDataToSend.append('event_objectives', formData.eventObjectives || '');
-      formDataToSend.append('target_audience', (formData.targetAudience || []).join(','));
-      formDataToSend.append('security_level', formData.securityLevel || 'Standard (Private Security)');
-      formDataToSend.append('personnel_count', String(formData.personnelCount || 0));
-
-      if (formData.documents) {
-        formDataToSend.append('document', formData.documents);
-      }
-
-      await axios.post(`${API_BASE_URL}/proposals`, formDataToSend, {
-        headers: {
-          'Authorization': `Bearer ${getToken()}`,
-        },
-      });
+      const saved = await persistDraft();
+      setProposalId(saved.id);
 
       localStorage.removeItem('pendingProposal');
       
       setToast({ message: 'Submitted as draft', type: 'success' });
       setTimeout(() => {
         setToast(null);
-        router.push('/organizer/proposals');
+        router.push(redirectTo);
       }, 1500);
     } catch (err: any) {
       console.error("Error saving draft:", err);
-      setToast({ message: err.response?.data?.detail || 'Failed to save draft', type: 'error' });
+      setToast({ message: err?.message || 'Failed to save draft', type: 'error' });
       setTimeout(() => setToast(null), 3000);
     } finally {
       setLoading(false);
@@ -250,6 +252,9 @@ export default function CreateProposalPage() {
       formData.programOverview.trim() !== "" ||
       formData.eventObjectives.trim() !== "" ||
       formData.personnelCount > 0 ||
+      formData.ministryOfficeId !== "" ||
+      formData.municipalOfficeId !== "" ||
+      formData.policeOfficeId !== "" ||
       formData.documents !== null
     );
   };
@@ -264,8 +269,7 @@ export default function CreateProposalPage() {
 
   const handleExitModalSave = async () => {
     setShowExitModal(false);
-    await handleSaveDraft();
-    router.push('/organizer/create-event');
+    await handleSaveDraft('/organizer/create-event');
   };
 
   const handleExitModalDiscard = () => {
@@ -360,6 +364,9 @@ export default function CreateProposalPage() {
             <div className="w-full lg:w-[600px] xl:w-[800px]">
               <ProposalForm
                 formData={formData}
+                reviewTargets={reviewTargets}
+                reviewTargetsLoading={reviewTargetsLoading}
+                reviewTargetsError={reviewTargetsError}
                 loading={loading}
                 onChange={handleChange}
                 onFileUpload={handleFileUpload}

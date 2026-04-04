@@ -5,54 +5,39 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import Link from "next/link";
-import { getToken } from "@/app/lib/auth";
+import { api } from "@/app/lib/api";
+import {
+  appendProposalFields,
+  base64ToFile,
+  findReviewTargetById,
+  getOfficeLabel,
+  isPersistedProposal,
+  normalizeSessionProposalData,
+} from "@/app/lib/proposals";
 import { Calendar, MapPin, Users, DollarSign, Shield, FileText, CheckCircle, Clock, AlertCircle, ArrowLeft, Send } from "lucide-react";
+import { ProposalRecord, ReviewTargetsResponse, SessionProposalData } from "@/app/types/proposal";
 import Image from "next/image";
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-
-interface SessionProposalData {
-  id: string;
-  title: string;
-  description: string;
-  event_type: string;
-  start_date: string;
-  end_date: string;
-  location: string;
-  expected_attendees: number;
-  budget_estimate: number;
-  programOverview: string;
-  eventObjectives: string;
-  targetAudience: string[];
-  securityLevel: string;
-  personnelCount: number;
-  document_base64: string | null;
-  document_name: string | null;
-  document_size: number | null;
-  status: string;
-  createdAt: string;
-}
-
-const base64ToFile = (base64: string, filename: string, mimeType: string): File => {
-  const arr = base64.split(',');
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new File([u8arr], filename, { type: mimeType });
-};
 
 export default function ProposalReview() {
   const router = useRouter();
   const [proposal, setProposal] = useState<SessionProposalData | null>(null);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [reviewTargets, setReviewTargets] = useState<ReviewTargetsResponse>({
+    ministry: [],
+    municipal: [],
+    police: [],
+  });
 
   useEffect(() => {
+    api.get<ReviewTargetsResponse>('/offices/review-targets')
+      .then(setReviewTargets)
+      .catch((err) => console.error('Error loading review offices:', err));
+
     const savedData = localStorage.getItem('pendingProposal');
     if (savedData) {
-      setProposal(JSON.parse(savedData));
+      setProposal(normalizeSessionProposalData(JSON.parse(savedData)));
     }
   }, []);
 
@@ -67,23 +52,11 @@ export default function ProposalReview() {
     if (!proposal) return;
 
     setLoading(true);
+    setError(null);
 
     try {
       const formDataToSend = new FormData();
-
-      formDataToSend.append('title', proposal.title);
-      formDataToSend.append('description', proposal.description || '');
-      formDataToSend.append('event_type', proposal.event_type || '');
-      formDataToSend.append('start_date', proposal.start_date || '');
-      formDataToSend.append('end_date', proposal.end_date || '');
-      formDataToSend.append('location', proposal.location || '');
-      formDataToSend.append('expected_attendees', String(proposal.expected_attendees || 0));
-      formDataToSend.append('budget_estimate', String(proposal.budget_estimate || 0));
-      formDataToSend.append('program_overview', proposal.programOverview || '');
-      formDataToSend.append('event_objectives', proposal.eventObjectives || '');
-      formDataToSend.append('target_audience', (proposal.targetAudience || []).join(','));
-      formDataToSend.append('security_level', proposal.securityLevel || 'Standard (Private Security)');
-      formDataToSend.append('personnel_count', String(proposal.personnelCount || 0));
+      appendProposalFields(formDataToSend, proposal);
 
       if (proposal.document_base64 && proposal.document_name) {
         const mimeType = proposal.document_name.endsWith('.pdf') ? 'application/pdf' : 'application/zip';
@@ -91,18 +64,19 @@ export default function ProposalReview() {
         formDataToSend.append('document', file);
       }
 
-      await fetch(`${API_BASE_URL}/proposals/submit`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${getToken()}`
-        },
-        body: formDataToSend,
-      });
+      const saved = isPersistedProposal(proposal.id)
+        ? await api.patch<ProposalRecord>(`/proposals/${proposal.id}`, formDataToSend)
+        : await api.post<ProposalRecord>('/proposals/', formDataToSend);
 
-      alert('Proposal saved as draft!');
+      localStorage.removeItem('pendingProposal');
+      setProposal({
+        ...proposal,
+        id: saved.id,
+      });
+      router.push('/organizer/proposals');
     } catch (error) {
       console.error('Error saving draft:', error);
-      alert('Failed to save draft. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to save draft. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -112,23 +86,11 @@ export default function ProposalReview() {
     if (!proposal) return;
 
     setLoading(true);
+    setError(null);
 
     try {
       const formDataToSend = new FormData();
-
-      formDataToSend.append('title', proposal.title);
-      formDataToSend.append('description', proposal.description || '');
-      formDataToSend.append('event_type', proposal.event_type || '');
-      formDataToSend.append('start_date', proposal.start_date || '');
-      formDataToSend.append('end_date', proposal.end_date || '');
-      formDataToSend.append('location', proposal.location || '');
-      formDataToSend.append('expected_attendees', String(proposal.expected_attendees || 0));
-      formDataToSend.append('budget_estimate', String(proposal.budget_estimate || 0));
-      formDataToSend.append('program_overview', proposal.programOverview || '');
-      formDataToSend.append('event_objectives', proposal.eventObjectives || '');
-      formDataToSend.append('target_audience', (proposal.targetAudience || []).join(','));
-      formDataToSend.append('security_level', proposal.securityLevel || 'Standard (Private Security)');
-      formDataToSend.append('personnel_count', String(proposal.personnelCount || 0));
+      appendProposalFields(formDataToSend, proposal);
 
       if (proposal.document_base64 && proposal.document_name) {
         const mimeType = proposal.document_name.endsWith('.pdf') ? 'application/pdf' : 'application/zip';
@@ -136,36 +98,21 @@ export default function ProposalReview() {
         formDataToSend.append('document', file);
       }
 
-      const createResponse = await fetch(`${API_BASE_URL}/proposals`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${getToken()}`
-        },
-        body: formDataToSend,
-      });
+      const savedProposal = isPersistedProposal(proposal.id)
+        ? await api.patch<ProposalRecord>(`/proposals/${proposal.id}`, formDataToSend)
+        : await api.post<ProposalRecord>('/proposals/', formDataToSend);
 
-      if (!createResponse.ok) {
-        throw new Error('Failed to create proposal');
-      }
-
-      const createdProposal = await createResponse.json();
-
-      await fetch(`${API_BASE_URL}/proposals/${createdProposal.id}/submit`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${getToken()}`
-        },
-      });
+      await api.post<ProposalRecord>(`/proposals/${savedProposal.id}/submit`);
 
       localStorage.removeItem('pendingProposal');
       setShowSuccess(true);
 
       setTimeout(() => {
-        router.push('/organizer/events');
+        router.push('/organizer/proposals');
       }, 2000);
     } catch (error) {
       console.error('Error submitting proposal:', error);
-      alert('Failed to submit proposal. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to submit proposal. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -188,6 +135,16 @@ export default function ProposalReview() {
       minimumFractionDigits: 0,
     }).format(amount);
   };
+
+  const ministryOffice = proposal
+    ? findReviewTargetById(reviewTargets.ministry, proposal.ministryOfficeId)
+    : undefined;
+  const municipalOffice = proposal
+    ? findReviewTargetById(reviewTargets.municipal, proposal.municipalOfficeId)
+    : undefined;
+  const policeOffice = proposal
+    ? findReviewTargetById(reviewTargets.police, proposal.policeOfficeId)
+    : undefined;
 
   if (showSuccess) {
     return (
@@ -291,6 +248,12 @@ export default function ProposalReview() {
             </button>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-6 p-4 rounded-xl border border-red-200 bg-red-50 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 space-y-6">
@@ -427,6 +390,41 @@ export default function ProposalReview() {
 
             <div className="bg-white shadow-lg rounded-xl p-6 md:p-8 border border-gray-100">
               <div className="flex items-center gap-3 pb-4 border-b border-gray-200 mb-6">
+                <div className="p-2 bg-[#062E22]/10 rounded-lg">
+                  <Shield className="w-5 h-5 text-[#062E22]" />
+                </div>
+                <h2 className="text-xl font-bold text-[#062E22]">Review Routing</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  {
+                    label: 'Ministry Office',
+                    value: getOfficeLabel(ministryOffice, proposal.ministryOfficeId || 'Not selected'),
+                    subtext: ministryOffice?.email || ministryOffice?.office_name || 'Review starts here',
+                  },
+                  {
+                    label: 'Municipal Office',
+                    value: getOfficeLabel(municipalOffice, proposal.municipalOfficeId || 'Not selected'),
+                    subtext: municipalOffice?.email || municipalOffice?.office_name || 'Receives after ministry approval',
+                  },
+                  {
+                    label: 'Police Office',
+                    value: getOfficeLabel(policeOffice, proposal.policeOfficeId || 'Not selected'),
+                    subtext: policeOffice?.email || policeOffice?.office_name || 'Gets security assignment after approval',
+                  },
+                ].map((office) => (
+                  <div key={office.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">{office.label}</p>
+                    <p className="font-semibold text-[#062E22]">{office.value}</p>
+                    <p className="text-xs text-slate-500 mt-2">{office.subtext}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white shadow-lg rounded-xl p-6 md:p-8 border border-gray-100">
+              <div className="flex items-center gap-3 pb-4 border-b border-gray-200 mb-6">
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <FileText className="w-5 h-5 text-blue-600" />
                 </div>
@@ -457,11 +455,26 @@ export default function ProposalReview() {
                 Review Progress
               </h2>
               <div className="flex flex-col gap-4">
-                {[
-                  { label: "Draft Stage", desc: "Proposal creation", completed: true, active: false },
-                  { label: "Departmental Review", desc: "Pending review", completed: false, active: true },
-                  { label: "Security Assessment", desc: "Pending review", completed: false, active: false },
-                  { label: "Final Approval", desc: "Pending submission", completed: false, active: false },
+                {[ 
+                  { label: "Draft Stage", desc: "Proposal prepared by organizer", completed: true, active: false },
+                  {
+                    label: "Ministry Review",
+                    desc: getOfficeLabel(ministryOffice, 'Pending ministry assignment'),
+                    completed: false,
+                    active: true,
+                  },
+                  {
+                    label: "Municipal Review",
+                    desc: getOfficeLabel(municipalOffice, 'Pending municipal assignment'),
+                    completed: false,
+                    active: false,
+                  },
+                  {
+                    label: "Police Facilitation",
+                    desc: getOfficeLabel(policeOffice, 'Pending police assignment'),
+                    completed: false,
+                    active: false,
+                  },
                 ].map((step, idx) => (
                   <div key={idx} className="flex items-start gap-3">
                     <div className="flex flex-col items-center">

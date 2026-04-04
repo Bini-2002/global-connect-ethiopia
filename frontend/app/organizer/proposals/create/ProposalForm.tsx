@@ -1,9 +1,24 @@
 'use client';
 
-import { Calendar, FileText, Shield, Upload, DollarSign, Target, Users } from 'lucide-react';
+import {
+  Building2,
+  Calendar,
+  DollarSign,
+  FileText,
+  Shield,
+  ShieldCheck,
+  Target,
+  Upload,
+  Users,
+} from 'lucide-react';
+import { getOfficeLabel } from '@/app/lib/proposals';
+import { ProposalFormData, ReviewTargetsResponse } from '@/app/types/proposal';
 
 interface ProposalFormProps {
   formData: ProposalFormData;
+  reviewTargets: ReviewTargetsResponse;
+  reviewTargetsLoading: boolean;
+  reviewTargetsError: string | null;
   loading: boolean;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -14,36 +29,11 @@ interface ProposalFormProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
-export interface ProposalFormData {
-  title: string;
-  description: string;
-  event_type: string;
-  start_date: string;
-  end_date: string;
-  location: string;
-  expected_attendees: number;
-  budget_estimate: string;
-  programOverview: string;
-  eventObjectives: string;
-  targetAudience: string[];
-  securityLevel: string;
-  personnelCount: number;
-  documents: File | null;
-}
-
-interface ProposalFormProps {
-  formData: ProposalFormData;
-  loading: boolean;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
-  onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onAddAudience: () => void;
-  onRemoveAudience: (index: number) => void;
-  onAudienceChange: (index: number, value: string) => void;
-  hadDocument: boolean;
-}
-
 export default function ProposalForm({
   formData,
+  reviewTargets,
+  reviewTargetsLoading,
+  reviewTargetsError,
   loading,
   onChange,
   onFileUpload,
@@ -302,6 +292,106 @@ export default function ProposalForm({
               disabled={loading}
             />
           </div>
+        </div>
+      </div>
+
+      {/* Review Routing */}
+      <div className="bg-white shadow-lg rounded-xl p-6 md:p-8 space-y-5 border border-gray-100">
+        <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+          <div className="p-2 bg-[#062E22]/10 rounded-lg">
+            <Building2 className="w-5 h-5 text-[#062E22]" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-[#062E22]">Review Routing</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Choose the government offices that will review and facilitate this event.
+            </p>
+          </div>
+        </div>
+
+        {reviewTargetsError && (
+          <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-sm text-red-700">
+            {reviewTargetsError}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Ministry Office
+            </label>
+            <select
+              name="ministryOfficeId"
+              value={formData.ministryOfficeId}
+              onChange={onChange}
+              className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/30 focus:border-[#062E22] transition-colors"
+              disabled={loading || reviewTargetsLoading}
+              required
+            >
+              <option value="">
+                {reviewTargetsLoading ? 'Loading ministry offices...' : 'Select ministry office'}
+              </option>
+              {reviewTargets.ministry.map((office) => (
+                <option key={office.user_id} value={office.user_id}>
+                  {getOfficeLabel(office)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Municipal Office
+            </label>
+            <select
+              name="municipalOfficeId"
+              value={formData.municipalOfficeId}
+              onChange={onChange}
+              className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/30 focus:border-[#062E22] transition-colors"
+              disabled={loading || reviewTargetsLoading}
+              required
+            >
+              <option value="">
+                {reviewTargetsLoading ? 'Loading municipal offices...' : 'Select municipal office'}
+              </option>
+              {reviewTargets.municipal.map((office) => (
+                <option key={office.user_id} value={office.user_id}>
+                  {getOfficeLabel(office)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4" />
+              Police Office
+            </label>
+            <select
+              name="policeOfficeId"
+              value={formData.policeOfficeId}
+              onChange={onChange}
+              className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/30 focus:border-[#062E22] transition-colors"
+              disabled={loading || reviewTargetsLoading}
+              required
+            >
+              <option value="">
+                {reviewTargetsLoading ? 'Loading police offices...' : 'Select police office'}
+              </option>
+              {reviewTargets.police.map((office) => (
+                <option key={office.user_id} value={office.user_id}>
+                  {getOfficeLabel(office)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-[#062E22]/5 border border-[#062E22]/10 p-4 text-sm text-[#062E22]">
+          The proposal will move to the selected ministry office first, then to the selected municipal
+          office. After approval, the selected police office will receive the security assignment.
         </div>
       </div>
 

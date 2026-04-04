@@ -3,48 +3,25 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import axios from 'axios';
 import { RefreshCw } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
-import { getToken } from '@/app/lib/auth';
+import { api } from '@/app/lib/api';
+import { getOfficeLabel, PROPOSAL_STATUS_META } from '@/app/lib/proposals';
+import { ProposalRecord } from '@/app/types/proposal';
 import Image from 'next/image';
-
-interface Proposal {
-  id: string;
-  title: string;
-  event_type?: string;
-  location?: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  description?: string;
-  start_date?: string;
-  end_date?: string;
-}
-
-const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
-  draft: { label: 'Draft', cls: 'bg-slate-100 text-slate-600' },
-  submitted: { label: 'Submitted', cls: 'bg-amber-100 text-amber-700' },
-  ministry_review: { label: 'Ministry Review', cls: 'bg-blue-100 text-blue-700' },
-  ministry_approved: { label: 'Ministry Approved', cls: 'bg-teal-100 text-teal-700' },
-  municipal_review: { label: 'Municipal Review', cls: 'bg-purple-100 text-purple-700' },
-  approved: { label: 'Approved', cls: 'bg-green-100 text-green-700' },
-  rejected: { label: 'Rejected', cls: 'bg-red-100 text-red-600' },
-  changes_requested: { label: 'Changes Requested', cls: 'bg-orange-100 text-orange-700' },
-};
 
 const FILTER_CONFIG: Record<string, { statuses: string[]; color: string }> = {
   all: { statuses: [], color: 'text-[#062E22]' },
   draft: { statuses: ['draft'], color: 'text-slate-600' },
-  inReview: { statuses: ['submitted', 'ministry_review', 'municipal_review'], color: 'text-blue-600' },
+  inReview: { statuses: ['submitted', 'ministry_review', 'ministry_approved', 'municipal_review'], color: 'text-blue-600' },
   approved: { statuses: ['approved'], color: 'text-green-600' },
   rejected: { statuses: ['rejected'], color: 'text-red-600' },
 };
 
 export default function OrganizerProposalsPage() {
   const router = useRouter();
-  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState('');
@@ -57,28 +34,15 @@ export default function OrganizerProposalsPage() {
     setError(null);
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-      const token = getToken();
-      
-      if (!token) {
-        router.replace('/login');
-        return;
-      }
-
-      const response = await axios.get(`${API_BASE_URL}/proposals`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      setProposals(response.data);
+      const response = await api.get<ProposalRecord[]>('/proposals/');
+      setProposals(response);
     } catch (err: any) {
       console.error('Error fetching proposals:', err);
-      if (err.response?.status === 401) {
+      if (err?.message === 'Not authenticated') {
         setError('Session expired. Please log in again.');
         setTimeout(() => router.replace('/login'), 1500);
       } else {
-        setError(err.response?.data?.detail || err.message || 'Failed to load proposals');
+        setError(err?.message || 'Failed to load proposals');
       }
     } finally {
       setLoading(false);
@@ -93,7 +57,7 @@ export default function OrganizerProposalsPage() {
   const counts = {
     all: proposals.length,
     draft: proposals.filter(p => p.status === 'draft').length,
-    inReview: proposals.filter(p => ['submitted', 'ministry_review', 'municipal_review'].includes(p.status)).length,
+    inReview: proposals.filter(p => ['submitted', 'ministry_review', 'ministry_approved', 'municipal_review'].includes(p.status)).length,
     approved: proposals.filter(p => p.status === 'approved').length,
     rejected: proposals.filter(p => p.status === 'rejected').length,
   };
@@ -260,16 +224,22 @@ export default function OrganizerProposalsPage() {
           ) : (
             <div className="divide-y divide-slate-100">
               {filtered.map(p => {
-                const cfg = STATUS_CONFIG[p.status] || { label: p.status, cls: 'bg-slate-100 text-slate-600' };
+                const cfg = PROPOSAL_STATUS_META[p.status] || { label: p.status, cls: 'bg-slate-100 text-slate-600' };
                 return (
                   <div key={p.id} className="grid grid-cols-5 gap-4 items-center px-6 py-4 hover:bg-slate-50 transition cursor-pointer" onClick={() => router.push(`/organizer/proposals/${p.id}`)}>
                     <div className="col-span-2">
                       <p className="font-medium text-[#062E22] text-sm">{p.title}</p>
                       <p className="text-xs text-slate-400">{p.location || 'No location'}</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {getOfficeLabel(p.office_assignments?.ministry, 'Ministry pending')} → {getOfficeLabel(p.office_assignments?.municipal, 'Municipal pending')}
+                      </p>
                     </div>
                     <div className="text-sm text-slate-600">{p.event_type || '—'}</div>
                     <div>
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>
+                      {p.approval_certificate_number && (
+                        <p className="text-[11px] text-slate-500 mt-1">{p.approval_certificate_number}</p>
+                      )}
                     </div>
                     <div className="text-right" onClick={(e) => e.stopPropagation()}>
                       <Link href={`/organizer/proposals/${p.id}`} className="text-xs border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-[#062E22] hover:text-white hover:border-[#062E22] transition font-medium">Open</Link>

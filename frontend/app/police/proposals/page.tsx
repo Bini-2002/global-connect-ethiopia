@@ -5,21 +5,10 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
-
-interface Proposal {
-  id: string;
-  title: string;
-  event_type?: string;
-  location?: string;
-  organizer_id: string;
-  start_date?: string;
-  end_date?: string;
-  status: string;
-  updated_at: string;
-}
+import { ProposalRecord } from '@/app/types/proposal';
 
 export default function PoliceProposalsPage() {
-  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
@@ -53,7 +42,8 @@ export default function PoliceProposalsPage() {
             <div className="col-span-2">Type</div>
             <div className="col-span-2">Location</div>
             <div className="col-span-2">Event Dates</div>
-            <div className="col-span-2 text-right">Status</div>
+            <div className="col-span-1">Certificate</div>
+            <div className="col-span-1 text-right">Action</div>
           </div>
           {loading ? (
             <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" /></div>
@@ -79,11 +69,11 @@ export default function PoliceProposalsPage() {
                     {p.start_date ? new Date(p.start_date).toLocaleDateString() : '—'}
                     {p.end_date ? ` → ${new Date(p.end_date).toLocaleDateString()}` : ''}
                   </div>
-                  <div className="col-span-2 flex justify-end">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                      Approved
-                    </span>
+                  <div className="col-span-1 text-xs text-slate-500">{p.approval_certificate_number || '—'}</div>
+                  <div className="col-span-1 flex justify-end">
+                    <Link href={`/police/proposals/${p.id}`} className="text-xs border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-[#062E22] hover:text-white hover:border-[#062E22] transition font-medium">
+                      Open
+                    </Link>
                   </div>
                 </div>
               ))}

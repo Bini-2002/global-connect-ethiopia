@@ -5,18 +5,11 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
-
-interface Proposal {
-  id: string;
-  title: string;
-  event_type?: string;
-  organizer_id: string;
-  status: string;
-  updated_at: string;
-}
+import { getOfficeLabel, PROPOSAL_STATUS_META } from '@/app/lib/proposals';
+import { ProposalRecord } from '@/app/types/proposal';
 
 export default function MunicipalProposalsPage() {
-  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [query, setQuery] = useState('');
@@ -26,12 +19,12 @@ export default function MunicipalProposalsPage() {
   }, []);
 
   const filtered = proposals.filter(p => {
-    if (tab === 'pending' && p.status !== 'municipal_review') return false;
+    if (tab === 'pending' && !['ministry_approved', 'municipal_review'].includes(p.status)) return false;
     if (tab === 'approved' && p.status !== 'approved') return false;
     if (tab === 'rejected' && p.status !== 'rejected') return false;
     return p.title.toLowerCase().includes(query.toLowerCase());
   });
-  const pendingCount = proposals.filter(p => p.status === 'municipal_review').length;
+  const pendingCount = proposals.filter(p => ['ministry_approved', 'municipal_review'].includes(p.status)).length;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -91,13 +84,16 @@ export default function MunicipalProposalsPage() {
                   <div className="col-span-4">
                     <p className="font-semibold text-[#062E22] text-sm">{p.title}</p>
                     <p className="text-xs text-slate-400">{p.event_type}</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Police office: {getOfficeLabel(p.office_assignments?.police)}
+                    </p>
                   </div>
                   <div className="col-span-2 text-xs font-mono text-slate-500">ORG-{p.organizer_id.substring(0, 4).toUpperCase()}</div>
                   <div className="col-span-3 text-xs text-slate-500">{new Date(p.updated_at).toLocaleString()}</div>
                   <div className="col-span-2">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-                      Ministry approved (Waiting Municipal)
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${PROPOSAL_STATUS_META[p.status]?.cls || 'bg-slate-100 text-slate-600'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${PROPOSAL_STATUS_META[p.status]?.dot || 'bg-slate-400'}`}></span>
+                      {PROPOSAL_STATUS_META[p.status]?.label || p.status}
                     </span>
                   </div>
                   <div className="col-span-1 text-right">
