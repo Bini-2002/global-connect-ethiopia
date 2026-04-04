@@ -204,6 +204,18 @@
       "namedRegex": "^/register(?:/)?$"
     },
     {
+      "page": "/vendor/dashboard",
+      "regex": "^/vendor/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/vendor/dashboard(?:/)?$"
+    },
+    {
+      "page": "/vendor/under-review",
+      "regex": "^/vendor/under\\-review(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/vendor/under\\-review(?:/)?$"
+    },
+    {
       "page": "/vendor/verification",
       "regex": "^/vendor/verification(?:/)?$",
       "routeKeys": {},

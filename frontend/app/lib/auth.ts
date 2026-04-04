@@ -5,6 +5,24 @@ export interface JWTPayload {
   iat?: number;
 }
 
+function normalizeRole(role: string | null | undefined): string | null {
+  if (!role) return null;
+
+  const normalized = role.trim().toLowerCase().replace(/-/g, '_');
+  const aliases: Record<string, string> = {
+    superadmin: 'super_admin',
+    'super admin': 'super_admin',
+    administrator: 'admin',
+    ministry: 'ministry_gov',
+    'ministry gov': 'ministry_gov',
+    municipal: 'municipal_gov',
+    municipality: 'municipal_gov',
+    'municipal gov': 'municipal_gov',
+  };
+
+  return aliases[normalized] ?? normalized;
+}
+
 interface OrganizerVerificationStatus {
   profile_type?: "organization" | "individual";
   onboarding_status?: string;
@@ -54,6 +72,13 @@ function getStorageToken(storage: Storage): string | null {
   );
 }
 
+function clearStorageTokens(storage: Storage): void {
+  storage.removeItem(STORAGE_KEY + 'access_token');
+  storage.removeItem(STORAGE_KEY + 'token_type');
+  storage.removeItem('access_token');
+  storage.removeItem('token_type');
+}
+
 function isTokenUsable(token: string | null): token is string {
   if (!token) return false;
   const payload = decodeToken(token);
@@ -71,14 +96,16 @@ export function getToken(): string | null {
   if (isTokenUsable(localToken)) return localToken;
   if (isTokenUsable(sessionToken)) return sessionToken;
 
-  return localToken || sessionToken;
+  if (localToken) clearStorageTokens(localStorage);
+  if (sessionToken) clearStorageTokens(sessionStorage);
+  return null;
 }
 
 export function getRole(): string | null {
   const token = getToken();
   if (!token) return null;
   const payload = decodeToken(token);
-  return payload?.role ?? null;
+  return normalizeRole(payload?.role ?? null);
 }
 
 export function isLoggedIn(): boolean {
@@ -91,10 +118,8 @@ export function isLoggedIn(): boolean {
 
 export function logout(): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(STORAGE_KEY + 'access_token');
-  localStorage.removeItem(STORAGE_KEY + 'token_type');
-  sessionStorage.removeItem(STORAGE_KEY + 'access_token');
-  sessionStorage.removeItem(STORAGE_KEY + 'token_type');
+  clearStorageTokens(localStorage);
+  clearStorageTokens(sessionStorage);
 }
 
 export async function getOrganizerPortalRoute(): Promise<string> {

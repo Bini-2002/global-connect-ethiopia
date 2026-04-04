@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
+import { getRole, getToken } from '@/app/lib/auth';
 
 interface VendorApp {
   id: string;
@@ -16,12 +18,19 @@ interface VendorApp {
   created_at: string;
 }
 
+interface VendorPendingResponse {
+  count: number;
+  items: VendorApp[];
+}
+
 export default function AdminVendorsPage() {
+  const router = useRouter();
   const [apps, setApps] = useState<VendorApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
+<<<<<<< HEAD
     api.get<{ items: any[] }>('/admin/vendors/pending')
       .then((res) => {
         const mappedApps: VendorApp[] = (res.items || []).map((item: any) => ({
@@ -38,6 +47,28 @@ export default function AdminVendorsPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+=======
+    const token = getToken();
+    const role = getRole();
+
+    if (!token || (role !== 'admin' && role !== 'super_admin')) {
+      setLoading(false);
+      router.replace('/login');
+      return;
+    }
+
+    api.get<VendorPendingResponse>('/admin/vendors/pending')
+      .then((response) => setApps(response.items || []))
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
+        console.error(err);
+      })
+      .finally(() => setLoading(false));
+  }, [router]);
+>>>>>>> 971c8d5 (feat: add vendor dashboard and under-review routes, update admin proposal handling)
 
   const filtered = apps.filter(a =>
     (a.business_name || '').toLowerCase().includes(query.toLowerCase()) ||

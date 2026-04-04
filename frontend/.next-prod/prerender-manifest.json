@@ -1,7 +1,12 @@
 {
   "version": 4,
   "routes": {
-    "/admin/vendors": {
+    "/favicon.ico": {
+      "initialHeaders": {
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-type": "image/x-icon",
+        "x-next-cache-tags": "_N_T_/layout,_N_T_/favicon.ico/layout,_N_T_/favicon.ico/route,_N_T_/favicon.ico"
+      },
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -14,8 +19,32 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/admin/vendors",
-      "dataRoute": "/admin/vendors.rsc",
+      "srcRoute": "/favicon.ico",
+      "dataRoute": null,
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/admin/proposals": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/admin/proposals",
+      "dataRoute": "/admin/proposals.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -73,7 +102,8 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/municipal/proposals": {
+    "/_not-found": {
+      "initialStatus": 404,
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -86,8 +116,32 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/municipal/proposals",
-      "dataRoute": "/municipal/proposals.rsc",
+      "srcRoute": "/_not-found",
+      "dataRoute": "/_not-found.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/admin/vendors": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/admin/vendors",
+      "dataRoute": "/admin/vendors.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -121,7 +175,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/organizer/create-event": {
+    "/municipal/proposals": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -134,8 +188,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/organizer/create-event",
-      "dataRoute": "/organizer/create-event.rsc",
+      "srcRoute": "/municipal/proposals",
+      "dataRoute": "/municipal/proposals.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -193,6 +247,30 @@
         "x-next-revalidate-tag-token"
       ]
     },
+    "/organizer/create-event": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/organizer/create-event",
+      "dataRoute": "/organizer/create-event.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/organizer/proposal-review": {
       "experimentalBypassFor": [
         {
@@ -217,30 +295,6 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/organizer/proposals": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/organizer/proposals",
-      "dataRoute": "/organizer/proposals.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
     "/organizer/proposals/create": {
       "experimentalBypassFor": [
         {
@@ -256,6 +310,30 @@
       "initialRevalidateSeconds": false,
       "srcRoute": "/organizer/proposals/create",
       "dataRoute": "/organizer/proposals/create.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/organizer/proposals": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/organizer/proposals",
+      "dataRoute": "/organizer/proposals.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -337,7 +415,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/": {
+    "/vendor/dashboard": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -350,8 +428,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/",
-      "dataRoute": "/index.rsc",
+      "srcRoute": "/vendor/dashboard",
+      "dataRoute": "/vendor/dashboard.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -433,8 +511,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/_not-found": {
-      "initialStatus": 404,
+    "/vendor/under-review": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -447,37 +524,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/_not-found",
-      "dataRoute": "/_not-found.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/favicon.ico": {
-      "initialHeaders": {
-        "cache-control": "public, max-age=0, must-revalidate",
-        "content-type": "image/x-icon",
-        "x-next-cache-tags": "_N_T_/layout,_N_T_/favicon.ico/layout,_N_T_/favicon.ico/route,_N_T_/favicon.ico"
-      },
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/favicon.ico",
-      "dataRoute": null,
+      "srcRoute": "/vendor/under-review",
+      "dataRoute": "/vendor/under-review.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -511,7 +559,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/admin/proposals": {
+    "/": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -524,8 +572,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/admin/proposals",
-      "dataRoute": "/admin/proposals.rsc",
+      "srcRoute": "/",
+      "dataRoute": "/index.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",

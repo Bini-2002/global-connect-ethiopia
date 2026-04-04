@@ -1,22 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
+import { getRole, getToken } from '@/app/lib/auth';
 
 interface VendorDetail {
   id: string;
   user_id: string;
-  business_name?: string;
-  business_category?: string;
-  business_address?: string;
-  registration_number?: string;
-  years_of_operation?: number;
-  website_url?: string;
+  step_2?: {
+    business_details?: {
+      business_name?: string;
+      business_category?: string;
+      business_address?: string;
+      registration_number?: string;
+      years_of_operation?: number;
+      website_url?: string;
+    };
+  };
   status: string;
+  verification_status?: string;
   ocr_score?: number;
   ocr_tier?: string;
   recommendation?: string;
@@ -25,6 +31,7 @@ interface VendorDetail {
 
 export default function AdminVendorDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,13 +57,41 @@ export default function AdminVendorDetailPage() {
   });
 
   useEffect(() => {
+<<<<<<< HEAD
     api.get<any>(`/admin/vendors/${id}`).then(res => setVendor(mapVendor(res))).catch(() => setError('Not found')).finally(() => setLoading(false));
   }, [id]);
+=======
+    const token = getToken();
+    const role = getRole();
+
+    if (!token || (role !== 'admin' && role !== 'super_admin')) {
+      setLoading(false);
+      router.replace('/login');
+      return;
+    }
+
+    api.get<VendorDetail>(`/admin/vendors/${id}`)
+      .then(setVendor)
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
+        setError('Not found');
+      })
+      .finally(() => setLoading(false));
+  }, [id, router]);
+>>>>>>> 971c8d5 (feat: add vendor dashboard and under-review routes, update admin proposal handling)
 
   const doDecision = async (decision: 'approved' | 'rejected') => {
     setActionLoading(decision); setError(''); setSuccess('');
     try {
-      await api.patch(`/admin/vendors/${id}/decision`, { decision, notes });
+      const form = new FormData();
+      if (notes.trim()) {
+        form.append('notes', notes.trim());
+      }
+
+      await api.patch(`/admin/vendors/${id}/decision?approved=${decision === 'approved'}`, form);
       setSuccess(`Vendor ${decision} successfully.`);
       const updated = await api.get<any>(`/admin/vendors/${id}`);
       setVendor(mapVendor(updated));
@@ -82,6 +117,8 @@ export default function AdminVendorDetailPage() {
     return { label: '🥉 Bronze', cls: 'bg-orange-100 text-orange-600' };
   };
 
+  const businessDetails = vendor?.step_2?.business_details;
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Sidebar role="admin" />
@@ -96,11 +133,11 @@ export default function AdminVendorDetailPage() {
             <div className="flex items-center gap-2 text-xs text-slate-400 mb-4">
               <Link href="/admin/vendors" className="hover:text-[#062E22]">Vendor Queue</Link>
               <span>/</span>
-              <span className="text-slate-600">{vendor.business_name}</span>
+              <span className="text-slate-600">{businessDetails?.business_name || 'Vendor Application'}</span>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-              <h1 className="text-2xl font-bold text-[#062E22]">{vendor.business_name || 'Vendor Application'}</h1>
-              {vendor.status === 'pending_review' && (
+              <h1 className="text-2xl font-bold text-[#062E22]">{businessDetails?.business_name || 'Vendor Application'}</h1>
+              {vendor.verification_status === 'pending_for_review' && (
                 <div className="flex gap-2 flex-wrap">
                   <button onClick={rerunOCR} disabled={!!actionLoading}
                     className="px-4 py-2 border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition disabled:opacity-50 flex items-center gap-2">
@@ -129,12 +166,12 @@ export default function AdminVendorDetailPage() {
                   <h3 className="font-semibold text-[#062E22] mb-4 text-sm uppercase tracking-wide">Business Information</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     {[
-                      { l: 'Business Name', v: vendor.business_name || '—' },
-                      { l: 'Category', v: vendor.business_category || '—' },
-                      { l: 'Address', v: vendor.business_address || '—' },
-                      { l: 'Registration No.', v: vendor.registration_number || '—' },
-                      { l: 'Years of Operation', v: vendor.years_of_operation?.toString() || '—' },
-                      { l: 'Website', v: vendor.website_url || '—' },
+                      { l: 'Business Name', v: businessDetails?.business_name || '—' },
+                      { l: 'Category', v: businessDetails?.business_category || '—' },
+                      { l: 'Address', v: businessDetails?.business_address || '—' },
+                      { l: 'Registration No.', v: businessDetails?.registration_number || '—' },
+                      { l: 'Years of Operation', v: businessDetails?.years_of_operation?.toString() || '—' },
+                      { l: 'Website', v: businessDetails?.website_url || '—' },
                     ].map(({ l, v }) => (
                       <div key={l}>
                         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">{l}</p>
@@ -172,8 +209,8 @@ export default function AdminVendorDetailPage() {
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Current Status</p>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${vendor.status === 'approved' ? 'bg-green-100 text-green-700' : vendor.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>
-                    {vendor.status}
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${vendor.verification_status === 'approved' ? 'bg-green-100 text-green-700' : vendor.verification_status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>
+                    {vendor.verification_status || vendor.status}
                   </span>
                 </div>
               </div>

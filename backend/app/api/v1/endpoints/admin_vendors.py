@@ -54,6 +54,14 @@ def _serialize(doc: dict) -> dict:
     serialized["_id"] = str(doc["_id"])
     if "user_id" in doc:
         serialized["user_id"] = str(doc["user_id"])
+    business_details = (doc.get("step_2") or {}).get("business_details") or {}
+    serialized["business_name"] = business_details.get("business_name")
+    serialized["business_category"] = business_details.get("business_category")
+    serialized["business_address"] = business_details.get("business_address")
+    serialized["registration_number"] = business_details.get("registration_number")
+    serialized["years_of_operation"] = business_details.get("years_of_operation")
+    serialized["website_url"] = business_details.get("website_url")
+    serialized["ocr_score"] = doc.get("verification_score")
     return serialized
 
 

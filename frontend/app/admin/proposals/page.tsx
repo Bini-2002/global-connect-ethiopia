@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
+import { getRole, getToken } from '@/app/lib/auth';
 
 interface Proposal {
   id: string;
@@ -24,14 +26,33 @@ const STATUS_BADGES: Record<string, {label: string; cls: string; dot: string}> =
 };
 
 export default function AdminProposalsPage() {
+  const router = useRouter();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'all' | 'pending'>('pending');
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    api.get<Proposal[]>('/proposals/').then(setProposals).catch(console.error).finally(() => setLoading(false));
-  }, []);
+    const token = getToken();
+    const role = getRole();
+
+    if (!token || (role !== 'admin' && role !== 'super_admin')) {
+      setLoading(false);
+      router.replace('/login');
+      return;
+    }
+
+    api.get<Proposal[]>('/admin/proposals/')
+      .then(setProposals)
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
+        console.error(err);
+      })
+      .finally(() => setLoading(false));
+  }, [router]);
 
   const filtered = proposals.filter(p => {
     if (tab === 'pending' && p.status !== 'submitted') return false;

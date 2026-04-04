@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
+import { getRole, getToken } from '@/app/lib/auth';
 
 interface Proposal {
   id: string;
@@ -34,13 +35,6 @@ const TIMELINE_STEPS = [
   { key: 'approved', label: 'Final Decision' },
 ];
 
-interface ProposalReviewDetailProps {
-  role: 'admin' | 'ministry' | 'municipal';
-  apiBase: string;
-  portalName: string;
-  backHref: string;
-}
-
 export default function AdminProposalDetail() {
   const params = useParams();
   const router = useRouter();
@@ -56,22 +50,39 @@ export default function AdminProposalDetail() {
   const [showChangeModal, setShowChangeModal] = useState(false);
 
   useEffect(() => {
-    api.get<Proposal>(`/proposals/${id}`).then(setProposal).catch(() => setError('Proposal not found')).finally(() => setLoading(false));
-  }, [id]);
+    const token = getToken();
+    const role = getRole();
+
+    if (!token || (role !== 'admin' && role !== 'super_admin')) {
+      setLoading(false);
+      router.replace('/login');
+      return;
+    }
+
+    api.get<Proposal>(`/admin/proposals/${id}`)
+      .then(setProposal)
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
+        setError('Proposal not found');
+      })
+      .finally(() => setLoading(false));
+  }, [id, router]);
 
   const doAction = async (action: string, body?: Record<string, string>) => {
     setActionLoading(action); setError(''); setSuccess('');
     try {
-      // Admin approval goes to ministry_review
       if (action === 'accept') {
-        await api.post(`/proposals/${id}/submit`);
+        await api.post(`/admin/proposals/${id}/accept`);
       } else if (action === 'reject') {
-        await api.post(`/proposals/${id}/reject`, { reason: body?.reason });
+        await api.post(`/admin/proposals/${id}/reject`, { reason: body?.reason });
       } else if (action === 'request_change') {
-        await api.post(`/proposals/${id}/request-changes`, { notes: body?.notes });
+        await api.post(`/admin/proposals/${id}/request-changes`, { notes: body?.notes });
       }
       setSuccess(`Action '${action}' applied successfully.`);
-      const updated = await api.get<Proposal>(`/proposals/${id}`);
+      const updated = await api.get<Proposal>(`/admin/proposals/${id}`);
       setProposal(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');

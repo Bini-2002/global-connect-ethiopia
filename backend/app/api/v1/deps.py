@@ -7,7 +7,7 @@ from jose import JWTError, jwt
 
 from app.core.config import settings
 from app.db.mongodb import user_collection
-from app.models.roles import UserRole
+from app.models.roles import UserRole, normalize_role
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/v1/auth/token",
@@ -25,7 +25,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         )
 
         user_id: str | None = payload.get("sub") or payload.get("user_id")
-        role: str | None = payload.get("role")
+        role: str | None = normalize_role(payload.get("role"))
 
         if user_id is None:
             raise HTTPException(
@@ -49,7 +49,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
         user["id"] = str(user["_id"])
         if role is None:
-            role = user.get("role")
+            role = normalize_role(user.get("role"))
         user["role"] = role
         return user
 
@@ -65,7 +65,9 @@ class RoleChecker:
         self.allowed_roles = allowed_roles
 
     def __call__(self, current_user: dict = Depends(get_current_user)):
-        if current_user["role"] not in self.allowed_roles:
+        normalized_role = normalize_role(current_user.get("role"))
+        allowed_roles = {normalize_role(role) for role in self.allowed_roles}
+        if normalized_role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have enough permissions",
@@ -75,7 +77,7 @@ class RoleChecker:
 
 def require_role(role: UserRole):
     async def role_checker(user=Depends(get_current_user)):
-        if user["role"] != role:
+        if normalize_role(user.get("role")) != normalize_role(role):
             raise HTTPException(
                 status_code=403,
                 detail="Permission denied",

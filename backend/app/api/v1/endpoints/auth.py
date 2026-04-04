@@ -15,7 +15,7 @@ from app.schemas.user import (
     UserLogin,
     UserResponse,
 )
-from app.models.roles import UserRole
+from app.models.roles import UserRole, normalize_role, to_user_role
 from app.core.config import settings
 from app.core import security
 from app.db.mongodb import user_collection
@@ -35,10 +35,8 @@ INTERNAL_LOGIN_ROLES = {
 
 
 def _role_skips_otp(role: str | UserRole | None) -> bool:
-    try:
-        return UserRole(role) in INTERNAL_LOGIN_ROLES
-    except Exception:
-        return False
+    normalized_role = to_user_role(role)
+    return normalized_role in INTERNAL_LOGIN_ROLES if normalized_role else False
 
 
 def _build_otp_payload() -> dict:
@@ -112,7 +110,7 @@ async def _issue_access_token(email: str, password: str) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    role = user.get("role", "attendee")
+    role = normalize_role(user.get("role", "attendee")) or UserRole.ATTENDEE.value
     skips_otp = _role_skips_otp(role)
 
     if skips_otp and not user.get("email_verified", False):
