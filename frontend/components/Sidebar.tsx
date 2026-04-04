@@ -153,8 +153,8 @@ export default function Sidebar({ role, portalName }: SidebarProps) {
           </svg>
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-bold text-[#062E22] truncate">{name}</p>
-          <p className="text-[10px] text-slate-400 truncate">Global Connect</p>
+          <p suppressHydrationWarning className="text-xs font-bold text-[#062E22] truncate">{name}</p>
+          <p suppressHydrationWarning className="text-[10px] text-slate-400 truncate">Global Connect</p>
         </div>
       </div>
 
@@ -182,7 +182,7 @@ export default function Sidebar({ role, portalName }: SidebarProps) {
               onClick={() => setIsOpen(false)}
             >
               <span className="flex-shrink-0">{item.icon}</span>
-              <span className="truncate">{item.label}</span>
+              <span suppressHydrationWarning className="truncate">{item.label}</span>
             </Link>
           );
         })}
@@ -198,7 +198,7 @@ export default function Sidebar({ role, portalName }: SidebarProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          <span className="truncate">Sign Out</span>
+          <span suppressHydrationWarning className="truncate">Sign Out</span>
         </button>
       </div>
     </>

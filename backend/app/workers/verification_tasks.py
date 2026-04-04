@@ -125,11 +125,14 @@ async def _run_verification_job(job_id: str) -> None:
             {
                 "$set": {
                     "verification_score": scoring["score"],
-                    "verification_status": scoring["verification_status"],
+                    # OCR is advisory for organizers; admin still makes the final decision.
+                    "status": PENDING_FOR_REVIEW,
+                    "verification_status": PENDING_FOR_REVIEW,
                     "verification_decision": scoring["decision"],
+                    "recommended_status": scoring["verification_status"],
                     "verification_job_id": str(job["_id"]),
-                    "review_required": scoring["decision"] == "manual_review",
-                    "reviewed_at": now if scoring["decision"] != "manual_review" else None,
+                    "review_required": True,
+                    "reviewed_at": None,
                     "updated_at": now,
                 }
             },
@@ -150,7 +153,10 @@ async def _run_verification_job(job_id: str) -> None:
             {"_id": organizer_id},
             {
                 "$set": {
-                    "verification_status": "manual_review",
+                    "status": PENDING_FOR_REVIEW,
+                    "verification_status": PENDING_FOR_REVIEW,
+                    "verification_decision": "manual_review",
+                    "recommended_status": "manual_review",
                     "review_required": True,
                     "updated_at": datetime.now(timezone.utc),
                 }

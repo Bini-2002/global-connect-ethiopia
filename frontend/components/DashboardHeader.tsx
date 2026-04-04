@@ -17,19 +17,6 @@ export default function DashboardHeader({ searchPlaceholder = 'Search...', onSea
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [showMobileSearch, setShowMobileSearch] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Check if mobile on mount and when window resizes
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   const handleLogout = () => {
     logout();
@@ -40,7 +27,7 @@ export default function DashboardHeader({ searchPlaceholder = 'Search...', onSea
   // For mobile: full width header without left offset
   return (
     <>
-      {/* Desktop Header */} border
+      {/* Desktop Header */}
       <header className="hidden md:flex fixed top-0 left-60 right-0 h-16 bg-white border-b border-slate-200 items-center justify-between px-6 z-30">
         {/* Search */}
         <div className="flex items-center gap-3 flex-1 max-w-md">
@@ -66,7 +53,7 @@ export default function DashboardHeader({ searchPlaceholder = 'Search...', onSea
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                 d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+            <span suppressHydrationWarning className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
 
           {/* Settings - hidden on smaller desktop screens */}
@@ -80,7 +67,7 @@ export default function DashboardHeader({ searchPlaceholder = 'Search...', onSea
 
           {/* Avatar */}
           <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full bg-[#062E22] flex items-center justify-center cursor-pointer hover:bg-[#0a3a2c] transition" onClick={handleLogout}>
-            <span className="text-white text-xs lg:text-sm font-semibold">U</span>
+            <span suppressHydrationWarning className="text-white text-xs lg:text-sm font-semibold">U</span>
           </div>
         </div>
       </header>
@@ -113,7 +100,7 @@ export default function DashboardHeader({ searchPlaceholder = 'Search...', onSea
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                   d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+              <span suppressHydrationWarning className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
             </button>
             <Link href="/organizer/events" className='flex gap-2 px-4 py-2 bg-[#EC5B13] text-white rounded-lg font-bold hover:bg-[#d44d0f] transition text-sm md:text-base items-center'>
                 <Calendar className="w-4 h-4" />
@@ -125,7 +112,7 @@ export default function DashboardHeader({ searchPlaceholder = 'Search...', onSea
               onClick={handleLogout}
               aria-label="User menu"
             >
-              <span className="text-white text-xs font-semibold">U</span>
+              <span suppressHydrationWarning className="text-white text-xs font-semibold">U</span>
             </button>
           </div>
         </div>

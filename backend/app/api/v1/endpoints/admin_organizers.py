@@ -106,6 +106,7 @@ async def get_organizer_detail_for_admin(
     serialized["ocr_score"] = score
     serialized["ocr_tier"] = _ocr_tier(score)
     serialized["recommendation"] = profile.get("verification_decision")
+    serialized["recommended_status"] = profile.get("recommended_status")
     return serialized
 
 
@@ -251,6 +252,7 @@ async def admin_run_ocr_for_organizer(
     serialized["ocr_score"] = score
     serialized["ocr_tier"] = _ocr_tier(score)
     serialized["recommendation"] = updated.get("verification_decision")
+    serialized["recommended_status"] = updated.get("recommended_status")
 
     return {
         "message": "OCR completed successfully.",
@@ -258,6 +260,7 @@ async def admin_run_ocr_for_organizer(
         "ocr_score": score,
         "ocr_tier": _ocr_tier(score),
         "recommendation": updated.get("verification_decision"),
+        "recommended_status": updated.get("recommended_status"),
         "organizer": serialized,
     }
 

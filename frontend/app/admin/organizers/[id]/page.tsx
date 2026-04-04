@@ -19,6 +19,7 @@ interface OrganizerDetail {
   ocr_score?: number;
   ocr_tier?: string;
   recommendation?: string;
+  recommended_status?: string;
   phone?: string;
   email?: string;
   national_id_number?: string;
@@ -49,6 +50,36 @@ const DOCUMENT_LABELS: Record<string, string> = {
   national_id: 'National ID / passport',
   government_issued_id: 'Government-issued ID',
 };
+
+const DATE_ONLY_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'UTC',
+});
+
+function formatDate(value?: string) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return DATE_ONLY_FORMATTER.format(date);
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return DATE_TIME_FORMATTER.format(date);
+}
 
 export default function AdminOrganizerDetailPage() {
   const params = useParams();
@@ -171,10 +202,13 @@ export default function AdminOrganizerDetailPage() {
         fileName.endsWith('.gif');
 
       if (isInlineViewable) {
-        const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
-        if (!opened) {
-          throw new Error('Popup blocked while opening document. Please allow popups for this site.');
-        }
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
       } else {
         const link = document.createElement('a');
         link.href = objectUrl;
@@ -182,9 +216,8 @@ export default function AdminOrganizerDetailPage() {
         document.body.appendChild(link);
         link.click();
         link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
       }
-
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
     } catch (err) {
       setDocsError(err instanceof Error ? err.message : 'Failed to open document');
     } finally {
@@ -253,7 +286,7 @@ export default function AdminOrganizerDetailPage() {
                       { l: 'Email', v: org.email || '—' },
                       { l: 'Phone', v: org.phone || '—' },
                       { l: 'National ID', v: org.national_id_number || '—' },
-                      { l: 'Applied At', v: new Date(org.created_at).toLocaleDateString() },
+                      { l: 'Applied At', v: formatDate(org.created_at) },
                     ].map(({ l, v }) => (
                       <div key={l}>
                         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">{l}</p>
@@ -295,7 +328,7 @@ export default function AdminOrganizerDetailPage() {
                               {doc.filename || 'Unnamed file'}
                             </p>
                             <p className="text-xs text-slate-400 mt-1">
-                              {doc.storage_provider || 'unknown'} {doc.uploaded_at ? `• ${new Date(doc.uploaded_at).toLocaleString()}` : ''}
+                              {doc.storage_provider || 'unknown'} {doc.uploaded_at ? `• ${formatDateTime(doc.uploaded_at)}` : ''}
                             </p>
                           </div>
                           <button
@@ -337,8 +370,16 @@ export default function AdminOrganizerDetailPage() {
                   </div>
                   {org.recommendation && (
                     <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Recommendation</p>
-                      <p className="text-xs text-slate-700 capitalize">{org.recommendation}</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">OCR Recommendation</p>
+                      <p className="text-xs text-slate-700 capitalize">{org.recommendation.replaceAll('_', ' ')}</p>
+                      {org.recommended_status && (
+                        <p className="text-xs text-slate-500 mt-1">
+                          Suggested outcome: {org.recommended_status.replaceAll('_', ' ')}
+                        </p>
+                      )}
+                      <p className="text-xs text-slate-500 mt-2">
+                        OCR is advisory only. Final approval stays with admin review.
+                      </p>
                     </div>
                   )}
                 </div>
