@@ -6,10 +6,10 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.models.event_states import (
+    BookingStatus,
     EventStatus,
     FinalReportStatus,
     SurveyStatus,
-    TicketingStatus,
     VenueReservationStatus,
 )
 from app.schemas.proposal import ProposalOfficeAssignments
@@ -175,72 +175,31 @@ class EventTaskResponse(BaseModel):
     updated_at: datetime
 
 
-class TicketTypeCreate(BaseModel):
-    name: str
-    description: str | None = None
-    price: float = Field(..., ge=0)
-    quantity: int = Field(..., ge=1)
-    reserved_quantity: int = Field(default=0, ge=0)
-    sales_start: datetime | None = None
-    sales_end: datetime | None = None
-    visibility: Literal["public", "private"] = "public"
+class BookingSettingsUpdate(BaseModel):
+    booking_required: bool = True
+    booking_opens_at: datetime | None = None
+    booking_closes_at: datetime | None = None
+    allow_waitlist: bool = False
 
 
-class TicketTypeUpdate(BaseModel):
-    name: str | None = None
-    description: str | None = None
-    price: float | None = Field(default=None, ge=0)
-    quantity: int | None = Field(default=None, ge=1)
-    reserved_quantity: int | None = Field(default=None, ge=0)
-    sales_start: datetime | None = None
-    sales_end: datetime | None = None
-    visibility: Literal["public", "private"] | None = None
-    is_active: bool | None = None
-
-
-class TicketTypeResponse(BaseModel):
-    id: str
-    event_id: str
-    name: str
-    description: str | None = None
-    price: float
-    quantity: int
-    reserved_quantity: int = 0
-    sold_quantity: int = 0
-    remaining_quantity: int
-    sales_start: datetime | None = None
-    sales_end: datetime | None = None
-    visibility: str = "public"
-    is_active: bool = True
-    created_at: datetime
-    updated_at: datetime
-
-
-class TicketingActivatePayload(BaseModel):
-    enabled: bool = True
-
-
-class TicketPurchaseCreate(BaseModel):
-    ticket_type_id: str
-    quantity: int = Field(default=1, ge=1, le=20)
+class EventBookingCreate(BaseModel):
+    slots_requested: int = Field(default=1, ge=1, le=20)
     attendee_name: str | None = None
     attendee_email: str | None = None
-    payment_reference: str | None = None
-    payment_status: Literal["pending", "paid", "failed", "free"] = "pending"
+    notes: str | None = None
 
 
-class TicketPurchaseResponse(BaseModel):
+class EventBookingResponse(BaseModel):
     id: str
     event_id: str
-    ticket_type_id: str
+    booking_reference: str
     attendee_id: str
     attendee_name: str | None = None
     attendee_email: str | None = None
-    quantity: int
-    total_amount: float
-    payment_reference: str | None = None
-    payment_status: str
+    slots_requested: int
+    notes: str | None = None
     qr_code: str
+    booking_status: str
     check_in_status: str
     checked_in_at: datetime | None = None
     created_at: datetime
@@ -252,14 +211,14 @@ class CheckInScanPayload(BaseModel):
 
 
 class BadgeGeneratePayload(BaseModel):
-    purchase_ids: list[str] | None = None
+    booking_ids: list[str] | None = None
     include_unchecked_in: bool = True
 
 
 class BadgeResponse(BaseModel):
     id: str
     event_id: str
-    purchase_id: str
+    booking_id: str
     attendee_id: str
     attendee_name: str | None = None
     attendee_email: str | None = None
@@ -405,7 +364,7 @@ class EventUpdate(BaseModel):
     start_date: datetime | None = None
     end_date: datetime | None = None
     visibility: Literal["public", "private"] | None = None
-    ticketing_mode: Literal["none", "free", "paid", "invite_only"] | None = None
+    booking_required: bool | None = None
     vip_list: list[str] | None = None
     program_schedule_summary: str | None = None
     requires_permit: bool | None = None
@@ -425,13 +384,18 @@ class EventResponse(BaseModel):
     start_date: datetime | None = None
     end_date: datetime | None = None
     visibility: str = "public"
-    ticketing_mode: str = "none"
+    booking_required: bool = False
     vip_list: list[str] = []
     program_schedule_summary: str | None = None
     requires_permit: bool = True
     status: EventStatus
     venue_status: str
-    ticketing_status: TicketingStatus
+    booking_status: BookingStatus
+    booking_opens_at: datetime | None = None
+    booking_closes_at: datetime | None = None
+    allow_waitlist: bool = False
+    booked_count: int = 0
+    remaining_slots: int = 0
     survey_status: SurveyStatus
     final_report_status: FinalReportStatus
     budget_currency: str = "ETB"

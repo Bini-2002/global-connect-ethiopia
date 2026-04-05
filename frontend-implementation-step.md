@@ -10,7 +10,7 @@ The backend now supports the organizer flow after proposal approval:
 4. Reserve venue
 5. Invite team and assign tasks
 6. Request vendors and create contracts
-7. Configure ticketing
+7. Configure booking
 8. Run live operations
 9. Send feedback survey
 10. Publish final report and archive event
@@ -51,8 +51,8 @@ The backend now supports the organizer flow after proposal approval:
   - Task board
 - `/organizer/events/[eventId]/vendors`
   - Marketplace requests and contracts for this event
-- `/organizer/events/[eventId]/ticketing`
-  - Ticket types, inventory, activation
+- `/organizer/events/[eventId]/booking`
+  - Booking rules, reservations, availability
 - `/organizer/events/[eventId]/announcements`
   - Broadcasts and scheduled messages
 - `/organizer/events/[eventId]/operations`
@@ -79,6 +79,18 @@ Frontend flow:
 - After success, redirect to `/organizer/events/[eventId]`.
 - Update any proposal cards to use `proposal.event_id` when present so the UI does not create duplicates.
 
+## Supported Event Types
+
+The platform should support only these 5 event types:
+
+- `conference`
+- `summit_forum`
+- `workshop_training`
+- `expo_trade_fair`
+- `networking_gala`
+
+Use these values directly in the frontend forms. Do not allow free-text event-type input.
+
 ## Step 2: Event Overview And Edit Page
 
 The event detail page should load and edit the core event record.
@@ -100,12 +112,17 @@ Important fields from the backend:
 - `start_date`
 - `end_date`
 - `visibility`
-- `ticketing_mode`
+- `booking_required`
 - `vip_list`
 - `program_schedule_summary`
 - `status`
 - `venue_status`
-- `ticketing_status`
+- `booking_status`
+- `booking_opens_at`
+- `booking_closes_at`
+- `allow_waitlist`
+- `booked_count`
+- `remaining_slots`
 - `survey_status`
 - `final_report_status`
 - `permit_number`
@@ -264,23 +281,42 @@ Frontend note:
 - Build the organizer vendor page as an event-scoped procurement workspace instead of a generic vendor page.
 - Filter organizer requests and contracts by `event_id`.
 
-## Step 8: Ticketing
+## Step 8: Booking
 
-- `GET /api/v1/events/{event_id}/ticket-types`
-- `POST /api/v1/events/{event_id}/ticket-types`
-- `PATCH /api/v1/events/{event_id}/ticket-types/{ticket_type_id}`
-- `POST /api/v1/events/{event_id}/ticketing/activate`
-- `GET /api/v1/events/{event_id}/tickets/purchases`
-- `POST /api/v1/events/{event_id}/tickets/purchase`
+- `GET /api/v1/events/{event_id}/booking`
+- `PUT /api/v1/events/{event_id}/booking`
+- `GET /api/v1/events/{event_id}/bookings`
+- `POST /api/v1/events/{event_id}/bookings`
 
-Organizer ticketing UI:
+Organizer booking UI:
 
-- create ticket types
-- show sold and remaining counts
-- activate or disable ticketing
-- view purchases
+- enable or disable booking
+- set booking open and close dates
+- enable or disable waitlist
+- show booked and remaining slots
+- view attendee bookings
 
-Attendee purchase UI can be built later, but the backend endpoint already exists.
+Suggested booking settings payload:
+
+```json
+{
+  "booking_required": true,
+  "booking_opens_at": "2026-05-01T08:00:00Z",
+  "booking_closes_at": "2026-05-18T18:00:00Z",
+  "allow_waitlist": false
+}
+```
+
+Suggested attendee booking payload:
+
+```json
+{
+  "slots_requested": 1,
+  "attendee_name": "Abel Tadesse",
+  "attendee_email": "abel@example.com",
+  "notes": "Delegation guest"
+}
+```
 
 ## Step 9: Announcements
 
@@ -362,7 +398,7 @@ Frontend flow:
 4. Build schedule and venue pages.
 5. Build team and tasks.
 6. Upgrade vendor procurement to pass `event_id`.
-7. Build ticketing.
+7. Build booking.
 8. Build announcements and operations dashboard.
 9. Build feedback and final report.
 

@@ -10,6 +10,7 @@ from app.api.v1.deps import get_current_user
 from app.db.mongodb import proposal_collection
 from app.models.proposal_states import ProposalStatus
 from app.models.roles import UserRole
+from app.models.supported_event_types import normalize_supported_event_type
 from app.schemas.proposal import ProposalCreate, ProposalResponse, ProposalUpdate
 from app.services.object_storage import ObjectStorageService
 from app.services.review_offices import resolve_review_office
@@ -94,6 +95,21 @@ def _missing_review_offices(assignments: dict | None) -> list[str]:
     return missing
 
 
+def _normalize_proposal_event_type(event_type: str | None) -> str | None:
+    if event_type is None:
+        return None
+    normalized = normalize_supported_event_type(event_type)
+    if not normalized:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Unsupported event type. Allowed values are: conference, summit_forum, "
+                "workshop_training, expo_trade_fair, networking_gala."
+            ),
+        )
+    return normalized
+
+
 @router.post("", response_model=ProposalResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=ProposalResponse, status_code=status.HTTP_201_CREATED)
 async def create_proposal(
@@ -117,6 +133,7 @@ async def create_proposal(
     current_user: dict = Depends(get_current_user)
 ):
     _require_organizer(current_user)
+    normalized_event_type = _normalize_proposal_event_type(event_type)
 
     document_url = None
     document_name = None
@@ -152,7 +169,7 @@ async def create_proposal(
         "status": ProposalStatus.DRAFT,
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
-        "event_type": event_type,
+        "event_type": normalized_event_type,
         "location": location,
         "expected_attendees": expected_attendees,
         "budget_estimate": budget_estimate,
@@ -199,6 +216,7 @@ async def update_proposal(
     current_user: dict = Depends(get_current_user)
 ):
     _require_organizer(current_user)
+    normalized_event_type = _normalize_proposal_event_type(event_type) if event_type is not None else None
 
     proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
 
@@ -226,7 +244,7 @@ async def update_proposal(
     if description is not None:
         update_data["description"] = description
     if event_type is not None:
-        update_data["event_type"] = event_type
+        update_data["event_type"] = normalized_event_type
     if location is not None:
         update_data["location"] = location
     if expected_attendees is not None:

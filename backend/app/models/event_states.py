@@ -20,11 +20,11 @@ class VenueReservationStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class TicketingStatus(str, Enum):
+class BookingStatus(str, Enum):
     DISABLED = "disabled"
-    CONFIGURED = "configured"
-    SALES_LIVE = "sales_live"
-    SALES_CLOSED = "sales_closed"
+    OPEN = "open"
+    CLOSED = "closed"
+    FULL = "full"
 
 
 class SurveyStatus(str, Enum):
