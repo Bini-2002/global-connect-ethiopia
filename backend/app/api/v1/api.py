@@ -7,6 +7,7 @@ from app.api.v1.endpoints import (
     admin_vendors,
     auth,
     catalog,
+    events,
     market_contracts,
     market_requests,
     ministry_proposals,
@@ -42,6 +43,7 @@ api_router.include_router(organizers.router, prefix="/organizers", tags=["Organi
 api_router.include_router(admin_documents.router, prefix="/admin", tags=["Admin Documents"])
 api_router.include_router(vendors_services.router, prefix="/vendors/services", tags=["Vendor Services"])
 api_router.include_router(catalog.router, prefix="/catalog", tags=["Marketplace Catalog"])
+api_router.include_router(events.router, prefix="/events", tags=["Events"])
 api_router.include_router(market_requests.router, prefix="/requests", tags=["Vendor Requests"])
 api_router.include_router(market_contracts.router, prefix="/contracts", tags=["Contracts"])
 api_router.include_router(payments.router, prefix="/payments", tags=["Escrow Payments"])

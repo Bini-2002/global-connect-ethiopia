@@ -28,6 +28,7 @@ def _to_response(proposal: dict) -> dict:
     return {
         "id": str(proposal["_id"]),
         "organizer_id": proposal["organizer_id"],
+        "event_id": proposal.get("event_id"),
         "title": proposal["title"],
         "description": proposal.get("description"),
         "event_type": proposal.get("event_type"),

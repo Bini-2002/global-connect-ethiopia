@@ -60,6 +60,7 @@ class RequestMessageSummary(BaseModel):
 
 class RequestCreate(BaseModel):
     proposal_id: str | None = None
+    event_id: str | None = None
     service_id: str
     message: str = Field(..., min_length=5)
     offered_amount: float | None = Field(default=None, ge=0)
@@ -76,7 +77,8 @@ class RequestDecisionPayload(BaseModel):
 
 class RequestResponse(BaseModel):
     id: str
-    proposal_id: str
+    proposal_id: str | None = None
+    event_id: str | None = None
     service_id: str
     organizer_id: str
     vendor_id: str
@@ -120,7 +122,8 @@ class ContractPartySignature(BaseModel):
 class ContractResponse(BaseModel):
     id: str
     request_id: str
-    proposal_id: str
+    proposal_id: str | None = None
+    event_id: str | None = None
     service_id: str
     organizer_id: str
     vendor_id: str

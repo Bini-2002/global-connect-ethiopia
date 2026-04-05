@@ -82,6 +82,7 @@ class ProposalUpdate(BaseModel):
 class ProposalResponse(BaseModel):
     id: str
     organizer_id: str
+    event_id: str | None = None
     title: str
     description: str | None = None
     event_type: str | None = None

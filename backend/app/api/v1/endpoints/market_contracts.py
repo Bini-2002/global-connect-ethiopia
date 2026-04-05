@@ -16,6 +16,7 @@ def _serialize_contract(document: dict) -> dict:
         "id": str(document["_id"]),
         "request_id": document["request_id"],
         "proposal_id": document.get("proposal_id"),
+        "event_id": document.get("event_id"),
         "service_id": document["service_id"],
         "organizer_id": document["organizer_id"],
         "vendor_id": document["vendor_id"],
@@ -64,6 +65,7 @@ async def create_contract(payload: ContractCreate, current_user: dict = Depends(
     document = {
         "request_id": payload.request_id,
         "proposal_id": request_doc.get("proposal_id"),
+        "event_id": request_doc.get("event_id"),
         "service_id": request_doc["service_id"],
         "organizer_id": request_doc["organizer_id"],
         "vendor_id": request_doc["vendor_id"],

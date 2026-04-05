@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.v1.deps import get_current_user
-from app.db.mongodb import proposal_collection, request_collection, vendor_service_collection
+from app.db.mongodb import event_collection, proposal_collection, request_collection, vendor_service_collection
 from app.models.roles import UserRole, to_user_role
 from app.schemas.marketplace import RequestCreate, RequestResponse
 from app.services.marketplace import (
@@ -22,6 +22,7 @@ def _serialize_request(document: dict) -> dict:
     return {
         "id": str(document["_id"]),
         "proposal_id": document.get("proposal_id"),
+        "event_id": document.get("event_id"),
         "service_id": document["service_id"],
         "organizer_id": document["organizer_id"],
         "vendor_id": document["vendor_id"],
@@ -53,14 +54,26 @@ async def create_request(payload: RequestCreate, current_user: dict = Depends(ge
     if not service or not service.get("is_active", True):
         raise HTTPException(status_code=404, detail="Service not found")
 
-    if payload.proposal_id:
-        proposal = await proposal_collection.find_one({"_id": parse_object_id(payload.proposal_id, field_name="proposal id")})
+    proposal_id = payload.proposal_id
+    if proposal_id:
+        proposal = await proposal_collection.find_one({"_id": parse_object_id(proposal_id, field_name="proposal id")})
         if not proposal:
             raise HTTPException(status_code=404, detail="Proposal not found")
         if proposal.get("organizer_id") != current_user["id"]:
             raise HTTPException(status_code=403, detail="Proposal does not belong to the current organizer")
         if str(proposal.get("status")) != "approved":
             raise HTTPException(status_code=400, detail="Organizer proposal must be approved before sending a vendor request")
+    event_id = payload.event_id
+    if event_id:
+        event = await event_collection.find_one({"_id": parse_object_id(event_id, field_name="event id")})
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+        if event.get("organizer_id") != current_user["id"]:
+            raise HTTPException(status_code=403, detail="Event does not belong to the current organizer")
+        if not proposal_id and event.get("proposal_id"):
+            proposal_id = event.get("proposal_id")
+        if proposal_id and event.get("proposal_id") and event.get("proposal_id") != proposal_id:
+            raise HTTPException(status_code=400, detail="The selected event does not match the provided proposal")
 
     organizer_name = await get_user_name(current_user["id"])
     vendor_name = await get_user_name(service["vendor_user_id"])
@@ -78,7 +91,8 @@ async def create_request(payload: RequestCreate, current_user: dict = Depends(ge
     }
 
     document = {
-        "proposal_id": payload.proposal_id,
+        "proposal_id": proposal_id,
+        "event_id": event_id,
         "service_id": payload.service_id,
         "organizer_id": current_user["id"],
         "vendor_id": service["vendor_id"],
@@ -110,7 +124,7 @@ async def create_request(payload: RequestCreate, current_user: dict = Depends(ge
         sender_name=organizer_name,
         body=payload.message,
         message_type="request",
-        metadata={"service_id": payload.service_id},
+        metadata={"service_id": payload.service_id, "event_id": event_id, "proposal_id": proposal_id},
     )
 
     return _serialize_request(document)
