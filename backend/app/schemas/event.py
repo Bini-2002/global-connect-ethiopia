@@ -356,18 +356,11 @@ class EventCreateFromProposalResponse(BaseModel):
 
 
 class EventUpdate(BaseModel):
-    title: str | None = None
     description: str | None = None
-    category: str | None = None
-    location: str | None = None
-    capacity: int | None = Field(default=None, ge=1)
-    start_date: datetime | None = None
-    end_date: datetime | None = None
     visibility: Literal["public", "private"] | None = None
     booking_required: bool | None = None
     vip_list: list[str] | None = None
     program_schedule_summary: str | None = None
-    requires_permit: bool | None = None
 
 
 class EventResponse(BaseModel):

@@ -496,15 +496,18 @@ async def get_event(event_id: str, current_user: dict = Depends(get_current_user
 @router.patch("/{event_id}", response_model=EventResponse)
 async def update_event(event_id: str, payload: EventUpdate, current_user: dict = Depends(get_current_user)):
     event = await _get_owned_event_or_403(event_id, current_user)
+
+    # Strict Professional Guard: Block updates for events in past/live states
+    current_status = event.get("status")
+    if current_status in {EventStatus.LIVE, EventStatus.COMPLETED, EventStatus.ARCHIVED}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot update event in {current_status} status.",
+        )
+
     update_data = payload.model_dump(exclude_none=True)
     if not update_data:
         return _event_base_response(event)
-
-    if "category" in update_data:
-        category = normalize_supported_event_type(update_data.get("category"))
-        if not category:
-            raise HTTPException(status_code=400, detail="Unsupported event category")
-        update_data["category"] = category
 
     update_data["updated_at"] = utc_now()
     if "booking_required" in update_data and update_data["booking_required"] is False:
