@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { MapPin, Calendar, MoreHorizontal } from 'lucide-react';
 import { EventListItem } from '@/app/types/event';
 
@@ -12,10 +13,10 @@ interface EventCardProps {
 
 export default function EventCard({ event, index, statusConfig }: EventCardProps) {
   const status = statusConfig[event.status] || statusConfig.PENDING;
-  const progress = event.progress || { proposal: 0, approval: 0, vendors: 0, tickets: 0 };
+  const progress = event.progress || { proposal: 0, approval: 0, vendors: 0, booking: 0 };
 
   return (
-    <div className="bg-white rounded-xl shadow overflow-hidden hover:shadow-lg transition cursor-pointer">
+    <div className="bg-white rounded-xl shadow overflow-hidden hover:shadow-lg transition">
       <div className="h-40 relative">
         <Image
           src={event.image || '/event-placeholder.png'}
@@ -40,7 +41,10 @@ export default function EventCard({ event, index, statusConfig }: EventCardProps
 
       <div className="p-4">
         <h3 className="font-bold text-[#062E22]">{event.title}</h3>
-        <p className="text-sm text-gray-500 mb-4">By {event.org || event.organization}</p>
+        <p className="text-sm text-gray-500 mb-4">
+          {event.event_type || 'Professional event'}
+          {event.booking_required ? ` • ${event.remaining_slots ?? 0} slots left` : ''}
+        </p>
 
         <div className="space-y-2">
           {Object.entries(progress).map(([key, value]) => (
@@ -60,12 +64,18 @@ export default function EventCard({ event, index, statusConfig }: EventCardProps
         </div>
 
         <div className="flex gap-2 mt-4">
-          <button className="flex-1 bg-[#062E22] text-white py-2 rounded-xl text-sm font-medium hover:bg-[#0a4a37] transition">
+          <Link
+            href={`/organizer/events/${event.id}`}
+            className="flex-1 text-center bg-[#062E22] text-white py-2 rounded-xl text-sm font-medium hover:bg-[#0a4a37] transition"
+          >
             Manage
-          </button>
-          <button className="flex-1 bg-gray-100 py-2 rounded-xl text-sm font-medium hover:bg-gray-200 transition">
+          </Link>
+          <Link
+            href={`/organizer/proposals/${event.proposal_id}`}
+            className="flex-1 text-center bg-gray-100 py-2 rounded-xl text-sm font-medium hover:bg-gray-200 transition"
+          >
             View
-          </button>
+          </Link>
           <button className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition">
             <MoreHorizontal size={18} />
           </button>

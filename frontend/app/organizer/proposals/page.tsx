@@ -242,7 +242,17 @@ export default function OrganizerProposalsPage() {
                       )}
                     </div>
                     <div className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <Link href={`/organizer/proposals/${p.id}`} className="text-xs border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-[#062E22] hover:text-white hover:border-[#062E22] transition font-medium">Open</Link>
+                      <div className="flex items-center justify-end gap-2">
+                        {p.status === 'approved' && (
+                          <Link
+                            href={p.event_id ? `/organizer/events/${p.event_id}` : `/organizer/create-event/${p.id}`}
+                            className="text-xs border border-green-200 bg-green-50 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-100 transition font-medium"
+                          >
+                            {p.event_id ? 'Open Event' : 'Create Event'}
+                          </Link>
+                        )}
+                        <Link href={`/organizer/proposals/${p.id}`} className="text-xs border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-[#062E22] hover:text-white hover:border-[#062E22] transition font-medium">Open</Link>
+                      </div>
                     </div>
                   </div>
                 );

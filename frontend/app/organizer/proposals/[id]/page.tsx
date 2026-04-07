@@ -118,6 +118,14 @@ export default function ProposalDetailPage() {
                     View Permit
                   </Link>
                 )}
+                {isApproved && (
+                  <Link
+                    href={proposal.event_id ? `/organizer/events/${proposal.event_id}` : `/organizer/create-event/${id}`}
+                    className="px-4 py-2 bg-[#062E22] text-white text-sm font-semibold rounded-lg hover:bg-[#0a4a37] transition"
+                  >
+                    {proposal.event_id ? 'Open Event Workspace' : 'Create Event'}
+                  </Link>
+                )}
               </div>
             </div>
 

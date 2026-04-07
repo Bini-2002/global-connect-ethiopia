@@ -73,6 +73,7 @@ export interface ProposalSecurityAssignment {
 export interface ProposalRecord {
   id: string;
   organizer_id: string;
+  event_id?: string | null;
   title: string;
   description?: string | null;
   event_type?: string | null;

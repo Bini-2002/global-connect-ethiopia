@@ -11,6 +11,12 @@ import { getRole, getToken } from '@/app/lib/auth';
 interface VendorDetail {
   id: string;
   user_id: string;
+  business_name?: string;
+  business_category?: string;
+  business_address?: string;
+  registration_number?: string;
+  years_of_operation?: number;
+  website_url?: string;
   step_2?: {
     business_details?: {
       business_name?: string;
@@ -53,14 +59,12 @@ export default function AdminVendorDetailPage() {
     ocr_score: res.ocr_score,
     ocr_tier: res.ocr_tier,
     recommendation: res.recommendation,
+    step_2: res.step_2,
+    verification_status: res.verification_status,
     created_at: res.created_at || new Date().toISOString(),
   });
 
   useEffect(() => {
-<<<<<<< HEAD
-    api.get<any>(`/admin/vendors/${id}`).then(res => setVendor(mapVendor(res))).catch(() => setError('Not found')).finally(() => setLoading(false));
-  }, [id]);
-=======
     const token = getToken();
     const role = getRole();
 
@@ -70,8 +74,8 @@ export default function AdminVendorDetailPage() {
       return;
     }
 
-    api.get<VendorDetail>(`/admin/vendors/${id}`)
-      .then(setVendor)
+    api.get<any>(`/admin/vendors/${id}`)
+      .then((res) => setVendor(mapVendor(res)))
       .catch((err) => {
         if (err instanceof Error && err.message === 'Not authenticated') {
           router.replace('/login');
@@ -81,7 +85,6 @@ export default function AdminVendorDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [id, router]);
->>>>>>> 971c8d5 (feat: add vendor dashboard and under-review routes, update admin proposal handling)
 
   const doDecision = async (decision: 'approved' | 'rejected') => {
     setActionLoading(decision); setError(''); setSuccess('');

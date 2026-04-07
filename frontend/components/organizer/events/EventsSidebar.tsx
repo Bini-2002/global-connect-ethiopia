@@ -51,13 +51,16 @@ export default function EventsSidebar({ events, approvedProposals }: EventsSideb
             .map(proposal => (
               <Link
                 key={proposal.id}
-                href={`/organizer/create-event/${proposal.event_id}`}
+                href={proposal.event_id ? `/organizer/events/${proposal.event_id}` : `/organizer/create-event/${proposal.id}`}
                 className="flex items-center justify-between p-3 bg-white rounded-lg hover:bg-slate-100 transition cursor-pointer"
               >
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-[#062E22] truncate">{proposal.title}</p>
                   <p className="text-xs text-gray-500">
                     Approved: {new Date(proposal.approved_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {proposal.event_id ? 'Event workspace ready' : 'Create event workspace'}
                   </p>
                 </div>
                 <span className="text-[#EC5B13] flex-shrink-0 ml-2">→</span>

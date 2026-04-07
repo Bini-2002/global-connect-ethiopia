@@ -30,24 +30,6 @@ export default function AdminVendorsPage() {
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-<<<<<<< HEAD
-    api.get<{ items: any[] }>('/admin/vendors/pending')
-      .then((res) => {
-        const mappedApps: VendorApp[] = (res.items || []).map((item: any) => ({
-          id: item.id,
-          user_id: item.user_id,
-          business_name: item.step_2?.business_details?.business_name,
-          business_category: item.step_2?.business_details?.business_category,
-          status: item.status,
-          ocr_score: item.verification_score,
-          created_at: item.created_at || new Date().toISOString(),
-        }));
-        setApps(mappedApps);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-=======
     const token = getToken();
     const role = getRole();
 
@@ -58,7 +40,18 @@ export default function AdminVendorsPage() {
     }
 
     api.get<VendorPendingResponse>('/admin/vendors/pending')
-      .then((response) => setApps(response.items || []))
+      .then((response) => {
+        const mappedApps: VendorApp[] = (response.items || []).map((item) => ({
+          id: item.id,
+          user_id: item.user_id,
+          business_name: item.business_name,
+          business_category: item.business_category,
+          status: item.status,
+          ocr_score: item.ocr_score,
+          created_at: item.created_at || new Date().toISOString(),
+        }));
+        setApps(mappedApps);
+      })
       .catch((err) => {
         if (err instanceof Error && err.message === 'Not authenticated') {
           router.replace('/login');
@@ -68,7 +61,6 @@ export default function AdminVendorsPage() {
       })
       .finally(() => setLoading(false));
   }, [router]);
->>>>>>> 971c8d5 (feat: add vendor dashboard and under-review routes, update admin proposal handling)
 
   const filtered = apps.filter(a =>
     (a.business_name || '').toLowerCase().includes(query.toLowerCase()) ||

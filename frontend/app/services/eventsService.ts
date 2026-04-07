@@ -1,50 +1,82 @@
 import { api } from '../lib/api';
 import { ProposalRecord } from '../types/proposal';
-import { EventListItem, ApprovedProposal, PastEvent, EventStats } from '../types/event';
+import {
+  ApprovedProposal,
+  EventCreateFromProposalResponse,
+  EventListItem,
+  EventRecord,
+  EventStats,
+  EventUiStatus,
+  EVENT_STATUS_CONFIG,
+  PastEvent,
+} from '../types/event';
 
-const EVENT_STATUS_CONFIG: Record<string, { label: string; bgClass: string }> = {
-  LIVE: { label: 'LIVE', bgClass: 'bg-green-500' },
-  PENDING: { label: 'PENDING', bgClass: 'bg-amber-500' },
-  COMPLETED: { label: 'COMPLETED', bgClass: 'bg-slate-500' },
-  UPCOMING: { label: 'UPCOMING', bgClass: 'bg-blue-500' },
-  CANCELLED: { label: 'CANCELLED', bgClass: 'bg-red-500' },
-};
+function formatEventDate(startDate?: string | null, endDate?: string | null): string {
+  if (!startDate) return 'Date pending';
 
-function deriveEventStatus(proposal: ProposalRecord): EventListItem['status'] {
-  const now = new Date();
-  const start = proposal.start_date ? new Date(proposal.start_date) : null;
-  const end = proposal.end_date ? new Date(proposal.end_date) : null;
+  const start = new Date(startDate);
+  if (!endDate) {
+    return start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
-  if (proposal.status !== 'approved') return 'PENDING';
-  if (start && end && start <= now && end >= now) return 'LIVE';
-  if (end && end < now) return 'COMPLETED';
-  return 'UPCOMING';
+  const end = new Date(endDate);
+  const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const endLabel = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${startLabel} - ${endLabel}`;
 }
 
-function mapProposalToEvent(proposal: ProposalRecord): EventListItem {
+function mapBackendStatusToUi(status: string): EventUiStatus {
+  switch (status) {
+    case 'live':
+      return 'LIVE';
+    case 'completed':
+      return 'COMPLETED';
+    case 'archived':
+      return 'ARCHIVED';
+    case 'cancelled':
+      return 'CANCELLED';
+    case 'published':
+    case 'private_published':
+      return 'UPCOMING';
+    default:
+      return 'PENDING';
+  }
+}
+
+function buildProgress(event: EventRecord): EventListItem['progress'] {
   return {
-    id: proposal.id,
-    title: proposal.title,
-    location: proposal.location || 'Location pending',
-    date: proposal.start_date
-      ? new Date(proposal.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      : 'Date pending',
-    start_date: proposal.start_date || undefined,
-    end_date: proposal.end_date || undefined,
-    status: deriveEventStatus(proposal),
-    progress: {
-      proposal: 100,
-      approval: proposal.status === 'approved' ? 100 : 75,
-      vendors: 0,
-      tickets: 0,
-    },
+    proposal: 100,
+    approval: event.permit_number ? 100 : 85,
+    vendors: 15,
+    booking: event.booking_required ? (event.capacity ? Math.min(Math.round((event.booked_count / event.capacity) * 100), 100) : 0) : 0,
+  };
+}
+
+function mapEventToListItem(event: EventRecord): EventListItem {
+  return {
+    id: event.id,
+    proposal_id: event.proposal_id,
+    title: event.title,
+    event_type: event.category || undefined,
+    location: event.location || 'Location pending',
+    date: formatEventDate(event.start_date, event.end_date),
+    start_date: event.start_date || undefined,
+    end_date: event.end_date || undefined,
+    status: mapBackendStatusToUi(event.status),
+    backend_status: event.status,
+    progress: buildProgress(event),
+    permit_number: event.permit_number,
+    booking_required: event.booking_required,
+    booking_status: event.booking_status,
+    booked_count: event.booked_count,
+    remaining_slots: event.remaining_slots,
   };
 }
 
 function mapProposalToApprovedProposal(proposal: ProposalRecord): ApprovedProposal {
   return {
     id: proposal.id,
-    event_id: proposal.id,
+    event_id: proposal.event_id,
     title: proposal.title,
     location: proposal.location || undefined,
     status: proposal.status,
@@ -54,22 +86,32 @@ function mapProposalToApprovedProposal(proposal: ProposalRecord): ApprovedPropos
   };
 }
 
-/* ================= API SERVICE ================= */
-
 export const eventsService = {
-  // ─────────────────────────────────────────────
-  // GET ALL EVENTS (for main events list)
-  // ─────────────────────────────────────────────
   getEvents: async (): Promise<EventListItem[]> => {
-    const proposals = await api.get<ProposalRecord[]>('/proposals/');
-    return proposals
-      .filter((proposal) => proposal.status === 'approved')
-      .map(mapProposalToEvent);
+    const events = await api.get<EventRecord[]>('/events/');
+    return events.map(mapEventToListItem);
   },
 
-  // ─────────────────────────────────────────────
-  // GET APPROVED PROPOSALS (for sidebar)
-  // ─────────────────────────────────────────────
+  getEventById: async (eventId: string): Promise<EventRecord> => {
+    return api.get<EventRecord>(`/events/${eventId}`);
+  },
+
+  createEventFromProposal: async (proposalId: string): Promise<EventCreateFromProposalResponse> => {
+    return api.post<EventCreateFromProposalResponse>(`/events/from-proposal/${proposalId}`);
+  },
+
+  publishEvent: async (eventId: string): Promise<EventRecord> => {
+    return api.post<EventRecord>(`/events/${eventId}/publish`);
+  },
+
+  startLiveEvent: async (eventId: string): Promise<EventRecord> => {
+    return api.post<EventRecord>(`/events/${eventId}/start-live`);
+  },
+
+  completeEvent: async (eventId: string): Promise<EventRecord> => {
+    return api.post<EventRecord>(`/events/${eventId}/complete`);
+  },
+
   getApprovedProposals: async (): Promise<ApprovedProposal[]> => {
     const proposals = await api.get<ProposalRecord[]>('/proposals/');
     return proposals
@@ -77,31 +119,29 @@ export const eventsService = {
       .map(mapProposalToApprovedProposal);
   },
 
-  // ─────────────────────────────────────────────
-  // GET PAST EVENTS (for "Clone from Existing")
-  // ─────────────────────────────────────────────
   getPastEvents: async (): Promise<PastEvent[]> => {
     const events = await eventsService.getEvents();
     return events
-      .filter((event) => event.status === 'COMPLETED')
+      .filter((event) => event.status === 'COMPLETED' || event.status === 'ARCHIVED')
       .map((event) => ({
         id: event.id,
         title: event.title,
         date: event.date,
+        event_type: event.event_type,
       }));
   },
 
-  // ─────────────────────────────────────────────
-  // GET EVENT STATS (for sidebar)
-  // ─────────────────────────────────────────────
   getEventStats: async (): Promise<EventStats> => {
-    const proposals = await api.get<ProposalRecord[]>('/proposals/');
+    const [events, proposals] = await Promise.all([
+      api.get<EventRecord[]>('/events/'),
+      api.get<ProposalRecord[]>('/proposals/'),
+    ]);
     const now = new Date();
 
     return {
-      totalEvents: proposals.filter((proposal) => proposal.status === 'approved').length,
-      thisMonth: proposals.filter((proposal) => {
-        const createdAt = new Date(proposal.created_at);
+      totalEvents: events.length,
+      thisMonth: events.filter((event) => {
+        const createdAt = new Date(event.created_at);
         return createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear();
       }).length,
       drafts: proposals.filter((proposal) => proposal.status === 'draft').length,
