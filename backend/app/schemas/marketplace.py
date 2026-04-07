@@ -79,6 +79,7 @@ class RequestResponse(BaseModel):
     id: str
     proposal_id: str | None = None
     event_id: str | None = None
+    event_title: str | None = None
     service_id: str
     organizer_id: str
     vendor_id: str

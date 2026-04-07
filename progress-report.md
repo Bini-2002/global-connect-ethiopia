@@ -1,142 +1,228 @@
 # Progress Report
 
-This report summarizes the current implementation status of the project by functionality, divided into backend and frontend work.
+Date: April 7, 2026
+
+This report summarizes the project status at the end of the current work session. It reflects the current codebase state and the features that are actually connected enough to present as part of the MVP.
 
 Status guide:
-- `Done`: implemented and appears usable from the codebase
-- `In Progress`: substantial work exists, but parts are incomplete, placeholder-level, or not fully connected
-- `Missing`: little to no implementation found for the user-facing flow
+- `Done`: implemented and usable in the current project state
+- `In Progress`: implemented partially, backend-only, or missing important UI/flow pieces
+- `Deferred / Out of Scope`: intentionally not completed in this phase
+
+## Overall Status
+
+The project is now in a presentable MVP state.
+
+The strongest completed product story is:
+
+1. Organizer registers and submits a proposal
+2. Government offices review and approve the proposal
+3. Organizer creates the actual event from the approved proposal
+4. Organizer publishes the event and opens booking
+5. Attendee logs in, selects the event, reserves a place, and receives a QR/check-in pass
+6. Approved vendor logs in, manages services, reviews organizer requests, and signs contracts
+
+This means the system is no longer only an approval portal. It now supports the beginning of the real event execution lifecycle.
 
 ## Backend
 
 ### `Done`
 
-- Authentication and account access
-  - User registration, login, JWT token creation, email OTP sending, and email OTP verification are implemented.
-  - Role-based access control exists for organizer, vendor, admin, ministry, municipal, police, and attendee roles.
+- Authentication and role-based access
+  - Registration, login, JWT handling, OTP verification, and role-aware access control are implemented.
+  - Roles supported in the core system include organizer, vendor, attendee, admin, ministry, municipal, and police.
 
-- Organizer registration workflow
-  - Individual organizer registration is implemented.
-  - Organization registration step 1, step 2, and final submission are implemented.
-  - Organizer verification status, review summaries, rejection handling, and resubmission flow exist.
+- Organizer verification workflow
+  - Individual and organization organizer onboarding are implemented.
+  - Multi-step organizer verification, review summaries, rejection handling, and re-submission logic are in place.
 
 - Vendor verification workflow
-  - Vendor verification step 2 and final submission are implemented.
-  - Verification status lookup exists.
-  - Admin review, approve/reject actions, and OCR rerun endpoints exist.
+  - Vendor verification submission and status tracking are implemented.
+  - Admin review and approval/rejection logic are in place.
 
-- Proposal lifecycle and government workflow
-  - Proposal create, update, submit, list, detail, upload document, and delete document are implemented.
-  - Admin proposal review exists.
-  - Ministry review queue, detail, start review, approve, and reject are implemented.
-  - Municipal review queue, detail, start review, approve, and reject are implemented.
-  - Police read-only approved-events portal exists.
+- Proposal and government review workflow
+  - Proposal create, update, submit, list, and detail are implemented.
+  - Admin, ministry, municipal, and police approval-side flows are implemented.
+  - Review office assignment and related approval routing are implemented.
 
-- Permit flow
-  - Permit generation and permit retrieval are implemented.
-  - Municipal approval flow is connected to approval certificate / permit data.
+- Permit and approval linkage
+  - Permit generation and permit retrieval exist.
+  - Approved proposals can now be tied to event creation.
 
-- Review office selection
-  - Review office listing and assignment support exist.
-  - Ministry, municipal, and police office metadata serialization is implemented.
+- Event lifecycle backend
+  - Approved proposal to event creation is implemented.
+  - Event detail, update, publish, start live, complete, and archive flows are implemented.
+  - Event categories are restricted to the agreed supported event types:
+    - `conference`
+    - `summit_forum`
+    - `workshop_training`
+    - `expo_trade_fair`
+    - `networking_gala`
 
-- Supporting infrastructure
-  - MongoDB collections are wired.
-  - Queue/worker support exists for verification jobs.
-  - Object storage abstraction exists.
-  - Marketplace indexes are ensured on startup.
+- Booking flow backend
+  - Booking settings and attendee reservation flow are implemented.
+  - Confirmed bookings generate booking references and QR values.
+  - QR image generation and event check-in pass image generation are implemented.
+  - Check-in scan support exists.
+
+- Vendor marketplace backend
+  - Vendor services creation and self-management are implemented.
+  - Organizer-to-vendor request creation, vendor acceptance/rejection/counter-offer, and organizer/vendor agreement flow are implemented.
+  - Contracts can be created from accepted requests and signed by both parties.
+  - Organizer-vendor payment is intentionally bypassed in this phase.
+
+- Demo vendor setup
+  - Three approved demo vendors were seeded for testing:
+    - Venue Provider
+    - Catering Provider
+    - Decor
 
 ### `In Progress`
 
-- Organizer and vendor OCR/background verification
-  - Queue integration and fallback behavior exist.
-  - This depends on worker/runtime setup and is not fully verifiable from code alone.
+- Full post-approval event operations backend usage
+  - Schedule, venue reservation, team, tasks, announcements, incidents, feedback, and final reporting endpoints exist.
+  - These areas are more complete in backend than in frontend.
 
-- Permit workflow completion
-  - Core API is present, but the full end-to-end permit delivery experience still looks unfinished from the product perspective.
+- Worker-dependent OCR/background verification
+  - Queue and fallback behavior exist.
+  - Runtime behavior still depends on environment setup.
 
-- Marketplace and payment domain
-  - Catalog, vendor services, requests, contracts, escrow payments, and wallet APIs are implemented.
-  - This backend area looks substantial, but there is little matching frontend usage, so it appears ahead of the UI.
+- Automated test coverage
+  - Verification by code and targeted checks was done, but repository-wide backend test coverage is still limited.
 
-### `Missing`
+### `Deferred / Out of Scope`
 
-- Broader automated test coverage
-  - Only a small backend test surface exists in the repository.
-  - Current tests mainly cover admin registration and vendor registration/review.
-
+- Organizer-vendor payment settlement
+  - Payment between organizer and vendor is intentionally skipped for this phase.
 
 ## Frontend
 
 ### `Done`
 
-- Authentication screens
-  - Registration page is implemented and connected to the backend.
-  - Login page is implemented and connected to the backend.
-  - Email verification page is implemented and connected to OTP endpoints.
-  - Dashboard redirect logic is implemented by role and verification state.
+- Authentication and role redirect flow
+  - Registration, login, email verification, and role-based dashboard redirect are implemented.
 
 - Organizer onboarding
-  - Organizer registration flow is implemented for both individual and organization paths.
-  - Under-review page exists and is connected to organizer verification status.
-  - Rejected organizer registrations can be restored and resubmitted from saved backend state.
+  - Organizer registration and under-review handling are implemented.
 
 - Proposal management
-  - Organizer proposal create flow is implemented.
-  - Draft save/update flow exists.
-  - Proposal review/submit flow exists.
-  - Organizer proposal list and proposal detail pages are implemented.
-  - Office selection is wired into proposal creation.
+  - Organizer proposal creation, draft handling, submission, list, and detail pages are implemented.
 
 - Government review portals
-  - Admin proposals queue and detail pages are implemented.
-  - Admin vendors queue and detail pages are implemented.
-  - Admin organizers queue and detail pages are implemented.
-  - Ministry proposals list/detail pages are implemented.
-  - Municipal proposals list/detail pages are implemented.
-  - Police approved-events list/detail pages are implemented.
+  - Admin, ministry, municipal, and police review pages are implemented.
 
-- Organizer dashboard and events views
-  - Organizer dashboard is implemented and reads proposals from the API.
-  - Organizer events page is implemented and derives event views from approved proposals.
+- Organizer event execution transition
+  - Approved proposals can now become real events.
+  - Organizer can open the event workspace and move the event through:
+    - draft
+    - published
+    - live
+    - completed
+
+- Attendee booking flow
+  - Homepage now supports attendee-side event discovery using real event data.
+  - Attendee can open an event detail page.
+  - Attendee can read event details and schedule preview.
+  - Attendee can reserve a place for a booking-enabled event.
+  - Confirmed booking displays:
+    - QR code image
+    - event check-in pass image
+
+- Vendor portal flow
+  - Vendor dashboard is no longer a placeholder.
+  - Approved vendor can:
+    - view portal summary
+    - view published services
+    - create services
+    - open request inbox
+    - review request details
+    - counter, accept, or reject requests
+    - open contracts
+    - sign contracts
 
 ### `In Progress`
 
-- Vendor portal
-  - Vendor verification page is implemented and connected to backend submission endpoints.
-  - Vendor dashboard exists, but it is still a placeholder/work-in-progress page.
-  - Vendor under-review page exists, but it is static and much lighter than the organizer equivalent.
+- Organizer-side marketplace initiation UI
+  - Backend supports organizer-to-vendor requests and contracts.
+  - Vendor-side frontend is now ready.
+  - Organizer-side event-scoped vendor procurement UI still needs stronger frontend coverage.
+
+- Event operations frontend beyond the main lifecycle
+  - Schedule, venue reservation, team, tasks, announcements, incidents, feedback, and final report are not yet fully surfaced in organizer UI.
 
 - Permit experience
-  - Permit detail page exists and shows permit information.
-  - The displayed "Download Permit" action is currently only UI and does not appear wired to a real download endpoint.
+  - Permit viewing exists.
+  - Full polished permit delivery/download experience is still lighter than the core approval flow.
 
-- Organizer marketplace/vendor browsing experience
-  - The UI references organizer vendor browsing in navigation and dashboard sections.
-  - Those sections currently rely on mock/static presentation rather than real marketplace pages.
+### `Deferred / Out of Scope`
 
-- AI assistant UI
-  - AI modal and floating assistant UI exist.
-  - This appears to be helper UX only, not a real AI-backed workflow.
+- Organizer-vendor payment UI
+  - Not included in this delivery phase.
 
-### `Missing`
+## Front-Back Parallelism
 
-- Marketplace frontend
-  - No user-facing pages were found for catalog search, vendor services management, requests, contracts, escrow payments, or wallet usage.
-  - Backend support exists, but the frontend product layer for this area is largely missing.
+The following flows are now clearly connected between backend and frontend:
 
-- Missing linked pages
-  - Navigation links exist for routes such as `/organizer/vendors`, `/forgot-password`, `/privacy`, `/terms`, and `/support`.
-  - Matching app pages were not found, so these links currently appear broken or unfinished.
+- Organizer core lifecycle
+  - proposal -> approval -> create event -> publish event -> event workspace
 
-- Reliable lint setup
-  - The frontend production build succeeds.
-  - Linting currently pulls in generated `.next-prod` output, so lint results are noisy and not a clean signal of source-only code health.
+- Attendee lifecycle
+  - login -> homepage event selection -> event detail -> reserve place -> receive QR/check-in pass
 
+- Vendor lifecycle
+  - approved vendor -> vendor dashboard -> service management -> request inbox -> negotiation -> contract signing
 
-## Overall Summary
+These are the main demo-safe flows because the UI and backend are both present and connected.
 
-- Strongest completed area: organizer proposal submission and government approval workflow
-- Next strongest area: organizer and vendor verification, especially on the backend
-- Main unfinished area: marketplace, contracts, payments, wallet, and vendor-facing post-approval product experience
-- Technical note: frontend builds successfully, but test coverage is still limited and lint configuration needs cleanup
+The following areas are backend-ahead-of-frontend:
+
+- organizer vendor procurement workspace
+- schedule management UI
+- venue reservation UI
+- team and task UI
+- announcements UI
+- incidents UI
+- feedback and final report UI
+
+## Presentation Readiness
+
+Current state is enough for an MVP presentation.
+
+Recommended presentation scope:
+
+1. Show organizer proposal and approval outcome
+2. Show creation of the real event from the approved proposal
+3. Show attendee booking from homepage to QR/check-in pass
+4. Show approved vendor dashboard, request handling, and contract signing
+
+This should be presented as:
+
+- a working MVP / prototype with completed core flows
+- not a fully finalized production system
+
+## Verification Completed
+
+- Frontend production build passed with `npm run build`
+- Backend syntax verification passed for the recent request-route fix
+- Booking QR generation backend and vendor portal backend are in place
+- Demo vendors were seeded successfully into the configured database
+
+## Demo Notes
+
+Seeded demo vendor accounts:
+
+- `venue.provider.demo@gce.local`
+- `catering.provider.demo@gce.local`
+- `decor.provider.demo@gce.local`
+
+Default password for all seeded vendors:
+
+- `VendorDemo@123`
+
+## Main Remaining Work After Presentation
+
+- Build organizer-side vendor procurement pages
+- Surface more of the event operations backend in organizer frontend
+- Improve testing coverage
+- Clean lint/build tooling around generated `.next-prod` output
+- Polish non-core linked pages such as privacy, terms, and support if needed

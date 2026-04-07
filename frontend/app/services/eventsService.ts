@@ -2,9 +2,12 @@ import { api } from '../lib/api';
 import { ProposalRecord } from '../types/proposal';
 import {
   ApprovedProposal,
+  EventBookingCreatePayload,
+  EventBookingRecord,
   EventCreateFromProposalResponse,
   EventListItem,
   EventRecord,
+  EventScheduleItemRecord,
   EventStats,
   EventUiStatus,
   EVENT_STATUS_CONFIG,
@@ -96,6 +99,10 @@ export const eventsService = {
     return api.get<EventRecord>(`/events/${eventId}`);
   },
 
+  getDiscoverableEvents: async (): Promise<EventRecord[]> => {
+    return api.get<EventRecord[]>('/events/');
+  },
+
   createEventFromProposal: async (proposalId: string): Promise<EventCreateFromProposalResponse> => {
     return api.post<EventCreateFromProposalResponse>(`/events/from-proposal/${proposalId}`);
   },
@@ -146,6 +153,29 @@ export const eventsService = {
       }).length,
       drafts: proposals.filter((proposal) => proposal.status === 'draft').length,
     };
+  },
+
+  getEventSchedule: async (eventId: string): Promise<EventScheduleItemRecord[]> => {
+    return api.get<EventScheduleItemRecord[]>(`/events/${eventId}/schedule`);
+  },
+
+  getBookingSettings: async (eventId: string): Promise<EventRecord> => {
+    return api.get<EventRecord>(`/events/${eventId}/booking`);
+  },
+
+  getMyBookings: async (eventId: string): Promise<EventBookingRecord[]> => {
+    return api.get<EventBookingRecord[]>(`/events/${eventId}/bookings`);
+  },
+
+  getBookingById: async (eventId: string, bookingId: string): Promise<EventBookingRecord> => {
+    return api.get<EventBookingRecord>(`/events/${eventId}/bookings/${bookingId}`);
+  },
+
+  createBooking: async (
+    eventId: string,
+    payload: EventBookingCreatePayload
+  ): Promise<EventBookingRecord> => {
+    return api.post<EventBookingRecord>(`/events/${eventId}/bookings`, payload);
   },
 };
 

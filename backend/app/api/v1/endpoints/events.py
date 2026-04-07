@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import secrets
 from datetime import datetime, timedelta
+from io import BytesIO
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 
 from app.api.v1.deps import get_current_user
 from app.db.mongodb import (
@@ -74,6 +76,7 @@ from app.schemas.event import (
     VenueSearchResponse,
 )
 from app.services.marketplace import parse_object_id, utc_now
+from app.services.qr_codes import generate_booking_pass_png_bytes, generate_qr_png_bytes
 
 router = APIRouter()
 
@@ -105,6 +108,7 @@ def _event_base_response(document: dict) -> dict:
     capacity = document.get("capacity") or 0
     booked_count = int(document.get("booked_count", 0))
     remaining_slots = max(capacity - booked_count, 0) if capacity else 0
+    booking_status = _resolve_booking_status(document)
     return {
         "id": str(document["_id"]),
         "organizer_id": document["organizer_id"],
@@ -125,7 +129,7 @@ def _event_base_response(document: dict) -> dict:
         "requires_permit": bool(document.get("requires_permit", True)),
         "status": document.get("status", EventStatus.DRAFT),
         "venue_status": document.get("venue_status", "not_started"),
-        "booking_status": document.get("booking_status", BookingStatus.DISABLED),
+        "booking_status": booking_status,
         "booking_opens_at": document.get("booking_opens_at"),
         "booking_closes_at": document.get("booking_closes_at"),
         "allow_waitlist": bool(document.get("allow_waitlist", False)),
@@ -229,17 +233,26 @@ def _serialize_task(document: dict) -> dict:
     }
 
 
-def _serialize_booking(document: dict) -> dict:
+def _serialize_booking(document: dict, event: dict | None = None) -> dict:
+    booking_id = str(document["_id"])
+    event_id = document["event_id"]
+    has_qr = bool(document.get("qr_code"))
     return {
-        "id": str(document["_id"]),
-        "event_id": document["event_id"],
+        "id": booking_id,
+        "event_id": event_id,
         "booking_reference": document["booking_reference"],
+        "event_title": event.get("title") if event else None,
+        "event_location": event.get("location") if event else None,
+        "event_start_date": event.get("start_date") if event else None,
+        "event_end_date": event.get("end_date") if event else None,
         "attendee_id": document["attendee_id"],
         "attendee_name": document.get("attendee_name"),
         "attendee_email": document.get("attendee_email"),
         "slots_requested": int(document.get("slots_requested", 1)),
         "notes": document.get("notes"),
-        "qr_code": document["qr_code"],
+        "qr_code": document.get("qr_code"),
+        "qr_code_image_url": f"/api/v1/events/{event_id}/bookings/{booking_id}/qr-code" if has_qr else None,
+        "check_in_pass_image_url": f"/api/v1/events/{event_id}/bookings/{booking_id}/check-in-pass" if has_qr else None,
         "booking_status": document.get("booking_status", "confirmed"),
         "check_in_status": document.get("check_in_status", "pending"),
         "checked_in_at": document.get("checked_in_at"),
@@ -341,6 +354,26 @@ async def _get_owned_event_or_403(event_id: str, current_user: dict) -> dict:
     return event
 
 
+async def _get_booking_or_404(event_id: str, booking_id: str) -> dict:
+    booking = await ticket_purchase_collection.find_one(
+        {"_id": parse_object_id(booking_id, field_name="booking id"), "event_id": event_id}
+    )
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    return booking
+
+
+async def _ensure_booking_access(event: dict, booking: dict, current_user: dict) -> None:
+    role = to_user_role(current_user.get("role"))
+    if role in {UserRole.ADMIN, UserRole.SUPER_ADMIN}:
+        return
+    if event.get("organizer_id") == current_user["id"]:
+        return
+    if booking.get("attendee_id") == current_user["id"]:
+        return
+    await _ensure_team_access(event, current_user)
+
+
 async def _ensure_team_access(event: dict, current_user: dict) -> None:
     role = to_user_role(current_user.get("role"))
     if role in {UserRole.ADMIN, UserRole.SUPER_ADMIN}:
@@ -373,6 +406,27 @@ def _generate_ticket_code(prefix: str) -> str:
 
 def _derive_event_category(proposal: dict) -> str | None:
     return normalize_supported_event_type(proposal.get("event_type") or proposal.get("category"))
+
+
+def _resolve_booking_status(event: dict, *, now: datetime | None = None) -> BookingStatus:
+    current_time = now or utc_now()
+    if not event.get("booking_required"):
+        return BookingStatus.DISABLED
+
+    closes_at = event.get("booking_closes_at")
+    if closes_at and closes_at <= current_time:
+        return BookingStatus.CLOSED
+
+    capacity = int(event.get("capacity") or 0)
+    booked_count = int(event.get("booked_count", 0))
+    if capacity and booked_count >= capacity:
+        return BookingStatus.FULL
+
+    opens_at = event.get("booking_opens_at")
+    if opens_at and opens_at > current_time:
+        return BookingStatus.CLOSED
+
+    return BookingStatus.OPEN
 
 
 @router.post("/from-proposal/{proposal_id}", response_model=EventCreateFromProposalResponse, status_code=201)
@@ -465,9 +519,14 @@ async def list_events(
         query["organizer_id"] = current_user["id"]
 
     if role == UserRole.ATTENDEE:
-        query["status"] = {"$in": [EventStatus.PUBLISHED, EventStatus.PRIVATE_PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED]}
-
-    if status_filter:
+        allowed_statuses = [EventStatus.PUBLISHED, EventStatus.PRIVATE_PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED]
+        if status_filter:
+            if status_filter not in allowed_statuses:
+                raise HTTPException(status_code=400, detail="Attendees can only filter published or active events")
+            query["status"] = status_filter
+        else:
+            query["status"] = {"$in": allowed_statuses}
+    elif status_filter:
         query["status"] = status_filter
 
     events = await event_collection.find(query, sort=[("created_at", -1)]).to_list(length=300)
@@ -1034,9 +1093,14 @@ async def update_booking_settings(
     current_user: dict = Depends(get_current_user),
 ):
     event = await _get_owned_event_or_403(event_id, current_user)
-    next_status = BookingStatus.OPEN if payload.booking_required else BookingStatus.DISABLED
-    if payload.booking_required and payload.booking_closes_at and payload.booking_closes_at <= utc_now():
-        next_status = BookingStatus.CLOSED
+    provisional_event = {
+        **event,
+        "booking_required": payload.booking_required,
+        "booking_opens_at": payload.booking_opens_at,
+        "booking_closes_at": payload.booking_closes_at,
+        "allow_waitlist": payload.allow_waitlist,
+    }
+    next_status = _resolve_booking_status(provisional_event)
     await event_collection.update_one(
         {"_id": event["_id"]},
         {
@@ -1068,7 +1132,19 @@ async def list_event_bookings(event_id: str, current_user: dict = Depends(get_cu
         await _ensure_team_access(event, current_user)
         query = {"event_id": event_id}
     docs = await ticket_purchase_collection.find(query, sort=[("created_at", -1)]).to_list(length=500)
-    return [_serialize_booking(item) for item in docs]
+    return [_serialize_booking(item, event) for item in docs]
+
+
+@router.get("/{event_id}/bookings/{booking_id}", response_model=EventBookingResponse)
+async def get_event_booking(
+    event_id: str,
+    booking_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    event = await _get_event_or_404(event_id)
+    booking = await _get_booking_or_404(event_id, booking_id)
+    await _ensure_booking_access(event, booking, current_user)
+    return _serialize_booking(booking, event)
 
 
 @router.post("/{event_id}/bookings", response_model=EventBookingResponse, status_code=201)
@@ -1083,8 +1159,24 @@ async def create_booking(
         raise HTTPException(status_code=400, detail="Bookings can only be created for published or live events")
     if not event.get("booking_required"):
         raise HTTPException(status_code=400, detail="This event does not use advance booking")
-    if event.get("booking_status") not in {BookingStatus.OPEN, BookingStatus.FULL}:
-        raise HTTPException(status_code=400, detail="Bookings are not open")
+    now = utc_now()
+    current_booking_status = _resolve_booking_status(event, now=now)
+    if current_booking_status not in {BookingStatus.OPEN, BookingStatus.FULL}:
+        await event_collection.update_one(
+            {"_id": event["_id"]},
+            {"$set": {"booking_status": current_booking_status, "updated_at": now}},
+        )
+        raise HTTPException(status_code=400, detail="Bookings are not open for this event at the moment")
+
+    existing_booking = await ticket_purchase_collection.find_one(
+        {
+            "event_id": event_id,
+            "attendee_id": current_user["id"],
+            "booking_status": {"$in": ["confirmed", "waitlisted"]},
+        }
+    )
+    if existing_booking:
+        raise HTTPException(status_code=400, detail="You already have an active booking for this event")
 
     capacity = int(event.get("capacity") or 0)
     booked_count = int(event.get("booked_count", 0))
@@ -1092,7 +1184,6 @@ async def create_booking(
     if payload.slots_requested > remaining_slots and not event.get("allow_waitlist", False):
         raise HTTPException(status_code=400, detail="Not enough remaining booking slots")
 
-    now = utc_now()
     booking_status = "confirmed"
     next_booking_status = BookingStatus.OPEN
     if payload.slots_requested > remaining_slots and event.get("allow_waitlist", False):
@@ -1110,7 +1201,7 @@ async def create_booking(
         "attendee_email": payload.attendee_email or current_user.get("email"),
         "slots_requested": payload.slots_requested,
         "notes": payload.notes,
-        "qr_code": _generate_ticket_code("QR"),
+        "qr_code": _generate_ticket_code("QR") if booking_status == "confirmed" else None,
         "booking_status": booking_status,
         "check_in_status": "pending",
         "checked_in_at": None,
@@ -1125,7 +1216,57 @@ async def create_booking(
         {"_id": event["_id"]},
         {"$set": {"booking_status": next_booking_status, "updated_at": now}, "$inc": {"booked_count": increment}},
     )
-    return _serialize_booking(doc)
+    updated_event = await event_collection.find_one({"_id": event["_id"]})
+    return _serialize_booking(doc, updated_event or event)
+
+
+@router.get("/{event_id}/bookings/{booking_id}/qr-code")
+async def get_booking_qr_code_image(
+    event_id: str,
+    booking_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    event = await _get_event_or_404(event_id)
+    booking = await _get_booking_or_404(event_id, booking_id)
+    await _ensure_booking_access(event, booking, current_user)
+    qr_code = booking.get("qr_code")
+    if not qr_code:
+        raise HTTPException(status_code=400, detail="A QR code is only generated for confirmed bookings")
+
+    image_bytes = generate_qr_png_bytes(qr_code)
+    return StreamingResponse(
+        BytesIO(image_bytes),
+        media_type="image/png",
+        headers={"Content-Disposition": f'inline; filename="booking-{booking.get("booking_reference", booking_id)}-qr.png"'},
+    )
+
+
+@router.get("/{event_id}/bookings/{booking_id}/check-in-pass")
+async def get_booking_check_in_pass(
+    event_id: str,
+    booking_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    event = await _get_event_or_404(event_id)
+    booking = await _get_booking_or_404(event_id, booking_id)
+    await _ensure_booking_access(event, booking, current_user)
+    qr_code = booking.get("qr_code")
+    if not qr_code:
+        raise HTTPException(status_code=400, detail="A check-in pass is only generated for confirmed bookings")
+
+    image_bytes = generate_booking_pass_png_bytes(
+        qr_value=qr_code,
+        event_title=event.get("title") or "Professional Event",
+        event_location=event.get("location"),
+        event_start_date=event.get("start_date"),
+        attendee_name=booking.get("attendee_name"),
+        booking_reference=booking.get("booking_reference", booking_id),
+    )
+    return StreamingResponse(
+        BytesIO(image_bytes),
+        media_type="image/png",
+        headers={"Content-Disposition": f'inline; filename="booking-{booking.get("booking_reference", booking_id)}-pass.png"'},
+    )
 
 
 @router.get("/{event_id}/badges", response_model=list[BadgeResponse])
@@ -1144,7 +1285,7 @@ async def generate_badges(
 ):
     event = await _get_event_or_404(event_id)
     await _ensure_team_access(event, current_user)
-    query: dict = {"event_id": event_id}
+    query: dict = {"event_id": event_id, "booking_status": "confirmed"}
     if payload.booking_ids:
         query["_id"] = {"$in": [parse_object_id(item, field_name="booking id") for item in payload.booking_ids]}
     if not payload.include_unchecked_in:
@@ -1181,11 +1322,11 @@ async def scan_booking_for_check_in(
 ):
     event = await _get_event_or_404(event_id)
     await _ensure_team_access(event, current_user)
-    booking = await ticket_purchase_collection.find_one({"event_id": event_id, "qr_code": payload.qr_code})
+    booking = await ticket_purchase_collection.find_one({"event_id": event_id, "qr_code": payload.qr_code, "booking_status": "confirmed"})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     if booking.get("check_in_status") == "checked_in":
-        return _serialize_booking(booking)
+        return _serialize_booking(booking, event)
 
     now = utc_now()
     await ticket_purchase_collection.update_one(
@@ -1195,7 +1336,7 @@ async def scan_booking_for_check_in(
     updated = await ticket_purchase_collection.find_one({"_id": booking["_id"]})
     if not updated:
         raise HTTPException(status_code=404, detail="Booking not found")
-    return _serialize_booking(updated)
+    return _serialize_booking(updated, event)
 
 
 @router.get("/{event_id}/announcements", response_model=list[AnnouncementResponse])

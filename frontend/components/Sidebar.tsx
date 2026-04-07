@@ -117,6 +117,9 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Allowed Events', href: '/police/proposals', icon: icons.events },
   ],
   vendor: [
+    { label: 'Dashboard', href: '/vendor/dashboard', icon: icons.dashboard },
+    { label: 'Requests', href: '/vendor/requests', icon: icons.queue },
+    { label: 'Contracts', href: '/vendor/contracts', icon: icons.proposals },
     { label: 'Verification', href: '/vendor/verification', icon: icons.shield },
   ],
 };

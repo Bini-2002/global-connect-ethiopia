@@ -39,6 +39,22 @@ def _serialize_contract(document: dict) -> dict:
     }
 
 
+@router.get("/vendor", response_model=list[ContractResponse])
+async def list_vendor_contracts(current_user: dict = Depends(get_current_user)):
+    if to_user_role(current_user.get("role")) != UserRole.VENDOR:
+        raise HTTPException(status_code=403, detail="Only vendors can list vendor contracts")
+    items = await contract_collection.find({"vendor_user_id": current_user["id"]}, sort=[("created_at", -1)]).to_list(length=300)
+    return [_serialize_contract(item) for item in items]
+
+
+@router.get("/organizer", response_model=list[ContractResponse])
+async def list_organizer_contracts(current_user: dict = Depends(get_current_user)):
+    if to_user_role(current_user.get("role")) != UserRole.ORGANIZER:
+        raise HTTPException(status_code=403, detail="Only organizers can list organizer contracts")
+    items = await contract_collection.find({"organizer_id": current_user["id"]}, sort=[("created_at", -1)]).to_list(length=300)
+    return [_serialize_contract(item) for item in items]
+
+
 @router.post("", response_model=ContractResponse, status_code=201)
 @router.post("/", response_model=ContractResponse, status_code=201)
 async def create_contract(payload: ContractCreate, current_user: dict = Depends(get_current_user)):
@@ -76,7 +92,7 @@ async def create_contract(payload: ContractCreate, current_user: dict = Depends(
         "currency": payload.currency,
         "terms": payload.terms,
         "status": "draft",
-        "payment_status": "pending",
+        "payment_status": "not_required",
         "start_date": payload.start_date,
         "end_date": payload.end_date,
         "deposited_amount": 0.0,

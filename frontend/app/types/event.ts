@@ -96,6 +96,50 @@ export interface EventCreateFromProposalResponse {
   message: string;
 }
 
+export interface EventScheduleItemRecord {
+  id: string;
+  event_id: string;
+  session_title: string;
+  description?: string | null;
+  start_time: string;
+  end_time: string;
+  speaker_id?: string | null;
+  room_location?: string | null;
+  is_ai_suggestion: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventBookingCreatePayload {
+  slots_requested: number;
+  attendee_name?: string;
+  attendee_email?: string;
+  notes?: string;
+}
+
+export interface EventBookingRecord {
+  id: string;
+  event_id: string;
+  booking_reference: string;
+  event_title?: string | null;
+  event_location?: string | null;
+  event_start_date?: string | null;
+  event_end_date?: string | null;
+  attendee_id: string;
+  attendee_name?: string | null;
+  attendee_email?: string | null;
+  slots_requested: number;
+  notes?: string | null;
+  qr_code?: string | null;
+  qr_code_image_url?: string | null;
+  check_in_pass_image_url?: string | null;
+  booking_status: string;
+  check_in_status: string;
+  checked_in_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export const EVENT_STATUS_CONFIG: Record<EventUiStatus, { label: string; bgClass: string }> = {
   LIVE: { label: 'LIVE', bgClass: 'bg-green-500 text-white' },
   PENDING: { label: 'PENDING', bgClass: 'bg-amber-500 text-white' },

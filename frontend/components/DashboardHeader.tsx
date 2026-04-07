@@ -11,9 +11,16 @@ import {
 interface DashboardHeaderProps {
   searchPlaceholder?: string;
   onSearch?: (q: string) => void;
+  actionHref?: string;
+  actionLabel?: string;
 }
 
-export default function DashboardHeader({ searchPlaceholder = 'Search...', onSearch }: DashboardHeaderProps) {
+export default function DashboardHeader({
+  searchPlaceholder = 'Search...',
+  onSearch,
+  actionHref = '/organizer/events',
+  actionLabel = 'Explore Events',
+}: DashboardHeaderProps) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [showMobileSearch, setShowMobileSearch] = useState(false);
@@ -102,9 +109,9 @@ export default function DashboardHeader({ searchPlaceholder = 'Search...', onSea
               </svg>
               <span suppressHydrationWarning className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
             </button>
-            <Link href="/organizer/events" className='flex gap-2 px-4 py-2 bg-[#EC5B13] text-white rounded-lg font-bold hover:bg-[#d44d0f] transition text-sm md:text-base items-center'>
+            <Link href={actionHref} className='flex gap-2 px-4 py-2 bg-[#EC5B13] text-white rounded-lg font-bold hover:bg-[#d44d0f] transition text-sm md:text-base items-center'>
                 <Calendar className="w-4 h-4" />
-                Explore Events
+                {actionLabel}
               </Link>
             {/* Avatar - mobile */}
             <button 

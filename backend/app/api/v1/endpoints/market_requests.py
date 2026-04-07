@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.api.v1.deps import get_current_user
 from app.db.mongodb import event_collection, proposal_collection, request_collection, vendor_service_collection
 from app.models.roles import UserRole, to_user_role
-from app.schemas.marketplace import RequestCreate, RequestResponse
+from app.schemas.marketplace import RequestCreate, RequestDecisionPayload, RequestResponse
 from app.services.marketplace import (
     append_message,
     get_user_name,
@@ -28,6 +28,7 @@ def _serialize_request(document: dict) -> dict:
         "vendor_id": document["vendor_id"],
         "vendor_user_id": document["vendor_user_id"],
         "proposal_title": document.get("proposal_title"),
+        "event_title": document.get("event_title"),
         "service_title": document.get("service_title"),
         "organizer_name": document.get("organizer_name"),
         "vendor_name": document.get("vendor_name"),
@@ -77,6 +78,12 @@ async def create_request(payload: RequestCreate, current_user: dict = Depends(ge
 
     organizer_name = await get_user_name(current_user["id"])
     vendor_name = await get_user_name(service["vendor_user_id"])
+    proposal_title = None
+    event_title = None
+    if proposal_id:
+        proposal_title = (proposal or {}).get("title") if "proposal" in locals() else None
+    if event_id:
+        event_title = (event or {}).get("title") if "event" in locals() else None
 
     offered_amount = payload.offered_amount if payload.offered_amount is not None else payload.proposed_amount
 
@@ -97,7 +104,8 @@ async def create_request(payload: RequestCreate, current_user: dict = Depends(ge
         "organizer_id": current_user["id"],
         "vendor_id": service["vendor_id"],
         "vendor_user_id": service["vendor_user_id"],
-        "proposal_title": None,
+        "proposal_title": proposal_title,
+        "event_title": event_title,
         "service_title": service.get("title"),
         "organizer_name": organizer_name,
         "vendor_name": vendor_name,
@@ -146,36 +154,125 @@ async def list_organizer_requests(current_user: dict = Depends(get_current_user)
     return [_serialize_request(item) for item in items]
 
 
-@router.post("/{request_id}/accept", response_model=RequestResponse)
-async def accept_request(request_id: str, current_user: dict = Depends(get_current_user)):
-    await require_vendor_profile(current_user)
+@router.get("/{request_id}", response_model=RequestResponse)
+async def get_request_detail(request_id: str, current_user: dict = Depends(get_current_user)):
+    request_doc = await request_collection.find_one({"_id": parse_object_id(request_id, field_name="request id")})
+    if not request_doc:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    role = to_user_role(current_user.get("role"))
+    allowed = {
+        request_doc.get("organizer_id"),
+        request_doc.get("vendor_user_id"),
+    }
+    if role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN} and current_user["id"] not in allowed:
+        raise HTTPException(status_code=403, detail="You are not allowed to access this request")
+    return _serialize_request(request_doc)
+
+
+@router.post("/{request_id}/counter-offer", response_model=RequestResponse)
+async def counter_offer_request(
+    request_id: str,
+    payload: RequestDecisionPayload,
+    current_user: dict = Depends(get_current_user),
+):
+    role = to_user_role(current_user.get("role"))
+    if role not in {UserRole.VENDOR, UserRole.ORGANIZER}:
+        raise HTTPException(status_code=403, detail="Only vendors or organizers can negotiate a request")
 
     request_doc = await request_collection.find_one({"_id": parse_object_id(request_id, field_name="request id")})
     if not request_doc:
         raise HTTPException(status_code=404, detail="Request not found")
-    if request_doc.get("vendor_user_id") != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Only the targeted vendor can accept this request")
-    if request_doc.get("status") != "pending":
-        raise HTTPException(status_code=400, detail="Only pending requests can be accepted")
+    if role == UserRole.VENDOR and request_doc.get("vendor_user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the targeted vendor can negotiate this request")
+    if role == UserRole.ORGANIZER and request_doc.get("organizer_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the organizer who created the request can negotiate it")
+    if request_doc.get("status") not in {"pending", "negotiating"}:
+        raise HTTPException(status_code=400, detail="Only pending or negotiating requests can be updated")
 
-    vendor_name = await get_user_name(current_user["id"])
+    actor_name = await get_user_name(current_user["id"])
     now = utc_now()
-    decision_message = "Vendor accepted request."
+    next_amount = payload.final_amount if payload.final_amount is not None else request_doc.get("proposed_amount")
+    body = payload.message or "Counter-offer submitted."
+    await request_collection.update_one(
+        {"_id": request_doc["_id"]},
+        {
+            "$set": {
+                "status": "negotiating",
+                "proposed_amount": next_amount,
+                "decision_message": body,
+                "updated_at": now,
+            },
+            "$push": {
+                "messages": {
+                    "sender_id": current_user["id"],
+                    "sender_role": role.value,
+                    "sender_name": actor_name,
+                    "body": body,
+                    "message_type": "counter_offer",
+                    "created_at": now,
+                }
+            },
+        },
+    )
+
+    await append_message(
+        entity_type="request",
+        entity_id=str(request_doc["_id"]),
+        sender_id=current_user["id"],
+        sender_role=role.value,
+        sender_name=actor_name,
+        body=body,
+        message_type="counter_offer",
+        metadata={"final_amount": next_amount},
+    )
+
+    updated = await request_collection.find_one({"_id": request_doc["_id"]})
+    if not updated:
+        raise HTTPException(status_code=404, detail="Request not found")
+    return _serialize_request(updated)
+
+
+@router.post("/{request_id}/accept", response_model=RequestResponse)
+async def accept_request(
+    request_id: str,
+    payload: RequestDecisionPayload | None = None,
+    current_user: dict = Depends(get_current_user),
+):
+    role = to_user_role(current_user.get("role"))
+    if role not in {UserRole.VENDOR, UserRole.ORGANIZER}:
+        raise HTTPException(status_code=403, detail="Only vendors or organizers can accept a request")
+
+    request_doc = await request_collection.find_one({"_id": parse_object_id(request_id, field_name="request id")})
+    if not request_doc:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if role == UserRole.VENDOR and request_doc.get("vendor_user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the targeted vendor can accept this request")
+    if role == UserRole.ORGANIZER and request_doc.get("organizer_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the organizer who created the request can accept this request")
+    if request_doc.get("status") not in {"pending", "negotiating"}:
+        raise HTTPException(status_code=400, detail="Only pending or negotiating requests can be accepted")
+
+    actor_name = await get_user_name(current_user["id"])
+    now = utc_now()
+    agreed_amount = payload.final_amount if payload and payload.final_amount is not None else request_doc.get("proposed_amount")
+    decision_message = payload.message if payload and payload.message else "Request accepted."
     await request_collection.update_one(
         {"_id": request_doc["_id"]},
         {
             "$set": {
                 "status": "accepted",
-                "agreed_amount": request_doc.get("proposed_amount"),
+                "agreed_amount": agreed_amount,
                 "decision_message": decision_message,
                 "updated_at": now,
-                "vendor_name": vendor_name,
+                "vendor_name": request_doc.get("vendor_name") if role == UserRole.ORGANIZER else actor_name,
+                "organizer_name": request_doc.get("organizer_name") if role == UserRole.VENDOR else actor_name,
             },
             "$push": {
                 "messages": {
                     "sender_id": current_user["id"],
-                    "sender_role": UserRole.VENDOR.value,
-                    "sender_name": vendor_name,
+                    "sender_role": role.value,
+                    "sender_name": actor_name,
                     "body": decision_message,
                     "message_type": "decision",
                     "created_at": now,
@@ -188,8 +285,8 @@ async def accept_request(request_id: str, current_user: dict = Depends(get_curre
         entity_type="request",
         entity_id=str(request_doc["_id"]),
         sender_id=current_user["id"],
-        sender_role=UserRole.VENDOR.value,
-        sender_name=vendor_name,
+        sender_role=role.value,
+        sender_name=actor_name,
         body=decision_message,
         message_type="decision",
     )
@@ -214,8 +311,8 @@ async def reject_request(request_id: str, current_user: dict = Depends(get_curre
         raise HTTPException(status_code=403, detail="Only the targeted vendor can reject this request")
     if role == UserRole.ORGANIZER and request_doc.get("organizer_id") != current_user["id"]:
         raise HTTPException(status_code=403, detail="Only the organizer who sent the request can reject it")
-    if request_doc.get("status") != "pending":
-        raise HTTPException(status_code=400, detail="Only pending requests can be rejected")
+    if request_doc.get("status") not in {"pending", "negotiating"}:
+        raise HTTPException(status_code=400, detail="Only pending or negotiating requests can be rejected")
 
     actor_name = await get_user_name(current_user["id"])
     now = utc_now()

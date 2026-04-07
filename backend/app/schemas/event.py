@@ -193,12 +193,18 @@ class EventBookingResponse(BaseModel):
     id: str
     event_id: str
     booking_reference: str
+    event_title: str | None = None
+    event_location: str | None = None
+    event_start_date: datetime | None = None
+    event_end_date: datetime | None = None
     attendee_id: str
     attendee_name: str | None = None
     attendee_email: str | None = None
     slots_requested: int
     notes: str | None = None
-    qr_code: str
+    qr_code: str | None = None
+    qr_code_image_url: str | None = None
+    check_in_pass_image_url: str | None = None
     booking_status: str
     check_in_status: str
     checked_in_at: datetime | None = None
