@@ -223,14 +223,11 @@ async def ensure_mock_office_accounts(password: str = DEFAULT_MOCK_OFFICE_PASSWO
     """
     payloads = build_mock_office_user_payloads(password=password)
     for payload in payloads:
-        created_at = payload.get("created_at")
+        created_at = payload.pop("created_at", None)
         await user_collection.update_one(
             {"email": payload["email"]},
             {
-                "$set": {
-                    **payload,
-                    "updated_at": payload["updated_at"],
-                },
+                "$set": payload,
                 "$setOnInsert": {
                     "created_at": created_at,
                 },
