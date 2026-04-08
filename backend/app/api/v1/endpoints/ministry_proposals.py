@@ -15,17 +15,16 @@ router = APIRouter()
 
 
 def _to_response(proposal: dict) -> dict:
-    proposal["id"] = str(proposal["_id"])
+    response = dict(proposal)
+    response["id"] = str(response["_id"])
     # Stringify any ObjectId fields that Pydantic cannot serialize
     for field in ("organizer_id", "event_id"):
-        if field in proposal and proposal[field] is not None:
-            proposal[field] = str(proposal[field])
-    return proposal
+        if field in response and response[field] is not None:
+            response[field] = str(response[field])
+    return response
 
 
-def _assigned_office(proposal: dict, stage: str) -> dict:
-    return (proposal.get("office_assignments") or {}).get(stage) or {}
-
+    return [_to_response(proposal) for proposal in proposals]
 
 def _ensure_assigned_to_current_office(proposal: dict, current_user: dict, stage: str) -> dict:
     office = _assigned_office(proposal, stage)
@@ -38,9 +37,9 @@ def _ensure_assigned_to_current_office(proposal: dict, current_user: dict, stage
 @router.get("", response_model=List[ProposalResponse], include_in_schema=False)
 @router.get("/", response_model=List[ProposalResponse])
 async def list_ministry_review_queue(current_user: dict = Depends(allow_ministry)):
+    # Show ALL submitted/under-review proposals — no pre-assignment needed.
     cursor = proposal_collection.find(
         {
-            "office_assignments.ministry.user_id": str(current_user["_id"]),
             "status": {"$in": [ProposalStatus.SUBMITTED, ProposalStatus.MINISTRY_REVIEW]},
         }
     )
@@ -56,7 +55,6 @@ async def get_ministry_proposal_detail(
     proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found")
-    _ensure_assigned_to_current_office(proposal, current_user, "ministry")
     return _to_response(proposal)
 
 
@@ -71,16 +69,21 @@ async def start_review(
 
     if proposal.get("status") != ProposalStatus.SUBMITTED:
         raise HTTPException(status_code=400, detail="Proposal must be submitted first")
-    office = _ensure_assigned_to_current_office(proposal, current_user, "ministry")
 
     now = datetime.now(timezone.utc)
+    office_name = str(current_user.get("office_name") or current_user.get("full_name") or "Ministry")
     await proposal_collection.update_one(
         {"_id": proposal["_id"]},
         {
             "$set": {
                 "status": ProposalStatus.MINISTRY_REVIEW,
                 "review_stage": "ministry",
-                "ministry_started_by": office.get("office_name"),
+                "ministry_started_by": office_name,
+                "office_assignments.ministry": {
+                    "user_id": str(current_user["_id"]),
+                    "office_name": office_name,
+                    "role": "ministry_gov",
+                },
                 "reviewed_at": now,
                 "updated_at": now,
             }
@@ -103,7 +106,10 @@ async def approve_under_review(
 
     if proposal.get("status") != ProposalStatus.MINISTRY_REVIEW:
         raise HTTPException(status_code=400, detail="Proposal must be under ministry review")
-    office = _ensure_assigned_to_current_office(proposal, current_user, "ministry")
+    office = _assigned_office(proposal, "ministry") or {
+        "user_id": str(current_user["_id"]),
+        "office_name": str(current_user.get("office_name") or current_user.get("full_name") or "Ministry"),
+    }
     municipal_office = _assigned_office(proposal, "municipal")
 
     now = datetime.now(timezone.utc)
@@ -162,7 +168,10 @@ async def reject_under_review(
 
     if proposal.get("status") != ProposalStatus.MINISTRY_REVIEW:
         raise HTTPException(status_code=400, detail="Proposal must be under ministry review")
-    office = _ensure_assigned_to_current_office(proposal, current_user, "ministry")
+    office = _assigned_office(proposal, "ministry") or {
+        "user_id": str(current_user["_id"]),
+        "office_name": str(current_user.get("office_name") or current_user.get("full_name") or "Ministry"),
+    }
 
     now = datetime.now(timezone.utc)
     await proposal_collection.update_one(

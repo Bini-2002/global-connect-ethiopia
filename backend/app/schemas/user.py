@@ -38,7 +38,7 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str  # plain str so .local internal office accounts (e.g. gce.local) are not rejected by email-validator
     password: str
 
 class Token(BaseModel):
@@ -59,7 +59,7 @@ class UserInDB(BaseModel):
 
 
 class OtpSendRequest(BaseModel):
-    email: EmailStr
+    email: str  # plain str to allow .local internal accounts
 
 
 class OtpSendResponse(BaseModel):
@@ -69,7 +69,7 @@ class OtpSendResponse(BaseModel):
 
 
 class OtpVerifyRequest(BaseModel):
-    email: EmailStr
+    email: str  # plain str to allow .local internal accounts
     otp_code: str = Field(..., min_length=6, max_length=6)
 
 

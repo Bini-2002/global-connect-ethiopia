@@ -23,11 +23,11 @@ async def list_allowed_events(current_user: dict = Depends(allow_police)):
     """
     List all proposals that have received final approval (APPROVED status).
     These are events that are allowed to take place in the city.
+    No pre-assignment filter — any police office can view all approved events.
     """
     cursor = proposal_collection.find(
         {
             "status": ProposalStatus.APPROVED,
-            "office_assignments.police.user_id": str(current_user["_id"]),
         }
     )
     proposals = await cursor.to_list(length=200)
@@ -45,10 +45,9 @@ async def get_allowed_event_detail(
     proposal = await proposal_collection.find_one({
         "_id": ObjectId(proposal_id),
         "status": ProposalStatus.APPROVED,
-        "office_assignments.police.user_id": str(current_user["_id"]),
     })
-    
+
     if not proposal:
         raise HTTPException(status_code=404, detail="Allowed proposal not found")
-        
+
     return _to_response(proposal)

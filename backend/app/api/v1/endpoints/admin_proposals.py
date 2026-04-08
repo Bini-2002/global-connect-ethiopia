@@ -21,11 +21,12 @@ class ProposalDecisionPayload(BaseModel):
 
 
 def _to_response(proposal: dict) -> dict:
-    proposal["id"] = str(proposal["_id"])
+    response = dict(proposal)
+    response["id"] = str(response["_id"])
     for field in ("organizer_id", "event_id"):
-        if field in proposal and proposal[field] is not None:
-            proposal[field] = str(proposal[field])
-    return proposal
+        if field in response and response[field] is not None:
+            response[field] = str(response[field])
+    return response
 
 
 async def _get_proposal_or_404(proposal_id: str) -> dict:
