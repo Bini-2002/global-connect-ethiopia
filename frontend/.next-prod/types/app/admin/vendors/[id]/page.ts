@@ -1,4 +1,4 @@
-// File: c:\Users\binig\Desktop\global-connect-ethiopia\frontend\app\admin\vendors\[id]\page.tsx
+// File: C:\Users\binig\Desktop\global-connect-ethiopia\frontend\app\admin\vendors\[id]\page.tsx
 import * as entry from '../../../../../../app/admin/vendors/[id]/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

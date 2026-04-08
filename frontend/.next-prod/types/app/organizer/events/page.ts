@@ -1,4 +1,4 @@
-// File: c:\Users\binig\Desktop\global-connect-ethiopia\frontend\app\organizer\events\page.tsx
+// File: C:\Users\binig\Desktop\global-connect-ethiopia\frontend\app\organizer\events\page.tsx
 import * as entry from '../../../../../app/organizer/events/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

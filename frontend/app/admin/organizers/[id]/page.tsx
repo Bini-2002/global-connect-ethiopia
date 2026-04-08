@@ -177,7 +177,7 @@ export default function AdminOrganizerDetailPage() {
     setDocumentLoadingKey(doc.document_key);
 
     try {
-      const response = await fetch(doc.download_endpoint, {
+      const response = await fetch(api.resolveUrl(doc.download_endpoint), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
