@@ -22,6 +22,9 @@ class ProposalDecisionPayload(BaseModel):
 
 def _to_response(proposal: dict) -> dict:
     proposal["id"] = str(proposal["_id"])
+    for field in ("organizer_id", "event_id"):
+        if field in proposal and proposal[field] is not None:
+            proposal[field] = str(proposal[field])
     return proposal
 
 

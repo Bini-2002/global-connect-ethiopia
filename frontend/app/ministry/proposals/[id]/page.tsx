@@ -36,7 +36,10 @@ export default function MinistryProposalDetailPage() {
     setActionLoading(action); setError(''); setSuccess('');
     try {
       if (action === 'start_review') await api.post(`/ministry/proposals/${id}/start-review`);
-      else if (action === 'approve') await api.post(`/ministry/proposals/${id}/approve`);
+      else if (action === 'approve') {
+        const approveForm = new FormData();
+        await api.post(`/ministry/proposals/${id}/approve`, approveForm);
+      }
       else if (action === 'reject') {
         const formData = new FormData();
         formData.append('notes', body?.reason || '');
