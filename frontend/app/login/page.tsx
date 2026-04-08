@@ -12,6 +12,12 @@ interface LoginResponse {
   token_type: string
 }
 
+const OFFICE_DEMO_ACCOUNTS = [
+  { label: 'Ministry (Innovation)', email: 'innovation.ministry@gce.local' },
+  { label: 'Municipal (Adama)', email: 'adama.municipal@gce.local' },
+  { label: 'Police (Adama)', email: 'adama.police@gce.local' },
+]
+
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -19,6 +25,12 @@ export default function LoginPage() {
   const [keepLoggedIn, setKeepLoggedIn] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const applyDemoAccount = (demoEmail: string) => {
+    setEmail(demoEmail)
+    setPassword('Office123!')
+    setError('')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,6 +89,26 @@ export default function LoginPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold text-slate-600 mb-2">Office Demo Accounts</p>
+              <div className="flex flex-wrap gap-2">
+                {OFFICE_DEMO_ACCOUNTS.map((account) => (
+                  <button
+                    key={account.email}
+                    type="button"
+                    onClick={() => applyDemoAccount(account.email)}
+                    disabled={isLoading}
+                    className="text-xs px-2.5 py-1.5 border border-slate-300 rounded-md text-slate-700 hover:bg-white transition disabled:opacity-50"
+                  >
+                    {account.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-slate-500">
+                Password for all office demos: <span className="font-semibold">Office123!</span>
+              </p>
+            </div>
+
             {/** Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">

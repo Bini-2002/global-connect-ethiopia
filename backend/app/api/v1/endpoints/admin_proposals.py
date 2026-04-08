@@ -44,7 +44,22 @@ async def _get_proposal_or_404(proposal_id: str) -> dict:
 @router.get("/", response_model=List[ProposalResponse])
 async def list_admin_review_queue(current_user: dict = Depends(allow_admin)):
     _ = current_user
-    cursor = proposal_collection.find({"status": ProposalStatus.SUBMITTED})
+    cursor = proposal_collection.find(
+        {
+            "status": {
+                "$in": [
+                    ProposalStatus.DRAFT,
+                    ProposalStatus.SUBMITTED,
+                    ProposalStatus.CHANGES_REQUESTED,
+                    ProposalStatus.MINISTRY_REVIEW,
+                    ProposalStatus.MINISTRY_APPROVED,
+                    ProposalStatus.MUNICIPAL_REVIEW,
+                    ProposalStatus.APPROVED,
+                    ProposalStatus.REJECTED,
+                ]
+            }
+        }
+    ).sort("updated_at", -1)
     proposals = await cursor.to_list(length=200)
     return [_to_response(proposal) for proposal in proposals]
 

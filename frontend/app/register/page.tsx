@@ -71,7 +71,7 @@ export default function RegistrationForm() {
     setError("");
   
     try {
-      const response = await api.post<{ user_id?: string }>("/auth/register", {
+      const response = await api.post<{ user_id?: string, otp_code?: string | null }>("/auth/register", {
         full_name: formData.fullName,
         email: formData.email,
         role: formData.role,
@@ -80,6 +80,12 @@ export default function RegistrationForm() {
   
       if (response.user_id) {
         localStorage.setItem("user_id", response.user_id);
+      }
+
+      // Check if verification was skipped (internal roles)
+      if (response.otp_code === null || ["ministry_gov", "municipal_gov", "police"].includes(formData.role)) {
+         router.push("/login");
+         return;
       }
 
       // Redirect to verify-email page

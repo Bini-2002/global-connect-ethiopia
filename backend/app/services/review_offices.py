@@ -214,3 +214,26 @@ def build_mock_office_user_payloads(password: str = DEFAULT_MOCK_OFFICE_PASSWORD
         )
 
     return payloads
+
+
+async def ensure_mock_office_accounts(password: str = DEFAULT_MOCK_OFFICE_PASSWORD) -> None:
+    """
+    Upsert default office reviewer accounts so ministry/municipal/police users
+    can always log in without OTP/extra authorization setup.
+    """
+    payloads = build_mock_office_user_payloads(password=password)
+    for payload in payloads:
+        created_at = payload.get("created_at")
+        await user_collection.update_one(
+            {"email": payload["email"]},
+            {
+                "$set": {
+                    **payload,
+                    "updated_at": payload["updated_at"],
+                },
+                "$setOnInsert": {
+                    "created_at": created_at,
+                },
+            },
+            upsert=True,
+        )

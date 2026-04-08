@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.api import api_router
 from app.services.marketplace_indexes import ensure_marketplace_indexes
+from app.services.review_offices import ensure_mock_office_accounts
 
 app = FastAPI(title="Global Connect Ethiopia")
 
@@ -23,6 +24,7 @@ app.include_router(api_router, prefix="/api/v1")
 @app.on_event("startup")
 async def startup_event() -> None:
     await ensure_marketplace_indexes()
+    await ensure_mock_office_accounts()
 
 @app.get("/")
 def read_root():
