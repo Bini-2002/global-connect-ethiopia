@@ -46,7 +46,7 @@ async def list_municipal_review_queue(current_user: dict = Depends(allow_municip
     )
     proposals = await cursor.to_list(length=200)
     for proposal in proposals:
-        proposal["id"] = str(proposal["_id"])
+        _to_response(proposal)
     return proposals
 
 
