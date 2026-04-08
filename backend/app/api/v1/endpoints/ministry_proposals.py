@@ -45,9 +45,7 @@ async def list_ministry_review_queue(current_user: dict = Depends(allow_ministry
         }
     )
     proposals = await cursor.to_list(length=200)
-    for proposal in proposals:
-        _to_response(proposal)
-    return proposals
+    return [_to_response(proposal) for proposal in proposals]
 
 
 @router.get("/{proposal_id}", response_model=ProposalResponse)

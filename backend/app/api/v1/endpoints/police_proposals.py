@@ -31,9 +31,7 @@ async def list_allowed_events(current_user: dict = Depends(allow_police)):
         }
     )
     proposals = await cursor.to_list(length=200)
-    for proposal in proposals:
-        proposal["id"] = str(proposal["_id"])
-    return proposals
+    return [_to_response(proposal) for proposal in proposals]
 
 
 @router.get("/{proposal_id}", response_model=ProposalResponse)
