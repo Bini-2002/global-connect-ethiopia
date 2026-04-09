@@ -307,8 +307,16 @@ async def submit_proposal(
     if proposal.get("status") not in {ProposalStatus.DRAFT, ProposalStatus.CHANGES_REQUESTED}:
         raise HTTPException(status_code=400, detail="Only draft or changes requested proposals can be submitted")
 
-    # Office assignments are optional at submission time.
-    # Each office dashboard shows all proposals at their review stage.
+    missing_review_offices = _missing_review_offices(proposal.get("office_assignments"))
+    if missing_review_offices:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "Missing Review Offices",
+                "message": "Please select the ministry, municipal, and police offices before submitting.",
+                "missing_review_offices": missing_review_offices,
+            },
+        )
 
     required_fields = [
         "event_type",

@@ -11,6 +11,7 @@ from app.db.mongodb import proposal_collection
 from app.models.proposal_states import ProposalStatus
 from app.schemas.proposal import ProposalResponse
 from app.services.permit_service import ensure_permit_for_proposal
+from app.services.review_offices import serialize_review_office
 
 router = APIRouter()
 
@@ -24,11 +25,16 @@ def _to_response(proposal: dict) -> dict:
     return response
 
 
-    return [_to_response(proposal) for proposal in proposals]
+def _current_user_id(current_user: dict) -> str:
+    return str(current_user.get("_id") or current_user.get("id") or "")
+
+
+def _assigned_office(proposal: dict, stage: str) -> dict:
+    return (proposal.get("office_assignments") or {}).get(stage) or {}
 
 def _ensure_assigned_to_current_office(proposal: dict, current_user: dict, stage: str) -> dict:
     office = _assigned_office(proposal, stage)
-    current_user_id = str(current_user.get("_id") or current_user.get("id"))
+    current_user_id = _current_user_id(current_user)
     if office.get("user_id") != current_user_id:
         raise HTTPException(status_code=403, detail="This proposal is assigned to a different office")
     return office
@@ -37,14 +43,13 @@ def _ensure_assigned_to_current_office(proposal: dict, current_user: dict, stage
 @router.get("", response_model=List[ProposalResponse], include_in_schema=False)
 @router.get("/", response_model=List[ProposalResponse])
 async def list_municipal_review_queue(current_user: dict = Depends(allow_municipal)):
-    # Show ALL ministry-approved / under-municipal-review proposals.
-    # No pre-assignment filter — any municipal officer can claim a proposal
-    # via start-review, which self-assigns the office at that point.
+    assigned_user_id = _current_user_id(current_user)
     cursor = proposal_collection.find(
         {
             "status": {"$in": [ProposalStatus.MINISTRY_APPROVED, ProposalStatus.MUNICIPAL_REVIEW]},
+            "office_assignments.municipal.user_id": assigned_user_id,
         }
-    )
+    ).sort("updated_at", -1)
     proposals = await cursor.to_list(length=200)
     return [_to_response(proposal) for proposal in proposals]
 
@@ -57,6 +62,7 @@ async def get_municipal_proposal_detail(
     proposal = await proposal_collection.find_one({"_id": ObjectId(proposal_id)})
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found")
+    _ensure_assigned_to_current_office(proposal, current_user, "municipal")
     return _to_response(proposal)
 
 
@@ -72,20 +78,16 @@ async def start_review(
     if proposal.get("status") != ProposalStatus.MINISTRY_APPROVED:
         raise HTTPException(status_code=400, detail="Proposal must be ministry approved first")
 
+    office = _ensure_assigned_to_current_office(proposal, current_user, "municipal")
     now = datetime.now(timezone.utc)
-    office_name = str(current_user.get("office_name") or current_user.get("full_name") or "Municipal")
     await proposal_collection.update_one(
         {"_id": proposal["_id"]},
         {
             "$set": {
                 "status": ProposalStatus.MUNICIPAL_REVIEW,
                 "review_stage": "municipal",
-                "municipal_started_by": office_name,
-                "office_assignments.municipal": {
-                    "user_id": str(current_user["_id"]),
-                    "office_name": office_name,
-                    "role": "municipal_gov",
-                },
+                "municipal_started_by": office.get("display_label") or office.get("office_name"),
+                "office_assignments.municipal": serialize_review_office(current_user),
                 "reviewed_at": now,
                 "updated_at": now,
             }
@@ -108,10 +110,7 @@ async def approve_under_review(
 
     if proposal.get("status") != ProposalStatus.MUNICIPAL_REVIEW:
         raise HTTPException(status_code=400, detail="Proposal must be under municipal review")
-    office = _assigned_office(proposal, "municipal") or {
-        "user_id": str(current_user["_id"]),
-        "office_name": str(current_user.get("office_name") or current_user.get("full_name") or "Municipal"),
-    }
+    office = _ensure_assigned_to_current_office(proposal, current_user, "municipal")
     police_office = _assigned_office(proposal, "police")
 
     now = datetime.now(timezone.utc)
@@ -121,6 +120,19 @@ async def approve_under_review(
         issued_by_user_id=str(current_user["_id"]),
         issued_by_office_name=office.get("office_name"),
     )
+    security_assignment = None
+    if police_office.get("user_id"):
+        security_assignment = {
+            "office_id": police_office.get("user_id"),
+            "office_name": police_office.get("office_name"),
+            "office_role": police_office.get("role"),
+            "message": (
+                f"Approved event details were shared with "
+                f"{police_office.get('display_label') or police_office.get('office_name', 'the selected police office')}."
+            ),
+            "assigned_at": now,
+        }
+
     await proposal_collection.update_one(
         {"_id": proposal["_id"]},
         {
@@ -131,16 +143,7 @@ async def approve_under_review(
                 "updated_at": now,
                 "approval_certificate_id": str(permit["_id"]),
                 "approval_certificate_number": permit.get("permit_number"),
-                "security_assignment": {
-                    "office_id": police_office.get("user_id"),
-                    "office_name": police_office.get("office_name"),
-                    "office_role": police_office.get("role"),
-                    "message": (
-                        f"Security coordination assigned to "
-                        f"{police_office.get('display_label') or police_office.get('office_name', 'the selected police office')}."
-                    ),
-                    "assigned_at": now,
-                },
+                "security_assignment": security_assignment,
             },
             "$push": {
                 "review_decisions": {

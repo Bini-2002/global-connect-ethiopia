@@ -14,22 +14,33 @@ router = APIRouter()
 
 
 def _to_response(proposal: dict) -> dict:
-    proposal["id"] = str(proposal["_id"])
-    return proposal
+    response = dict(proposal)
+    response["id"] = str(response["_id"])
+    for field in ("organizer_id", "event_id"):
+        if field in response and response[field] is not None:
+            response[field] = str(response[field])
+    return response
+
+
+def _current_user_id(current_user: dict) -> str:
+    return str(current_user.get("_id") or current_user.get("id") or "")
 
 
 @router.get("/", response_model=List[ProposalResponse])
 async def list_allowed_events(current_user: dict = Depends(allow_police)):
     """
-    List all proposals that have received final approval (APPROVED status).
-    These are events that are allowed to take place in the city.
-    No pre-assignment filter — any police office can view all approved events.
+    List approved events assigned to the current police office for notification.
     """
+    current_user_id = _current_user_id(current_user)
     cursor = proposal_collection.find(
         {
             "status": ProposalStatus.APPROVED,
+            "$or": [
+                {"security_assignment.office_id": current_user_id},
+                {"office_assignments.police.user_id": current_user_id},
+            ],
         }
-    )
+    ).sort("updated_at", -1)
     proposals = await cursor.to_list(length=200)
     return [_to_response(proposal) for proposal in proposals]
 
@@ -42,9 +53,14 @@ async def get_allowed_event_detail(
     """
     Get detailed information about an allowed event.
     """
+    current_user_id = _current_user_id(current_user)
     proposal = await proposal_collection.find_one({
         "_id": ObjectId(proposal_id),
         "status": ProposalStatus.APPROVED,
+        "$or": [
+            {"security_assignment.office_id": current_user_id},
+            {"office_assignments.police.user_id": current_user_id},
+        ],
     })
 
     if not proposal:

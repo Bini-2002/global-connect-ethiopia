@@ -80,27 +80,11 @@ async def accept_proposal_for_ministry_review(
     proposal_id: str,
     current_user: dict = Depends(allow_admin),
 ):
-    _ = current_user
-    proposal = await _get_proposal_or_404(proposal_id)
-
-    if proposal.get("status") != ProposalStatus.SUBMITTED:
-        raise HTTPException(status_code=400, detail="Proposal must be submitted first")
-
-    now = datetime.now(timezone.utc)
-    await proposal_collection.update_one(
-        {"_id": proposal["_id"]},
-        {
-            "$set": {
-                "status": ProposalStatus.MINISTRY_REVIEW,
-                "review_stage": "admin",
-                "reviewed_at": now,
-                "updated_at": now,
-            }
-        },
+    _ = (proposal_id, current_user)
+    raise HTTPException(
+        status_code=403,
+        detail="Proposal approval is handled by the selected ministry and municipal offices.",
     )
-
-    updated = await proposal_collection.find_one({"_id": proposal["_id"]})
-    return _to_response(updated)
 
 
 @router.post("/{proposal_id}/reject", response_model=ProposalResponse)
@@ -109,28 +93,11 @@ async def reject_proposal(
     payload: ProposalDecisionPayload | None = None,
     current_user: dict = Depends(allow_admin),
 ):
-    _ = current_user
-    proposal = await _get_proposal_or_404(proposal_id)
-
-    if proposal.get("status") not in {ProposalStatus.SUBMITTED, ProposalStatus.MINISTRY_REVIEW}:
-        raise HTTPException(status_code=400, detail="Proposal cannot be rejected from its current status")
-
-    now = datetime.now(timezone.utc)
-    await proposal_collection.update_one(
-        {"_id": proposal["_id"]},
-        {
-            "$set": {
-                "status": ProposalStatus.REJECTED,
-                "review_stage": "admin",
-                "reviewed_at": now,
-                "updated_at": now,
-                "rejection_reason": payload.reason if payload else None,
-            }
-        },
+    _ = (proposal_id, payload, current_user)
+    raise HTTPException(
+        status_code=403,
+        detail="Proposal approval is handled by the selected ministry and municipal offices.",
     )
-
-    updated = await proposal_collection.find_one({"_id": proposal["_id"]})
-    return _to_response(updated)
 
 
 @router.post("/{proposal_id}/request-changes", response_model=ProposalResponse)
@@ -139,25 +106,8 @@ async def request_changes(
     payload: ProposalDecisionPayload | None = None,
     current_user: dict = Depends(allow_admin),
 ):
-    _ = current_user
-    proposal = await _get_proposal_or_404(proposal_id)
-
-    if proposal.get("status") != ProposalStatus.SUBMITTED:
-        raise HTTPException(status_code=400, detail="Only submitted proposals can be sent back for changes")
-
-    now = datetime.now(timezone.utc)
-    await proposal_collection.update_one(
-        {"_id": proposal["_id"]},
-        {
-            "$set": {
-                "status": ProposalStatus.CHANGES_REQUESTED,
-                "review_stage": "admin",
-                "reviewed_at": now,
-                "updated_at": now,
-                "change_request_note": payload.notes if payload else None,
-            }
-        },
+    _ = (proposal_id, payload, current_user)
+    raise HTTPException(
+        status_code=403,
+        detail="Proposal approval is handled by the selected ministry and municipal offices.",
     )
-
-    updated = await proposal_collection.find_one({"_id": proposal["_id"]})
-    return _to_response(updated)
