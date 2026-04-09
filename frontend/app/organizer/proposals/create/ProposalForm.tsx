@@ -14,6 +14,14 @@ import {
 import { getOfficeLabel } from '@/app/lib/proposals';
 import { ProposalFormData, ReviewTargetsResponse } from '@/app/types/proposal';
 
+const EVENT_TYPE_OPTIONS = [
+  { value: 'conference', label: 'Conference' },
+  { value: 'summit_forum', label: 'Summit / Forum' },
+  { value: 'workshop_training', label: 'Workshop / Training' },
+  { value: 'expo_trade_fair', label: 'Expo / Trade Fair' },
+  { value: 'networking_gala', label: 'Networking / Gala' },
+];
+
 interface ProposalFormProps {
   formData: ProposalFormData;
   reviewTargets: ReviewTargetsResponse;
@@ -43,6 +51,12 @@ export default function ProposalForm({
   hadDocument,
   onSubmit,
 }: ProposalFormProps) {
+  const selectedMinistry = reviewTargets.ministry.find((office) => office.user_id === formData.ministryOfficeId);
+  const selectedMunicipal = reviewTargets.municipal.find((office) => office.user_id === formData.municipalOfficeId);
+  const selectedPolice = reviewTargets.police.find((office) => office.user_id === formData.policeOfficeId);
+  const selectClassName =
+    "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition outline-none focus:border-[#062E22] focus:ring-4 focus:ring-[#062E22]/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400";
+
   return (
     <form id="proposalForm" onSubmit={onSubmit} className="space-y-6">
       {/* Event Information */}
@@ -85,16 +99,22 @@ export default function ProposalForm({
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <label className="text-sm font-semibold text-gray-700 mb-2 block">Event Type</label>
-            <input
-              type="text"
+            <select
               name="event_type"
-              placeholder="e.g., Conference, Concert"
               value={formData.event_type}
               onChange={onChange}
-              className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/30 focus:border-[#062E22] transition-colors"
+              className={selectClassName}
               required
               disabled={loading}
-            />
+            >
+              <option value="">Select event type</option>
+              {EVENT_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-slate-500">Use one of the supported event categories for approvals and event creation.</p>
           </div>
           <div className="flex-1">
             <label className="text-sm font-semibold text-gray-700 mb-2 block">Expected Attendees</label>
@@ -272,7 +292,7 @@ export default function ProposalForm({
               name="securityLevel"
               value={formData.securityLevel}
               onChange={onChange}
-              className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/30 focus:border-[#062E22] transition-colors"
+              className={selectClassName}
               disabled={loading}
             >
               <option value="Standard (Private Security)">Standard (Private Security)</option>
@@ -304,7 +324,7 @@ export default function ProposalForm({
           <div>
             <h2 className="text-lg font-bold text-[#062E22]">Review Routing</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Choose the government offices that will review and facilitate this event.
+              Choose the exact approval offices for this event and the police office that should receive the approved-event notice.
             </p>
           </div>
         </div>
@@ -325,7 +345,7 @@ export default function ProposalForm({
               name="ministryOfficeId"
               value={formData.ministryOfficeId}
               onChange={onChange}
-              className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/30 focus:border-[#062E22] transition-colors"
+              className={selectClassName}
               disabled={loading || reviewTargetsLoading}
               required
             >
@@ -338,6 +358,11 @@ export default function ProposalForm({
                 </option>
               ))}
             </select>
+            <p className="text-xs text-slate-500">
+              {selectedMinistry
+                ? `${selectedMinistry.email || selectedMinistry.office_name || getOfficeLabel(selectedMinistry)}`
+                : 'This selected ministry account receives the proposal first.'}
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -349,7 +374,7 @@ export default function ProposalForm({
               name="municipalOfficeId"
               value={formData.municipalOfficeId}
               onChange={onChange}
-              className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/30 focus:border-[#062E22] transition-colors"
+              className={selectClassName}
               disabled={loading || reviewTargetsLoading}
               required
             >
@@ -362,23 +387,28 @@ export default function ProposalForm({
                 </option>
               ))}
             </select>
+            <p className="text-xs text-slate-500">
+              {selectedMunicipal
+                ? `${selectedMunicipal.email || selectedMunicipal.office_name || getOfficeLabel(selectedMunicipal)}`
+                : 'This selected municipal account makes the final approval decision.'}
+            </p>
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4" />
-              Police Office
+              Police Notification Office
             </label>
             <select
               name="policeOfficeId"
               value={formData.policeOfficeId}
               onChange={onChange}
-              className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/30 focus:border-[#062E22] transition-colors"
+              className={selectClassName}
               disabled={loading || reviewTargetsLoading}
               required
             >
               <option value="">
-                {reviewTargetsLoading ? 'Loading police offices...' : 'Select police office'}
+                {reviewTargetsLoading ? 'Loading police offices...' : 'Select police notification office'}
               </option>
               {reviewTargets.police.map((office) => (
                 <option key={office.user_id} value={office.user_id}>
@@ -386,12 +416,17 @@ export default function ProposalForm({
                 </option>
               ))}
             </select>
+            <p className="text-xs text-slate-500">
+              {selectedPolice
+                ? `${selectedPolice.email || selectedPolice.office_name || getOfficeLabel(selectedPolice)}`
+                : 'This office only receives the approved event information after municipal approval.'}
+            </p>
           </div>
         </div>
 
         <div className="rounded-xl bg-[#062E22]/5 border border-[#062E22]/10 p-4 text-sm text-[#062E22]">
-          The proposal will move to the selected ministry office first, then to the selected municipal
-          office. After approval, the selected police office will receive the security assignment.
+          The selected ministry office reviews first. After ministry approval, the selected municipal office makes
+          the final approval decision. Once approved, the selected police office only receives the event notification.
         </div>
       </div>
 

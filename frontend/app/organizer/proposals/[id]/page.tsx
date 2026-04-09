@@ -229,7 +229,7 @@ export default function ProposalDetailPage() {
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wide mb-4">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A2 2 0 013 15.382V5.618a2 2 0 011.553-1.894l4-1A2 2 0 019 2.764m0 17.236l6-2m-6 2V2.764m6 15.236l5.447-2.724A2 2 0 0021 13.382V3.618a2 2 0 00-1.553-1.894l-4-1A2 2 0 0015 0.764m0 17.236V0.764m0 0L9 2.764" /></svg>
-                    Review Routing
+                    Approval Routing & Police Notification
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
@@ -243,9 +243,9 @@ export default function ProposalDetailPage() {
                       <p className="text-xs text-slate-500 mt-2">{proposal.office_assignments?.municipal?.email || 'No municipal office assigned'}</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Police</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Police Notification</p>
                       <p className="font-semibold text-[#062E22]">{getOfficeLabel(proposal.office_assignments?.police)}</p>
-                      <p className="text-xs text-slate-500 mt-2">{proposal.office_assignments?.police?.email || 'No police office assigned'}</p>
+                      <p className="text-xs text-slate-500 mt-2">{proposal.office_assignments?.police?.email || 'No police notification office assigned'}</p>
                     </div>
                   </div>
                 </div>
@@ -284,9 +284,6 @@ export default function ProposalDetailPage() {
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Current Review Stage</p>
                   <p className="text-sm font-semibold text-[#062E22]">{formatProposalStage(proposal.status)}</p>
-                  {proposal.review_stage && (
-                    <p className="text-xs text-slate-500 mt-2">Backend stage: {proposal.review_stage}</p>
-                  )}
                   {proposal.rejection_reason && (
                     <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
                       {proposal.rejection_reason}

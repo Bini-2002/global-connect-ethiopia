@@ -222,7 +222,7 @@ export default function OrganizerDashboard() {
                   </p>
                   <h2 className="text-3xl font-bold text-[#062E22] mt-3">Start your first event approval journey</h2>
                   <p className="text-slate-600 mt-3 leading-relaxed">
-                    Create an event proposal, choose the ministry, municipal, and police offices,
+                    Create an event proposal, choose the ministry and municipal approval offices, then select the police notification office,
                     and track every review update from this dashboard.
                   </p>
                   <div className="flex flex-wrap gap-3 mt-6">
@@ -275,7 +275,7 @@ export default function OrganizerDashboard() {
                     { title: 'Create Proposal', text: 'Enter event details and choose the review offices.' },
                     { title: 'Ministry Review', text: 'The selected ministry office checks compliance first.' },
                     { title: 'Municipal Review', text: 'After ministry approval, the municipal office makes the final decision.' },
-                    { title: 'Approval & Security', text: 'Approved events get a certificate and police security assignment.' },
+                    { title: 'Approval & Police Notice', text: 'Approved events get a certificate and the selected police office receives the event notice.' },
                   ].map((step, index) => (
                     <div key={step.title} className="rounded-xl bg-slate-50 border border-slate-200 p-4">
                       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Step {index + 1}</p>
@@ -525,7 +525,7 @@ export default function OrganizerDashboard() {
               <div className='flex justify-between items-center mb-6'>
                 <h2 className="text-xl font-bold text-[#062E22] flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-[#EC5B13]" />
-                  Security Coordination
+                  Police Notifications
                 </h2>
                 <Link href="/organizer/proposals" className="text-sm text-[#EC5B13] hover:underline font-medium flex items-center gap-1">
                   Proposal Details <ArrowRight className="w-4 h-4" />
@@ -533,7 +533,7 @@ export default function OrganizerDashboard() {
               </div>
               {securityAssignments.length === 0 ? (
                 <div className="text-center py-10 text-slate-500">
-                  <p className="text-sm">Security assignments will appear after municipal approval.</p>
+                  <p className="text-sm">Police notifications will appear after municipal approval.</p>
                 </div>
               ) : (
                 <div className="space-y-3">

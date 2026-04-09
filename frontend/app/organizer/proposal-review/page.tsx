@@ -393,7 +393,7 @@ export default function ProposalReview() {
                 <div className="p-2 bg-[#062E22]/10 rounded-lg">
                   <Shield className="w-5 h-5 text-[#062E22]" />
                 </div>
-                <h2 className="text-xl font-bold text-[#062E22]">Review Routing</h2>
+                <h2 className="text-xl font-bold text-[#062E22]">Approval Routing & Police Notification</h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -409,9 +409,9 @@ export default function ProposalReview() {
                     subtext: municipalOffice?.email || municipalOffice?.office_name || 'Receives after ministry approval',
                   },
                   {
-                    label: 'Police Office',
+                    label: 'Police Notification Office',
                     value: getOfficeLabel(policeOffice, proposal.policeOfficeId || 'Not selected'),
-                    subtext: policeOffice?.email || policeOffice?.office_name || 'Gets security assignment after approval',
+                    subtext: policeOffice?.email || policeOffice?.office_name || 'Receives approved-event information after municipal approval',
                   },
                 ].map((office) => (
                   <div key={office.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -470,8 +470,8 @@ export default function ProposalReview() {
                     active: false,
                   },
                   {
-                    label: "Police Facilitation",
-                    desc: getOfficeLabel(policeOffice, 'Pending police assignment'),
+                    label: "Police Notification",
+                    desc: getOfficeLabel(policeOffice, 'Pending police notification office'),
                     completed: false,
                     active: false,
                   },

@@ -95,8 +95,6 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Settings', href: '/organizer/settings', icon: <CogIcon className="w-5 h-5" /> },
   ],
   admin: [
-    { label: 'Overview', href: '/admin/proposals', icon: icons.dashboard },
-    { label: 'Review Queue', href: '/admin/proposals', icon: icons.queue },
     { label: 'Organizers', href: '/admin/organizers', icon: icons.users },
     { label: 'Vendors', href: '/admin/vendors', icon: icons.vendor },
   ],

@@ -284,8 +284,8 @@ export async function getVendorPortalRoute(): Promise<string> {
 export const ROLE_DASHBOARDS: Record<string, string> = {
   organizer: '/organizer/dashboard',
   vendor: '/vendor/verification',
-  admin: '/admin/proposals',
-  super_admin: '/admin/proposals',
+  admin: '/admin/organizers',
+  super_admin: '/admin/organizers',
   ministry_gov: '/ministry/proposals',
   municipal_gov: '/municipal/proposals',
   police: '/police/proposals',

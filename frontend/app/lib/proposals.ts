@@ -226,7 +226,7 @@ export function formatProposalStage(status?: string | null): string {
 export function formatOfficeTypeLabel(stage: "ministry" | "municipal" | "police"): string {
   if (stage === "ministry") return "Ministry Office";
   if (stage === "municipal") return "Municipal Office";
-  return "Police Office";
+  return "Police Notification Office";
 }
 
 export function isPersistedProposal(id?: string | null): boolean {

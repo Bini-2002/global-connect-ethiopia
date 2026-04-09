@@ -148,7 +148,7 @@ export default function MinistryProposalDetailPage() {
                       <p className="font-semibold text-[#062E22]">{getOfficeLabel(proposal.office_assignments?.municipal)}</p>
                     </div>
                     <div>
-                      <p className="text-slate-400 text-[10px] uppercase tracking-widest">Police Coordination</p>
+                      <p className="text-slate-400 text-[10px] uppercase tracking-widest">Police Notification Office</p>
                       <p className="font-semibold text-[#062E22]">{getOfficeLabel(proposal.office_assignments?.police)}</p>
                     </div>
                   </div>

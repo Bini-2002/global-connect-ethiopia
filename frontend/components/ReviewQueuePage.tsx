@@ -37,7 +37,7 @@ const STATUS_DOT_MAP: Record<string, string> = {
   rejected: 'bg-red-500',
 };
 const STATUS_LABEL_MAP: Record<string, string> = {
-  submitted: 'Submitted (Waiting Admin)',
+  submitted: 'Submitted (Waiting Ministry)',
   under_review: 'Under Review',
   ministry_review: 'Ministry Review',
   ministry_approved: 'Ministry Approved (Waiting Municipal)',

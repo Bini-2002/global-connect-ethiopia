@@ -27,12 +27,12 @@ export default function PoliceProposalsPage() {
       <main className="ml-60 pt-16 p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 animate-fade-in">
           <div>
-            <h1 className="text-2xl font-bold text-[#062E22]">Approved Events</h1>
-            <p className="text-slate-500 text-sm mt-1">Read-only view of fully approved events in your jurisdiction.</p>
+            <h1 className="text-2xl font-bold text-[#062E22]">Approved Event Notifications</h1>
+            <p className="text-slate-500 text-sm mt-1">Read-only notifications for approved events assigned to your police office.</p>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            {filtered.length} Active Events
+            {filtered.length} Assigned Events
           </div>
         </div>
 
@@ -50,7 +50,7 @@ export default function PoliceProposalsPage() {
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
               <span className="text-5xl">🛡️</span>
-              <p className="text-slate-500 mt-3 text-sm">No approved events found.</p>
+              <p className="text-slate-500 mt-3 text-sm">No approved event notifications found.</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">

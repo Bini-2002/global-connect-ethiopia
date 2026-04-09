@@ -139,7 +139,7 @@ export default function MunicipalProposalDetailPage() {
                       <p className="font-semibold text-[#062E22]">{getOfficeLabel(proposal.office_assignments?.municipal)}</p>
                     </div>
                     <div>
-                      <p className="text-slate-400 text-[10px] uppercase tracking-widest">Police Office</p>
+                      <p className="text-slate-400 text-[10px] uppercase tracking-widest">Police Notification Office</p>
                       <p className="font-semibold text-[#062E22]">{getOfficeLabel(proposal.office_assignments?.police)}</p>
                     </div>
                     {proposal.approval_certificate_number && (
@@ -152,7 +152,7 @@ export default function MunicipalProposalDetailPage() {
                 </div>
                 {proposal.security_assignment && (
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Security Assignment</p>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Police Notification</p>
                     <p className="font-semibold text-[#062E22] text-sm">{proposal.security_assignment.office_name}</p>
                     <p className="text-xs text-slate-500 mt-2">{proposal.security_assignment.message}</p>
                   </div>

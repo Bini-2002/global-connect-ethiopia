@@ -129,7 +129,7 @@ export default function CreateProposalPage() {
     if (formData.targetAudience.length === 0) errors.push("At least one target audience is required");
     if (!formData.ministryOfficeId) errors.push("Ministry office selection is required");
     if (!formData.municipalOfficeId) errors.push("Municipal office selection is required");
-    if (!formData.policeOfficeId) errors.push("Police office selection is required");
+    if (!formData.policeOfficeId) errors.push("Police notification office selection is required");
 
     if (errors.length > 0) {
       setError(errors.join(". "));

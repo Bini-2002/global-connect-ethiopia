@@ -35,14 +35,14 @@ export default function PoliceProposalDetailPage() {
         ) : (
           <div className="max-w-6xl mx-auto animate-fade-in">
             <div className="flex items-center gap-2 text-xs text-slate-400 mb-4">
-              <Link href="/police/proposals" className="hover:text-[#062E22]">Approved Events</Link>
+              <Link href="/police/proposals" className="hover:text-[#062E22]">Approved Event Notifications</Link>
               <span>/</span>
               <span className="px-2 py-1 border border-slate-200 rounded text-slate-600 text-[10px] font-mono">PROP-{proposal.id.substring(0, 8).toUpperCase()}</span>
             </div>
 
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-[#062E22]">{proposal.title}</h1>
-              <p className="text-slate-500 text-sm mt-1">Security facilitation details for the assigned police office.</p>
+              <p className="text-slate-500 text-sm mt-1">Approved-event notification details for the assigned police office.</p>
             </div>
 
             <div className="grid grid-cols-3 gap-6">
@@ -59,15 +59,15 @@ export default function PoliceProposalDetailPage() {
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                  <h2 className="text-xl font-bold text-[#062E22] mb-4">Security Assignment</h2>
+                  <h2 className="text-xl font-bold text-[#062E22] mb-4">Police Notification</h2>
                   <div className="space-y-4">
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Assigned Office</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Assigned Police Office</p>
                       <p className="text-sm font-semibold text-[#062E22]">{proposal.security_assignment?.office_name || getOfficeLabel(proposal.office_assignments?.police)}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Assignment Message</p>
-                      <p className="text-sm text-slate-600">{proposal.security_assignment?.message || 'Security assignment message not available.'}</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Notification Message</p>
+                      <p className="text-sm text-slate-600">{proposal.security_assignment?.message || 'Notification message not available.'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Assigned At</p>

@@ -34,7 +34,7 @@ export default function MinistryProposalsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 animate-fade-in">
           <div>
             <h1 className="text-2xl font-bold text-[#062E22]">Ministry Review Queue</h1>
-            <p className="text-slate-500 text-sm mt-1">Manage and evaluate proposals currently awaiting ministry review.</p>
+            <p className="text-slate-500 text-sm mt-1">Review only the proposals assigned to your ministry office.</p>
           </div>
           <div className="flex gap-2">
             <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-700 text-sm rounded-lg hover:bg-slate-100 transition">
