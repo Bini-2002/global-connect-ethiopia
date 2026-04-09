@@ -322,7 +322,7 @@ export default function ProposalForm({
             <Building2 className="w-5 h-5 text-[#062E22]" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-[#062E22]">Review Routing</h2>
+            <h2 className="text-lg font-bold text-[#062E22]">Approval Routing & Police Notification</h2>
             <p className="text-sm text-gray-500 mt-1">
               Choose the exact approval offices for this event and the police office that should receive the approved-event notice.
             </p>
