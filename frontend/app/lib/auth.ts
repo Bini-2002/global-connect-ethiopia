@@ -58,7 +58,11 @@ function vendorIsApproved(status?: VendorVerificationStatus): boolean {
 export function decodeToken(token: string): JWTPayload | null {
   try {
     const payload = token.split('.')[1];
-    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    if (!payload) return null;
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = '='.repeat((4 - (normalizedPayload.length % 4)) % 4);
+    const decoded = JSON.parse(atob(`${normalizedPayload}${padding}`));
     return decoded as JWTPayload;
   } catch {
     return null;
@@ -117,6 +121,7 @@ function setStorageTokens(storage: Storage, token: string, tokenType: string): v
 function isTokenUsable(token: string | null): token is string {
   if (!token) return false;
   const payload = decodeToken(token);
+  if (!payload) return false;
   if (!payload?.exp) return true;
   return Date.now() / 1000 < payload.exp;
 }

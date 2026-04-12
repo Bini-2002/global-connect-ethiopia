@@ -102,11 +102,13 @@ export default function OrganizerDashboard() {
         setUserProfile(profileData);
         setError(null);
       } catch (err) {
-        console.error('Error fetching organizer dashboard data:', err);
         if (err instanceof Error && err.message === 'Not authenticated') {
+          setAccessAllowed(false);
+          setError(null);
           router.replace('/login');
           return;
         }
+        console.error('Error fetching organizer dashboard data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load dashboard');
       } finally {
         setLoading(false);

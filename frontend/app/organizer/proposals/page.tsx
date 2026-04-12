@@ -37,11 +37,11 @@ export default function OrganizerProposalsPage() {
       const response = await api.get<ProposalRecord[]>('/proposals/');
       setProposals(response);
     } catch (err: any) {
-      console.error('Error fetching proposals:', err);
       if (err?.message === 'Not authenticated') {
         setError('Session expired. Please log in again.');
         setTimeout(() => router.replace('/login'), 1500);
       } else {
+        console.error('Error fetching proposals:', err);
         setError(err?.message || 'Failed to load proposals');
       }
     } finally {

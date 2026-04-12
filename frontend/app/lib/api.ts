@@ -1,4 +1,4 @@
-import { getToken } from './auth';
+import { getToken, logout } from './auth';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -29,6 +29,11 @@ async function request<T>(
 
   const res = await fetch(resolveUrl(path), { ...options, headers });
 
+  if (res.status === 401) {
+    logout();
+    throw new Error('Not authenticated');
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(
@@ -53,6 +58,11 @@ async function requestBlob(
   };
 
   const res = await fetch(resolveUrl(path), { ...options, headers });
+
+  if (res.status === 401) {
+    logout();
+    throw new Error('Not authenticated');
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
