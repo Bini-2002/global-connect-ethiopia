@@ -31,13 +31,6 @@ export function getRoleFromToken(token: string | null): string | null {
   return normalizeRole(payload?.role ?? null);
 }
 
-interface OrganizerVerificationStatus {
-  profile_type?: "organization" | "individual";
-  onboarding_status?: string;
-  status?: string;
-  verification_status?: string;
-}
-
 interface VendorVerificationStatus {
   status?: string;
   verification_status?: string;
