@@ -38,42 +38,6 @@ interface OrganizerVerificationStatus {
   verification_status?: string;
 }
 
-function normalizeStatus(value: string | null | undefined): string | null {
-  if (!value) return null;
-  return value.trim().toLowerCase();
-}
-
-function organizerIsApproved(status?: OrganizerVerificationStatus): boolean {
-  if (!status) return false;
-
-  const verificationStatus = normalizeStatus(status.verification_status);
-  const organizerStatus = normalizeStatus(status.status);
-
-  return (
-    verificationStatus === "approved" ||
-    organizerStatus === "approved"
-  );
-}
-
-function organizerIsUnderReview(status?: OrganizerVerificationStatus): boolean {
-  if (!status) return false;
-
-  const reviewLikeStatuses = new Set([
-    "pending_for_review",
-    "pending",
-    "queued",
-    "queued_no_worker",
-  ]);
-
-  const verificationStatus = normalizeStatus(status.verification_status);
-  const organizerStatus = normalizeStatus(status.status);
-
-  return (
-    (verificationStatus ? reviewLikeStatuses.has(verificationStatus) : false) ||
-    (organizerStatus ? reviewLikeStatuses.has(organizerStatus) : false)
-  );
-}
-
 interface VendorVerificationStatus {
   status?: string;
   verification_status?: string;
@@ -238,10 +202,8 @@ export async function getOrganizerPortalRoute(tokenOverride?: string | null): Pr
   const token = tokenOverride ?? getToken();
   if (!token) return '/login';
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-
   try {
-    const res = await fetch(`${apiBase}/organizers/verification-status`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/organizers/verification-status`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -251,28 +213,6 @@ export async function getOrganizerPortalRoute(tokenOverride?: string | null): Pr
     if (res.status === 401) {
       logout();
       return '/login';
-    }
-
-    if (res.status === 404) {
-      // Newly registered organizers may not have an onboarding profile yet.
-      return '/organizer/dashboard';
-    }
-
-    if (!res.ok) {
-      return '/organizer/dashboard';
-    }
-
-    const data = (await res.json()) as OrganizerVerificationStatus;
-    if (organizerIsApproved(data)) {
-      return '/organizer/dashboard';
-    }
-
-    if (organizerIsUnderReview(data)) {
-      return '/organizer/under-review';
-    }
-
-    if (normalizeStatus(data.verification_status) === 'rejected') {
-      return '/organizer/register';
     }
 
     return '/organizer/dashboard';
