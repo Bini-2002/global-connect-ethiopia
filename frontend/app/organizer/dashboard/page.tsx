@@ -82,7 +82,7 @@ export default function OrganizerDashboard() {
         return;
       }
 
-      const organizerRoute = await getOrganizerPortalRoute();
+      const organizerRoute = await getOrganizerPortalRoute(token);
       if (organizerRoute !== '/organizer/dashboard') {
         setAccessChecked(true);
         setAccessAllowed(false);
@@ -95,8 +95,8 @@ export default function OrganizerDashboard() {
 
       try {
         const [proposalData, profileData] = await Promise.all([
-          api.get<ProposalRecord[]>('/proposals/'),
-          api.get<UserProfile>('/users/me'),
+          api.get<ProposalRecord[]>('/proposals/', { authToken: token }),
+          api.get<UserProfile>('/users/me', { authToken: token }),
         ]);
         setProposals(proposalData);
         setUserProfile(profileData);

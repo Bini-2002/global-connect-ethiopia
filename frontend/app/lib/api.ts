@@ -2,6 +2,10 @@ import { getToken, logout } from './auth';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
+type ApiRequestInit = RequestInit & {
+  authToken?: string | null;
+};
+
 function resolveUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
 
@@ -18,9 +22,9 @@ function resolveUrl(path: string): string {
 
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: ApiRequestInit = {}
 ): Promise<T> {
-  const token = getToken();
+  const token = options.authToken ?? getToken();
   const headers: HeadersInit = {
     ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -49,9 +53,9 @@ async function request<T>(
 
 async function requestBlob(
   path: string,
-  options: RequestInit = {}
+  options: ApiRequestInit = {}
 ): Promise<Blob> {
-  const token = getToken();
+  const token = options.authToken ?? getToken();
   const headers: HeadersInit = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...((options.headers as Record<string, string>) || {}),
@@ -77,24 +81,27 @@ async function requestBlob(
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body?: unknown) =>
+  get: <T>(path: string, options?: ApiRequestInit) => request<T>(path, options),
+  post: <T>(path: string, body?: unknown, options: ApiRequestInit = {}) =>
     request<T>(path, {
+      ...options,
       method: 'POST',
       body: body instanceof FormData ? body : JSON.stringify(body),
     }),
-  put: <T>(path: string, body?: unknown) =>
+  put: <T>(path: string, body?: unknown, options: ApiRequestInit = {}) =>
     request<T>(path, {
+      ...options,
       method: 'PUT',
       body: body instanceof FormData ? body : JSON.stringify(body),
     }),
-  patch: <T>(path: string, body?: unknown) =>
+  patch: <T>(path: string, body?: unknown, options: ApiRequestInit = {}) =>
     request<T>(path, {
+      ...options,
       method: 'PATCH',
       body: body instanceof FormData ? body : JSON.stringify(body),
     }),
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
-  getBlob: (path: string) => requestBlob(path),
+  delete: <T>(path: string, options: ApiRequestInit = {}) => request<T>(path, { ...options, method: 'DELETE' }),
+  getBlob: (path: string, options?: ApiRequestInit) => requestBlob(path, options),
   resolveUrl,
 };
 

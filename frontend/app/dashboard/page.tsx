@@ -4,10 +4,10 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   getOrganizerPortalRoute,
+  getRoleFromToken,
   getVendorPortalRoute,
-  getRole,
-  isLoggedIn,
   ROLE_DASHBOARDS,
+  getToken,
 } from '@/app/lib/auth';
 
 export default function DashboardRedirect() {
@@ -15,21 +15,22 @@ export default function DashboardRedirect() {
 
   useEffect(() => {
     const redirectUser = async () => {
-      if (!isLoggedIn()) {
+      const token = getToken();
+      if (!token) {
         router.replace('/login');
         return;
       }
 
-      const role = getRole();
+      const role = getRoleFromToken(token);
 
       if (role === 'organizer') {
-        const organizerRoute = await getOrganizerPortalRoute();
+        const organizerRoute = await getOrganizerPortalRoute(token);
         router.replace(organizerRoute);
         return;
       }
 
       if (role === 'vendor') {
-        const vendorRoute = await getVendorPortalRoute();
+        const vendorRoute = await getVendorPortalRoute(token);
         router.replace(vendorRoute);
         return;
       }

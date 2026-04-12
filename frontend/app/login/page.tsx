@@ -5,7 +5,13 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import LoginHeader from "../../components/loginHeader"
-import { saveAuthSession } from '@/app/lib/auth'
+import {
+  getOrganizerPortalRoute,
+  getRoleFromToken,
+  getVendorPortalRoute,
+  ROLE_DASHBOARDS,
+  saveAuthSession,
+} from '@/app/lib/auth'
 
 interface LoginResponse {
   access_token: string
@@ -47,8 +53,21 @@ export default function LoginPage() {
 
       const tokenData: LoginResponse = data
       saveAuthSession(tokenData.access_token, tokenData.token_type, keepLoggedIn)
+      const role = getRoleFromToken(tokenData.access_token)
 
-      router.push('/dashboard')
+      if (role === 'organizer') {
+        const organizerRoute = await getOrganizerPortalRoute(tokenData.access_token)
+        router.replace(organizerRoute)
+        return
+      }
+
+      if (role === 'vendor') {
+        const vendorRoute = await getVendorPortalRoute(tokenData.access_token)
+        router.replace(vendorRoute)
+        return
+      }
+
+      router.replace(role ? ROLE_DASHBOARDS[role] || '/dashboard' : '/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred.')
     } finally {

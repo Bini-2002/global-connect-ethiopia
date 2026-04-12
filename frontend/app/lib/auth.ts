@@ -25,6 +25,12 @@ function normalizeRole(role: string | null | undefined): string | null {
   return aliases[normalized] ?? normalized;
 }
 
+export function getRoleFromToken(token: string | null): string | null {
+  if (!token) return null;
+  const payload = decodeToken(token);
+  return normalizeRole(payload?.role ?? null);
+}
+
 interface OrganizerVerificationStatus {
   profile_type?: "organization" | "individual";
   onboarding_status?: string;
@@ -160,10 +166,7 @@ export function getToken(): string | null {
 }
 
 export function getRole(): string | null {
-  const token = getToken();
-  if (!token) return null;
-  const payload = decodeToken(token);
-  return normalizeRole(payload?.role ?? null);
+  return getRoleFromToken(getToken());
 }
 
 export function isLoggedIn(): boolean {
@@ -204,8 +207,8 @@ export function saveAuthSession(token: string, tokenType: string, persistent = f
   inMemoryToken = token;
 }
 
-export async function getOrganizerPortalRoute(): Promise<string> {
-  const token = getToken();
+export async function getOrganizerPortalRoute(tokenOverride?: string | null): Promise<string> {
+  const token = tokenOverride ?? getToken();
   if (!token) return '/login';
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -246,8 +249,8 @@ export async function getOrganizerPortalRoute(): Promise<string> {
   }
 }
 
-export async function getVendorPortalRoute(): Promise<string> {
-  const token = getToken();
+export async function getVendorPortalRoute(tokenOverride?: string | null): Promise<string> {
+  const token = tokenOverride ?? getToken();
   if (!token) return '/login';
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
