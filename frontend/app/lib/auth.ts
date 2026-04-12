@@ -219,6 +219,7 @@ export async function getOrganizerPortalRoute(): Promise<string> {
     });
 
     if (res.status === 401) {
+      logout();
       return '/login';
     }
 
@@ -260,6 +261,7 @@ export async function getVendorPortalRoute(): Promise<string> {
     });
 
     if (res.status === 401) {
+      logout();
       return '/login';
     }
 
