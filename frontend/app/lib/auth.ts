@@ -38,12 +38,39 @@ interface OrganizerVerificationStatus {
   verification_status?: string;
 }
 
+function normalizeStatus(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value.trim().toLowerCase();
+}
+
 function organizerIsApproved(status?: OrganizerVerificationStatus): boolean {
   if (!status) return false;
 
+  const verificationStatus = normalizeStatus(status.verification_status);
+  const organizerStatus = normalizeStatus(status.status);
+
   return (
-    status.verification_status === "approved" ||
-    status.status === "approved"
+    verificationStatus === "approved" ||
+    organizerStatus === "approved"
+  );
+}
+
+function organizerIsUnderReview(status?: OrganizerVerificationStatus): boolean {
+  if (!status) return false;
+
+  const reviewLikeStatuses = new Set([
+    "pending_for_review",
+    "pending",
+    "queued",
+    "queued_no_worker",
+  ]);
+
+  const verificationStatus = normalizeStatus(status.verification_status);
+  const organizerStatus = normalizeStatus(status.status);
+
+  return (
+    (verificationStatus ? reviewLikeStatuses.has(verificationStatus) : false) ||
+    (organizerStatus ? reviewLikeStatuses.has(organizerStatus) : false)
   );
 }
 
@@ -227,11 +254,12 @@ export async function getOrganizerPortalRoute(tokenOverride?: string | null): Pr
     }
 
     if (res.status === 404) {
-      return '/organizer/register';
+      // Newly registered organizers may not have an onboarding profile yet.
+      return '/organizer/dashboard';
     }
 
     if (!res.ok) {
-      return '/organizer/register';
+      return '/organizer/dashboard';
     }
 
     const data = (await res.json()) as OrganizerVerificationStatus;
@@ -239,13 +267,17 @@ export async function getOrganizerPortalRoute(tokenOverride?: string | null): Pr
       return '/organizer/dashboard';
     }
 
-    if (data.verification_status === 'pending_for_review') {
+    if (organizerIsUnderReview(data)) {
       return '/organizer/under-review';
     }
 
-    return '/organizer/register';
+    if (normalizeStatus(data.verification_status) === 'rejected') {
+      return '/organizer/register';
+    }
+
+    return '/organizer/dashboard';
   } catch {
-    return '/organizer/register';
+    return '/organizer/dashboard';
   }
 }
 
