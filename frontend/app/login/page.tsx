@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import LoginHeader from "../../components/loginHeader"
 import {
-  getOrganizerPortalRoute,
   getRoleFromToken,
   getVendorPortalRoute,
   ROLE_DASHBOARDS,
@@ -56,8 +55,7 @@ export default function LoginPage() {
       const role = getRoleFromToken(tokenData.access_token)
 
       if (role === 'organizer') {
-        const organizerRoute = await getOrganizerPortalRoute(tokenData.access_token)
-        router.replace(organizerRoute)
+        router.replace('/organizer/dashboard')
         return
       }
 
