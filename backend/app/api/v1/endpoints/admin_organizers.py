@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query
 
 from app.api.v1.deps import allow_admin
 from app.core.config import settings
-from app.db.mongodb import organizer_collection, verification_job_collection
+from app.db.mongodb import organizer_collection, user_collection, verification_job_collection
 
 router = APIRouter()
 
@@ -157,6 +157,10 @@ async def admin_decide_organizer_verification(
                     )
                 },
             },
+        )
+        await user_collection.update_one(
+            {"_id": profile["user_id"]},
+            {"$set": {"is_active": True, "updated_at": now}},
         )
         return {
             "message": "Organizer approved.",

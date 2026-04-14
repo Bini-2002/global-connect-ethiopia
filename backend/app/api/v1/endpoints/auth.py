@@ -18,7 +18,7 @@ from app.schemas.user import (
 from app.models.roles import UserRole, normalize_role, to_user_role
 from app.core.config import settings
 from app.core import security
-from app.db.mongodb import user_collection
+from app.db.mongodb import organizer_collection, user_collection
 from app.services.email_service import EmailDeliveryError, ResendEmailService
 
 router = APIRouter()
@@ -141,10 +141,29 @@ async def _issue_access_token(email: str, password: str) -> dict:
         )
 
     if not user.get("is_active", True):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account deactivated. Please contact the administrator.",
-        )
+        can_reactivate_organizer = role == UserRole.ORGANIZER.value and user.get("email_verified", False)
+        if can_reactivate_organizer:
+            organizer_profile = await organizer_collection.find_one({"user_id": user["_id"]})
+            is_approved = (
+                organizer_profile is not None
+                and (
+                    organizer_profile.get("verification_status") == "approved"
+                    or organizer_profile.get("status") == "approved"
+                )
+            )
+            if is_approved:
+                now = datetime.now(timezone.utc)
+                await user_collection.update_one(
+                    {"_id": user["_id"]},
+                    {"$set": {"is_active": True, "updated_at": now}},
+                )
+                user["is_active"] = True
+
+        if not user.get("is_active", True):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your account deactivated. Please contact the administrator.",
+            )
 
     access_token = security.create_access_token(
         subject=str(user["_id"]),
@@ -254,16 +273,16 @@ async def send_email_otp(payload: OtpSendRequest):
 
 
     otp_payload = _build_otp_payload()
+    # Only set is_active/email_verified to False when upserting a brand-new record.
+    # For existing (not-yet-verified) users, only refresh the OTP so we do not
+    # accidentally overwrite a previously verified or admin-activated account.
     await user_collection.update_one(
-        {"email": payload.email},
-        {"$set": {
-            "email": payload.email,
-            "auth_otp": otp_payload,
-            "is_active": False,
-            "email_verified": False,
-            }
-            },
-            upsert=True
+        {"email": payload.email, "email_verified": {"$ne": True}},
+        {
+            "$set": {"auth_otp": otp_payload, "updated_at": datetime.now(timezone.utc)},
+            "$setOnInsert": {"email": payload.email, "is_active": False, "email_verified": False},
+        },
+        upsert=True,
     )
 
     try:
