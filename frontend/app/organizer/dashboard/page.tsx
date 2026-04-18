@@ -26,7 +26,7 @@ import {
   Sparkles,
   TriangleAlert,
 } from 'lucide-react';
-import { getOrganizerPortalRoute, getToken } from '@/app/lib/auth';
+import { getOrganizerPortalRoute, waitForToken } from '@/app/lib/auth';
 
 interface UserProfile {
   id: string;
@@ -74,7 +74,7 @@ export default function OrganizerDashboard() {
 
   useEffect(() => {
     const loadDashboard = async () => {
-      const token = getToken();
+      const token = await waitForToken();
       if (!token) {
         setAccessChecked(true);
         setAccessAllowed(false);

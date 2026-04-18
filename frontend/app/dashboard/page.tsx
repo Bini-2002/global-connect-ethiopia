@@ -7,7 +7,7 @@ import {
   getRoleFromToken,
   getVendorPortalRoute,
   ROLE_DASHBOARDS,
-  getToken,
+  waitForToken,
 } from '@/app/lib/auth';
 
 export default function DashboardRedirect() {
@@ -15,7 +15,7 @@ export default function DashboardRedirect() {
 
   useEffect(() => {
     const redirectUser = async () => {
-      const token = getToken();
+      const token = await waitForToken();
       if (!token) {
         router.replace('/login');
         return;

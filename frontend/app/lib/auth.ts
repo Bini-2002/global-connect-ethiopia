@@ -121,36 +121,47 @@ function isTokenUsable(token: string | null): token is string {
   return Date.now() / 1000 < payload.exp;
 }
 
-export function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-
-  if (isTokenUsable(inMemoryToken)) return inMemoryToken;
+function getStoredTokenCandidates(): string[] {
+  if (typeof window === 'undefined') return [];
 
   const sessionToken = getStorageToken(sessionStorage);
   const localToken = getStorageToken(localStorage);
-  const cookieToken = getCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY) || getCookieValue(ACCESS_TOKEN_KEY);
+  const cookieToken =
+    getCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY) || getCookieValue(ACCESS_TOKEN_KEY);
 
-  // Prefer a valid token; if both are valid, keep the more persistent local token.
-  if (isTokenUsable(localToken)) {
-    inMemoryToken = localToken;
-    return localToken;
-  }
-  if (isTokenUsable(sessionToken)) {
-    inMemoryToken = sessionToken;
-    return sessionToken;
-  }
-  if (isTokenUsable(cookieToken)) {
-    inMemoryToken = cookieToken;
-    return cookieToken;
+  return [inMemoryToken, sessionToken, localToken, cookieToken].filter(
+    (token): token is string => typeof token === 'string' && token.trim().length > 0,
+  );
+}
+
+export function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  const candidates = getStoredTokenCandidates();
+  const usableToken = candidates.find((token) => isTokenUsable(token));
+  const fallbackToken = candidates[0] ?? null;
+  const resolvedToken = usableToken ?? fallbackToken;
+
+  inMemoryToken = resolvedToken;
+  return resolvedToken;
+}
+
+export async function waitForToken(
+  timeoutMs = 750,
+  intervalMs = 50,
+): Promise<string | null> {
+  const token = getToken();
+  if (token) return token;
+
+  if (typeof window === 'undefined') return null;
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+    const nextToken = getToken();
+    if (nextToken) return nextToken;
   }
 
-  if (localToken) clearStorageTokens(localStorage);
-  if (sessionToken) clearStorageTokens(sessionStorage);
-  if (cookieToken) {
-    clearCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY);
-    clearCookieValue(ACCESS_TOKEN_KEY);
-  }
-  inMemoryToken = null;
   return null;
 }
 
