@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
 from app.core.config import settings
+from app.db.mongodb import organizer_collection
 from app.db.mongodb import user_collection
 from app.models.roles import UserRole, normalize_role
 
@@ -40,6 +41,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found",
             )
+
+        if not user.get("is_active", True) and role == UserRole.ORGANIZER.value:
+            organizer_profile = await organizer_collection.find_one({"user_id": user["_id"]})
+            is_approved = (
+                organizer_profile is not None
+                and (
+                    organizer_profile.get("verification_status") == "approved"
+                    or organizer_profile.get("status") == "approved"
+                )
+            )
+            if is_approved:
+                await user_collection.update_one(
+                    {"_id": user["_id"]},
+                    {"$set": {"is_active": True}},
+                )
+                user["is_active"] = True
 
         if not user.get("is_active", True):
             raise HTTPException(

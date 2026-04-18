@@ -11,10 +11,15 @@ function normalizeRole(role: string | null | undefined): string | null {
   if (!role) return null;
 
   const normalized = role.trim().toLowerCase().replace(/-/g, '_');
+  const normalizedSpaces = normalized.replace(/_/g, ' ');
   const aliases: Record<string, string> = {
     superadmin: 'super_admin',
     'super admin': 'super_admin',
     administrator: 'admin',
+    organiser: 'organizer',
+    'event organizer': 'organizer',
+    event_organizer: 'organizer',
+    'event management organizer': 'organizer',
     ministry: 'ministry_gov',
     'ministry gov': 'ministry_gov',
     municipal: 'municipal_gov',
@@ -22,7 +27,7 @@ function normalizeRole(role: string | null | undefined): string | null {
     'municipal gov': 'municipal_gov',
   };
 
-  return aliases[normalized] ?? normalized;
+  return aliases[normalized] ?? aliases[normalizedSpaces] ?? normalized;
 }
 
 export function getRoleFromToken(token: string | null): string | null {
