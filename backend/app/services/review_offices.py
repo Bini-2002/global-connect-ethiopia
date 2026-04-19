@@ -13,48 +13,43 @@ DEFAULT_MOCK_OFFICE_PASSWORD = "Office123!"
 
 MOCK_REVIEW_OFFICES: list[dict[str, str | UserRole | None]] = [
     {
-        "full_name": "Health Ministry Office",
-        "email": "health.ministry@gce.local",
-        "role": UserRole.MINISTRY_GOV,
-        "office_type": "ministry",
-        "office_name": "Health",
-        "office_code": "MIN-HEALTH",
-        "department": "Health",
-        "city": "Addis Ababa",
-        "jurisdiction": "national",
-    },
-    {
-        "full_name": "Finance Ministry Office",
-        "email": "finance.ministry@gce.local",
-        "role": UserRole.MINISTRY_GOV,
-        "office_type": "ministry",
-        "office_name": "Finance",
-        "office_code": "MIN-FINANCE",
-        "department": "Finance",
-        "city": "Addis Ababa",
-        "jurisdiction": "national",
-    },
-    {
-        "full_name": "Innovation Ministry Office",
+        "full_name": "Ministry of Innovation",
         "email": "innovation.ministry@gce.local",
         "role": UserRole.MINISTRY_GOV,
         "office_type": "ministry",
-        "office_name": "Innovation",
+        "office_name": "Ministry of Innovation",
         "office_code": "MIN-INNOVATION",
         "department": "Innovation",
         "city": "Addis Ababa",
         "jurisdiction": "national",
+        "display_label": "Ministry of Innovation",
+        "sort_order": "01",
     },
     {
-        "full_name": "Adama Municipal Office",
-        "email": "adama.municipal@gce.local",
-        "role": UserRole.MUNICIPAL_GOV,
-        "office_type": "municipal",
-        "office_name": "Adama Municipal Office",
-        "office_code": "MUN-ADAMA",
-        "department": None,
-        "city": "Adama",
-        "jurisdiction": "city",
+        "full_name": "Ministry of Health",
+        "email": "health.ministry@gce.local",
+        "role": UserRole.MINISTRY_GOV,
+        "office_type": "ministry",
+        "office_name": "Ministry of Health",
+        "office_code": "MIN-HEALTH",
+        "department": "Health",
+        "city": "Addis Ababa",
+        "jurisdiction": "national",
+        "display_label": "Ministry of Health",
+        "sort_order": "02",
+    },
+    {
+        "full_name": "Ministry of Education",
+        "email": "education.ministry@gce.local",
+        "role": UserRole.MINISTRY_GOV,
+        "office_type": "ministry",
+        "office_name": "Ministry of Education",
+        "office_code": "MIN-EDUCATION",
+        "department": "Education",
+        "city": "Addis Ababa",
+        "jurisdiction": "national",
+        "display_label": "Ministry of Education",
+        "sort_order": "03",
     },
     {
         "full_name": "Addis Ababa Municipal Office",
@@ -66,28 +61,21 @@ MOCK_REVIEW_OFFICES: list[dict[str, str | UserRole | None]] = [
         "department": None,
         "city": "Addis Ababa",
         "jurisdiction": "city",
+        "display_label": "Addis Ababa",
+        "sort_order": "01",
     },
     {
-        "full_name": "Bahir Dar Municipal Office",
-        "email": "bahirdar.municipal@gce.local",
+        "full_name": "Adama Municipal Office",
+        "email": "adama.municipal@gce.local",
         "role": UserRole.MUNICIPAL_GOV,
         "office_type": "municipal",
-        "office_name": "Bahir Dar Municipal Office",
-        "office_code": "MUN-BAHIRDAR",
-        "department": None,
-        "city": "Bahir Dar",
-        "jurisdiction": "city",
-    },
-    {
-        "full_name": "Adama Police Office",
-        "email": "adama.police@gce.local",
-        "role": UserRole.POLICE,
-        "office_type": "police",
-        "office_name": "Adama Police Office",
-        "office_code": "POL-ADAMA",
+        "office_name": "Adama Municipal Office",
+        "office_code": "MUN-ADAMA",
         "department": None,
         "city": "Adama",
         "jurisdiction": "city",
+        "display_label": "Adama",
+        "sort_order": "02",
     },
     {
         "full_name": "Addis Ababa Police Office",
@@ -99,22 +87,43 @@ MOCK_REVIEW_OFFICES: list[dict[str, str | UserRole | None]] = [
         "department": None,
         "city": "Addis Ababa",
         "jurisdiction": "city",
+        "display_label": "Addis Ababa Police Office",
+        "sort_order": "01",
     },
     {
-        "full_name": "Bahir Dar Police Office",
-        "email": "bahirdar.police@gce.local",
+        "full_name": "Adama Police Office",
+        "email": "adama.police@gce.local",
         "role": UserRole.POLICE,
         "office_type": "police",
-        "office_name": "Bahir Dar Police Office",
-        "office_code": "POL-BAHIRDAR",
+        "office_name": "Adama Police Office",
+        "office_code": "POL-ADAMA",
         "department": None,
-        "city": "Bahir Dar",
+        "city": "Adama",
         "jurisdiction": "city",
+        "display_label": "Adama Police Office",
+        "sort_order": "02",
     },
+]
+
+OFFICE_ROLE_QUERY_VALUES = [
+    UserRole.MINISTRY_GOV.value,
+    UserRole.MUNICIPAL_GOV.value,
+    UserRole.POLICE.value,
+    "ministry",
+    "ministry gov",
+    "municipal",
+    "municipality",
+    "municipal gov",
+    "police office",
+    "police_office",
 ]
 
 
 def _display_label(office: dict) -> str:
+    explicit_label = office.get("display_label")
+    if explicit_label:
+        return str(explicit_label)
+
     office_name = office.get("office_name") or office.get("full_name") or "Office"
     city = office.get("city")
     department = office.get("department")
@@ -137,8 +146,24 @@ def serialize_review_office(user: dict) -> dict:
         "department": user.get("department"),
         "city": user.get("city"),
         "jurisdiction": user.get("jurisdiction"),
+        "sort_order": user.get("sort_order"),
         "display_label": _display_label(user),
     }
+
+
+def _group_key_for_office(user: dict) -> str | None:
+    office_type = str(user.get("office_type") or "").strip().lower()
+    if office_type in {"ministry", "municipal", "police"}:
+        return office_type
+
+    role = normalize_role(user.get("role"))
+    if role == UserRole.MINISTRY_GOV.value:
+        return "ministry"
+    if role == UserRole.MUNICIPAL_GOV.value:
+        return "municipal"
+    if role == UserRole.POLICE.value:
+        return "police"
+    return None
 
 
 async def resolve_review_office(office_id: str, expected_role: UserRole) -> dict:
@@ -164,25 +189,36 @@ async def resolve_review_office(office_id: str, expected_role: UserRole) -> dict
 
 
 async def list_review_office_options() -> dict[str, list[dict]]:
-    role_values = [
-        UserRole.MINISTRY_GOV.value,
-        UserRole.MUNICIPAL_GOV.value,
-        UserRole.POLICE.value,
-    ]
-    users = await user_collection.find({"role": {"$in": role_values}, "is_active": True}).to_list(length=200)
+    await ensure_mock_office_accounts()
+
+    users = await user_collection.find(
+        {
+            "$or": [
+                {"role": {"$in": OFFICE_ROLE_QUERY_VALUES}},
+                {"office_type": {"$in": ["ministry", "municipal", "police"]}},
+            ]
+        }
+    ).to_list(length=200)
 
     grouped = {"ministry": [], "municipal": [], "police": []}
     for user in users:
-        role = normalize_role(user.get("role"))
-        if role == UserRole.MINISTRY_GOV.value:
-            grouped["ministry"].append(serialize_review_office(user))
-        elif role == UserRole.MUNICIPAL_GOV.value:
-            grouped["municipal"].append(serialize_review_office(user))
-        elif role == UserRole.POLICE.value:
-            grouped["police"].append(serialize_review_office(user))
+        if user.get("is_active", True) is False:
+            continue
+
+        group_key = _group_key_for_office(user)
+        if not group_key:
+            continue
+
+        grouped[group_key].append(serialize_review_office(user))
 
     for key in grouped:
-        grouped[key].sort(key=lambda item: item.get("display_label") or item.get("office_name") or "")
+        grouped[key].sort(
+            key=lambda item: (
+                item.get("sort_order") or "99",
+                item.get("display_label") or item.get("office_name") or "",
+            )
+        )
+
     return grouped
 
 
@@ -207,6 +243,8 @@ def build_mock_office_user_payloads(password: str = DEFAULT_MOCK_OFFICE_PASSWORD
                 "department": office["department"],
                 "city": office["city"],
                 "jurisdiction": office["jurisdiction"],
+                "display_label": office.get("display_label"),
+                "sort_order": office.get("sort_order"),
                 "mock_account": True,
                 "updated_at": now,
                 "created_at": now,

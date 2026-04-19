@@ -11,6 +11,7 @@ export interface ReviewTargetOption {
   department?: string | null;
   city?: string | null;
   jurisdiction?: string | null;
+  sort_order?: string | null;
   display_label?: string | null;
 }
 
@@ -31,6 +32,7 @@ export interface ProposalAssignedOffice {
   department?: string | null;
   city?: string | null;
   jurisdiction?: string | null;
+  sort_order?: string | null;
   display_label?: string | null;
 }
 

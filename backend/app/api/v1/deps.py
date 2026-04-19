@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from bson import ObjectId
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
@@ -13,13 +13,34 @@ from app.models.roles import UserRole, normalize_role
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/v1/auth/token",
     description="For OAuth2 password flow, use your account email in the username field.",
+    auto_error=False,
 )
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+def _resolve_token(request: Request, token: str | None) -> str | None:
+    if token:
+        return token
+
+    # Frontend writes both cookie keys for compatibility.
+    cookie_token = request.cookies.get("gce_access_token") or request.cookies.get("access_token")
+    if cookie_token:
+        return cookie_token
+
+    return None
+
+
+async def get_current_user(request: Request, token: str | None = Depends(oauth2_scheme)):
+    resolved_token = _resolve_token(request, token)
+    if not resolved_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
         payload = jwt.decode(
-            token,
+            resolved_token,
             settings.JWT_SECRET,
             algorithms=[settings.ALGORITHM],
             options={"leeway": 10}

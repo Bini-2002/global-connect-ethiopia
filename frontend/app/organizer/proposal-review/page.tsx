@@ -6,6 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import Link from "next/link";
 import { api } from "@/app/lib/api";
+import { waitForToken } from "@/app/lib/auth";
 import {
   appendProposalFields,
   base64ToFile,
@@ -31,14 +32,36 @@ export default function ProposalReview() {
   });
 
   useEffect(() => {
-    api.get<ReviewTargetsResponse>('/offices/review-targets')
-      .then(setReviewTargets)
-      .catch((err) => console.error('Error loading review offices:', err));
+    let isActive = true;
+
+    const loadReviewTargets = async () => {
+      try {
+        const token = await waitForToken();
+        if (!token || !isActive) {
+          return;
+        }
+
+        const data = await api.get<ReviewTargetsResponse>('/offices/review-targets', { authToken: token });
+        if (isActive) {
+          setReviewTargets(data);
+        }
+      } catch (err) {
+        if (isActive) {
+          console.error('Error loading review offices:', err);
+        }
+      }
+    };
+
+    void loadReviewTargets();
 
     const savedData = localStorage.getItem('pendingProposal');
     if (savedData) {
       setProposal(normalizeSessionProposalData(JSON.parse(savedData)));
     }
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const handleEdit = () => {

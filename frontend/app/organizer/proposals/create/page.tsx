@@ -8,6 +8,7 @@ import DashboardHeader from "@/components/DashboardHeader";
 import Sidebar from "@/components/Sidebar";
 import AIModal from "@/components/organizer/AIModal";
 import { api } from "@/app/lib/api";
+import { getToken, waitForToken } from "@/app/lib/auth";
 import {
   appendProposalFields,
   buildSessionProposalData,
@@ -58,16 +59,58 @@ export default function CreateProposalPage() {
   const [reviewTargetsError, setReviewTargetsError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get<ReviewTargetsResponse>('/offices/review-targets')
-      .then((data) => {
-        setReviewTargets(data);
-        setReviewTargetsError(null);
-      })
-      .catch((err) => {
+    let isActive = true;
+
+    const loadReviewTargets = async () => {
+      try {
+        const token = (await waitForToken(2500, 100)) ?? getToken();
+        if (!token || !isActive) {
+          if (isActive) {
+            setReviewTargetsError("Your session expired. Please log in again.");
+            setTimeout(() => router.replace('/login'), 500);
+          }
+          return;
+        }
+
+        const data = await api.get<ReviewTargetsResponse>('/offices/review-targets', { authToken: token });
+        if (!isActive) {
+          return;
+        }
+
+        const normalizedTargets: ReviewTargetsResponse = {
+          ministry: data.ministry || [],
+          municipal: data.municipal || [],
+          police: data.police || [],
+        };
+
+        setReviewTargets(normalizedTargets);
+
+        if (
+          normalizedTargets.ministry.length === 0 &&
+          normalizedTargets.municipal.length === 0 &&
+          normalizedTargets.police.length === 0
+        ) {
+          setReviewTargetsError(
+            "No registered review offices were returned. Please contact admin to seed offices.",
+          );
+        } else {
+          setReviewTargetsError(null);
+        }
+      } catch (err) {
+        if (!isActive) {
+          return;
+        }
+
         console.error("Error loading review targets:", err);
         setReviewTargetsError(err instanceof Error ? err.message : "Failed to load review offices");
-      })
-      .finally(() => setReviewTargetsLoading(false));
+      } finally {
+        if (isActive) {
+          setReviewTargetsLoading(false);
+        }
+      }
+    };
+
+    void loadReviewTargets();
 
     const savedData = localStorage.getItem('pendingProposal');
     if (savedData) {
@@ -98,6 +141,10 @@ export default function CreateProposalPage() {
         console.error("Error parsing saved proposal data:", e);
       }
     }
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -402,6 +449,8 @@ export default function CreateProposalPage() {
                 <h2 className="text-xl font-bold text-[#062E22]">Unsaved Changes</h2>
                 <button
                   onClick={() => setShowExitModal(false)}
+                  aria-label="Close dialog"
+                  title="Close dialog"
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <X className="w-5 h-5 text-gray-500" />

@@ -129,7 +129,7 @@ function getStoredTokenCandidates(): string[] {
   const cookieToken =
     getCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY) || getCookieValue(ACCESS_TOKEN_KEY);
 
-  return [inMemoryToken, sessionToken, localToken, cookieToken].filter(
+  return [sessionToken, localToken, cookieToken, inMemoryToken].filter(
     (token): token is string => typeof token === 'string' && token.trim().length > 0,
   );
 }

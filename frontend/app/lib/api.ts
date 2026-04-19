@@ -24,14 +24,25 @@ async function request<T>(
   path: string,
   options: ApiRequestInit = {}
 ): Promise<T> {
-  const token = options.authToken ?? getToken();
-  const headers: HeadersInit = {
-    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...((options.headers as Record<string, string>) || {}),
+  const runRequest = async (token: string | null) => {
+    const headers: HeadersInit = {
+      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...((options.headers as Record<string, string>) || {}),
+    };
+
+    return fetch(resolveUrl(path), { ...options, headers });
   };
 
-  const res = await fetch(resolveUrl(path), { ...options, headers });
+  const initialToken = options.authToken ?? getToken();
+  let res = await runRequest(initialToken);
+
+  if (res.status === 401) {
+    const refreshedToken = getToken();
+    if (refreshedToken && refreshedToken !== initialToken) {
+      res = await runRequest(refreshedToken);
+    }
+  }
 
   if (res.status === 401) {
     logout();
@@ -55,13 +66,24 @@ async function requestBlob(
   path: string,
   options: ApiRequestInit = {}
 ): Promise<Blob> {
-  const token = options.authToken ?? getToken();
-  const headers: HeadersInit = {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...((options.headers as Record<string, string>) || {}),
+  const runRequest = async (token: string | null) => {
+    const headers: HeadersInit = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...((options.headers as Record<string, string>) || {}),
+    };
+
+    return fetch(resolveUrl(path), { ...options, headers });
   };
 
-  const res = await fetch(resolveUrl(path), { ...options, headers });
+  const initialToken = options.authToken ?? getToken();
+  let res = await runRequest(initialToken);
+
+  if (res.status === 401) {
+    const refreshedToken = getToken();
+    if (refreshedToken && refreshedToken !== initialToken) {
+      res = await runRequest(refreshedToken);
+    }
+  }
 
   if (res.status === 401) {
     logout();

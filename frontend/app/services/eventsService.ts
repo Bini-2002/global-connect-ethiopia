@@ -123,8 +123,8 @@ function mapProposalToApprovedProposal(proposal: ProposalRecord): ApprovedPropos
 }
 
 export const eventsService = {
-  getEvents: async (): Promise<EventListItem[]> => {
-    const events = await api.get<EventRecord[]>('/events/');
+  getEvents: async (authToken?: string | null): Promise<EventListItem[]> => {
+    const events = await api.get<EventRecord[]>('/events/', { authToken });
     return events.map(mapEventToListItem);
   },
 
@@ -160,15 +160,15 @@ export const eventsService = {
     return api.post<EventRecord>(`/events/${eventId}/archive`);
   },
 
-  getApprovedProposals: async (): Promise<ApprovedProposal[]> => {
-    const proposals = await api.get<ProposalRecord[]>('/proposals/');
+  getApprovedProposals: async (authToken?: string | null): Promise<ApprovedProposal[]> => {
+    const proposals = await api.get<ProposalRecord[]>('/proposals/', { authToken });
     return proposals
       .filter((proposal) => proposal.status === 'approved')
       .map(mapProposalToApprovedProposal);
   },
 
-  getPastEvents: async (): Promise<PastEvent[]> => {
-    const events = await eventsService.getEvents();
+  getPastEvents: async (authToken?: string | null): Promise<PastEvent[]> => {
+    const events = await eventsService.getEvents(authToken);
     return events
       .filter((event) => event.status === 'COMPLETED' || event.status === 'ARCHIVED')
       .map((event) => ({
@@ -179,10 +179,10 @@ export const eventsService = {
       }));
   },
 
-  getEventStats: async (): Promise<EventStats> => {
+  getEventStats: async (authToken?: string | null): Promise<EventStats> => {
     const [events, proposals] = await Promise.all([
-      api.get<EventRecord[]>('/events/'),
-      api.get<ProposalRecord[]>('/proposals/'),
+      api.get<EventRecord[]>('/events/', { authToken }),
+      api.get<ProposalRecord[]>('/proposals/', { authToken }),
     ]);
     const now = new Date();
 

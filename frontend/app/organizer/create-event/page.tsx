@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
-import { isLoggedIn } from "@/app/lib/auth";
+import { getToken, isLoggedIn, waitForToken } from "@/app/lib/auth";
 import { eventsService } from "@/app/services/eventsService";
 import { PastEvent, EventStats } from "@/app/types/event";
 import { 
@@ -34,21 +34,31 @@ export default function CreateEventPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.replace("/login");
-      return;
-    }
-
     const fetchData = async () => {
       try {
+        if (!isLoggedIn()) {
+          router.replace("/login");
+          return;
+        }
+
+        const authToken = (await waitForToken(2500, 100)) ?? getToken();
+        if (!authToken) {
+          router.replace('/login');
+          return;
+        }
+
         const [eventsData, statsData] = await Promise.all([
-          eventsService.getPastEvents(),
-          eventsService.getEventStats(),
+          eventsService.getPastEvents(authToken),
+          eventsService.getEventStats(authToken),
         ]);
         setPastEvents(eventsData);
         setStats(statsData);
       } catch (err) {
         console.error('Error fetching data:', err);
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
       } finally {
         setLoading(false);
       }
