@@ -68,6 +68,7 @@ export interface ProposalSecurityAssignment {
   office_id: string;
   office_name: string;
   office_role?: string | null;
+  city?: string | null;
   message: string;
   assigned_at: string;
 }

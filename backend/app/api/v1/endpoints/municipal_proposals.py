@@ -137,6 +137,7 @@ async def approve_under_review(
             "office_id": police_office.get("user_id"),
             "office_name": police_office.get("office_name"),
             "office_role": police_office.get("role"),
+            "city": police_office.get("city"),
             "message": (
                 f"Approved event details were shared with "
                 f"{police_office.get('display_label') or police_office.get('office_name', 'the selected police office')}."

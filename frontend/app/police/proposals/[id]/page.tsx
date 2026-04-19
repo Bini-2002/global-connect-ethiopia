@@ -9,6 +9,22 @@ import { api } from '@/app/lib/api';
 import { getOfficeLabel } from '@/app/lib/proposals';
 import { ProposalRecord } from '@/app/types/proposal';
 
+function getAssignedPoliceLabel(proposal: ProposalRecord): string {
+  return proposal.security_assignment?.office_name
+    || proposal.security_assignment?.city
+    || proposal.office_assignments?.police?.display_label
+    || proposal.office_assignments?.police?.office_name
+    || 'Assigned City Police Office';
+}
+
+function getAssignedPoliceMeta(proposal: ProposalRecord): string {
+  const city = proposal.security_assignment?.city || proposal.office_assignments?.police?.city;
+  const officeName = proposal.security_assignment?.office_name || proposal.office_assignments?.police?.office_name;
+  if (officeName && city) return `${officeName} • ${city}`;
+  if (city) return city;
+  return officeName || 'Assigned City Police Office';
+}
+
 export default function PoliceProposalDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -62,8 +78,9 @@ export default function PoliceProposalDetailPage() {
                   <h2 className="text-xl font-bold text-[#062E22] mb-4">Police Notification</h2>
                   <div className="space-y-4">
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Assigned Police Office</p>
-                      <p className="text-sm font-semibold text-[#062E22]">{proposal.security_assignment?.office_name || getOfficeLabel(proposal.office_assignments?.police)}</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Assigned City Police Office</p>
+                      <p className="text-sm font-semibold text-[#062E22]">{getAssignedPoliceLabel(proposal)}</p>
+                      <p className="text-xs text-slate-500 mt-1">{getAssignedPoliceMeta(proposal)}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Notification Message</p>

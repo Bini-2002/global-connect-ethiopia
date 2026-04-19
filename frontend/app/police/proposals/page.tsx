@@ -7,6 +7,22 @@ import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
 import { ProposalRecord } from '@/app/types/proposal';
 
+function getAssignedPoliceLabel(proposal: ProposalRecord): string {
+  return proposal.security_assignment?.office_name
+    || proposal.security_assignment?.city
+    || proposal.office_assignments?.police?.display_label
+    || proposal.office_assignments?.police?.office_name
+    || 'Assigned City Police Office';
+}
+
+function getAssignedPoliceSubtitle(proposal: ProposalRecord): string {
+  const city = proposal.security_assignment?.city || proposal.office_assignments?.police?.city;
+  const officeName = proposal.security_assignment?.office_name || proposal.office_assignments?.police?.office_name;
+  if (officeName && city) return `${officeName} • ${city}`;
+  if (city) return city;
+  return officeName || 'Assigned City Police Office';
+}
+
 export default function PoliceProposalsPage() {
   const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +74,7 @@ export default function PoliceProposalsPage() {
                 <div key={p.id} className="grid grid-cols-12 gap-4 items-center px-6 py-4 hover:bg-slate-50 transition">
                   <div className="col-span-4">
                     <p className="font-semibold text-[#062E22] text-sm">{p.title}</p>
+                    <p className="text-xs text-slate-500 mt-1">{getAssignedPoliceLabel(p)}</p>
                     <p className="text-xs font-mono text-slate-400">ORG-{p.organizer_id.substring(0, 4).toUpperCase()}</p>
                   </div>
                   <div className="col-span-2 text-sm text-slate-600">{p.event_type || '—'}</div>

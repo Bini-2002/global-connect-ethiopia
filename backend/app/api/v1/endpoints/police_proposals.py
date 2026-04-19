@@ -26,6 +26,27 @@ def _current_user_id(current_user: dict) -> str:
     return str(current_user.get("_id") or current_user.get("id") or "")
 
 
+def _police_match_clauses(current_user: dict) -> list[dict]:
+    current_user_id = _current_user_id(current_user)
+    clauses: list[dict] = [
+        {"security_assignment.office_id": current_user_id},
+        {"office_assignments.police.user_id": current_user_id},
+    ]
+
+    current_city = str(current_user.get("city") or "").strip()
+    current_office_name = str(current_user.get("office_name") or current_user.get("full_name") or "").strip()
+
+    if current_city:
+        clauses.append({"security_assignment.city": current_city})
+        clauses.append({"office_assignments.police.city": current_city})
+
+    if current_office_name:
+        clauses.append({"security_assignment.office_name": current_office_name})
+        clauses.append({"office_assignments.police.office_name": current_office_name})
+
+    return clauses
+
+
 @router.get("/", response_model=List[ProposalResponse])
 async def list_allowed_events(current_user: dict = Depends(allow_police)):
     """
@@ -35,10 +56,7 @@ async def list_allowed_events(current_user: dict = Depends(allow_police)):
     cursor = proposal_collection.find(
         {
             "status": ProposalStatus.APPROVED,
-            "$or": [
-                {"security_assignment.office_id": current_user_id},
-                {"office_assignments.police.user_id": current_user_id},
-            ],
+            "$or": _police_match_clauses(current_user),
         }
     ).sort("updated_at", -1)
     proposals = await cursor.to_list(length=200)
@@ -57,10 +75,7 @@ async def get_allowed_event_detail(
     proposal = await proposal_collection.find_one({
         "_id": ObjectId(proposal_id),
         "status": ProposalStatus.APPROVED,
-        "$or": [
-            {"security_assignment.office_id": current_user_id},
-            {"office_assignments.police.user_id": current_user_id},
-        ],
+        "$or": _police_match_clauses(current_user),
     })
 
     if not proposal:
