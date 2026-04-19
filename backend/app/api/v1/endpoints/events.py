@@ -506,6 +506,7 @@ async def create_event_from_proposal(proposal_id: str, current_user: dict = Depe
     }
 
 
+@router.get("", response_model=list[EventResponse], include_in_schema=False)
 @router.get("/", response_model=list[EventResponse])
 async def list_events(
     status_filter: str | None = Query(default=None, alias="status"),
