@@ -24,10 +24,10 @@ async function request<T>(
   path: string,
   options: ApiRequestInit = {}
 ): Promise<T> {
-  const runRequest = async (token: string | null) => {
+  const runRequest = async (token: string | null, includeAuthHeader = true) => {
     const headers: HeadersInit = {
       ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(includeAuthHeader && token ? { Authorization: `Bearer ${token}` } : {}),
       ...((options.headers as Record<string, string>) || {}),
     };
 
@@ -42,6 +42,11 @@ async function request<T>(
     if (refreshedToken && refreshedToken !== initialToken) {
       res = await runRequest(refreshedToken);
     }
+  }
+
+  if (res.status === 401) {
+    // Final fallback: rely on server-side session cookie without Authorization header.
+    res = await runRequest(null, false);
   }
 
   if (res.status === 401) {
@@ -66,9 +71,9 @@ async function requestBlob(
   path: string,
   options: ApiRequestInit = {}
 ): Promise<Blob> {
-  const runRequest = async (token: string | null) => {
+  const runRequest = async (token: string | null, includeAuthHeader = true) => {
     const headers: HeadersInit = {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(includeAuthHeader && token ? { Authorization: `Bearer ${token}` } : {}),
       ...((options.headers as Record<string, string>) || {}),
     };
 
@@ -83,6 +88,11 @@ async function requestBlob(
     if (refreshedToken && refreshedToken !== initialToken) {
       res = await runRequest(refreshedToken);
     }
+  }
+
+  if (res.status === 401) {
+    // Final fallback: rely on server-side session cookie without Authorization header.
+    res = await runRequest(null, false);
   }
 
   if (res.status === 401) {

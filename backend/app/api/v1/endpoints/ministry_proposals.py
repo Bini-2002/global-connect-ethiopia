@@ -46,7 +46,15 @@ async def list_ministry_review_queue(current_user: dict = Depends(allow_ministry
     assigned_user_id = _current_user_id(current_user)
     cursor = proposal_collection.find(
         {
-            "status": {"$in": [ProposalStatus.SUBMITTED, ProposalStatus.MINISTRY_REVIEW]},
+            "status": {
+                "$in": [
+                    ProposalStatus.SUBMITTED,
+                    ProposalStatus.MINISTRY_REVIEW,
+                    ProposalStatus.MINISTRY_APPROVED,
+                    ProposalStatus.APPROVED,
+                    ProposalStatus.REJECTED,
+                ]
+            },
             "office_assignments.ministry.user_id": assigned_user_id,
         }
     ).sort("updated_at", -1)

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
+
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 
 from app.api.v1.deps import get_current_user
 from app.db.mongodb import permit_collection, proposal_collection
@@ -71,3 +74,28 @@ async def get_permit(
             raise HTTPException(status_code=403, detail="Not authorized")
 
     return _to_response(permit)
+
+
+@router.get("/{proposal_id}/download")
+async def download_permit(
+    proposal_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    permit = await permit_collection.find_one({"proposal_id": proposal_id})
+    if not permit:
+        raise HTTPException(status_code=404, detail="Permit not found")
+
+    role = current_user.get("role")
+    if not _is_government_role(role):
+        organizer_id = permit.get("organizer_id")
+        if organizer_id != str(current_user.get("_id")) and organizer_id != current_user.get("id"):
+            raise HTTPException(status_code=403, detail="Not authorized")
+
+    payload = _to_response(dict(permit))
+    filename = f"permit-{payload.get('permit_number', proposal_id)}.json"
+    body = json.dumps(payload, ensure_ascii=True, indent=2)
+    return Response(
+        content=body,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

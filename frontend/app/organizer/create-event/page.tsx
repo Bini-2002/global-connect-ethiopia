@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
-import { getOrganizerPortalRoute } from "@/app/lib/auth";
-import { eventsService } from "@/app/services/eventsService";
+import { api } from "@/app/lib/api";
+import { getOrganizerPortalRoute, getToken, waitForToken } from "@/app/lib/auth";
 import { PastEvent, EventStats } from "@/app/types/event";
+import { ProposalRecord } from "@/app/types/proposal";
 import { 
   Plus, 
   Sparkles, 
@@ -26,6 +27,46 @@ import {
   Loader2
 } from "lucide-react";
 import Image from "next/image";
+
+function formatProposalDate(startDate?: string | null, endDate?: string | null): string {
+  if (!startDate) return "Date pending";
+
+  const start = new Date(startDate);
+  if (!endDate) {
+    return start.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  const end = new Date(endDate);
+  const startLabel = start.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const endLabel = end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return `${startLabel} - ${endLabel}`;
+}
+
+function buildPastEventsFromProposals(proposals: ProposalRecord[]): PastEvent[] {
+  return proposals
+    .filter((proposal) => Boolean(proposal.event_id))
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    .map((proposal) => ({
+      id: proposal.event_id ?? proposal.id,
+      title: proposal.title,
+      date: formatProposalDate(proposal.start_date, proposal.end_date),
+      event_type: proposal.event_type ?? undefined,
+    }));
+}
+
+function buildStatsFromProposals(proposals: ProposalRecord[]): EventStats {
+  const eventWorkspaces = proposals.filter((proposal) => Boolean(proposal.event_id));
+  const now = new Date();
+
+  return {
+    totalEvents: eventWorkspaces.length,
+    thisMonth: eventWorkspaces.filter((proposal) => {
+      const createdAt = new Date(proposal.created_at);
+      return createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear();
+    }).length,
+    drafts: proposals.filter((proposal) => proposal.status === "draft").length,
+  };
+}
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -48,38 +89,18 @@ export default function CreateEventPage() {
           return;
         }
 
-        const [eventsResult, statsResult] = await Promise.allSettled([
-          eventsService.getPastEvents(),
-          eventsService.getEventStats(),
-        ]);
+        const authToken = (await waitForToken(1500, 50)) ?? getToken();
+        const proposals = await api.get<ProposalRecord[]>(
+          "/proposals/",
+          authToken ? { authToken } : undefined,
+        );
 
         if (!isActive) {
           return;
         }
 
-        const authFailure = [eventsResult, statsResult].find(
-          (result): result is PromiseRejectedResult =>
-            result.status === "rejected" &&
-            result.reason instanceof Error &&
-            result.reason.message === "Not authenticated"
-        );
-
-        if (authFailure) {
-          router.replace("/login");
-          return;
-        }
-
-        if (eventsResult.status === "fulfilled") {
-          setPastEvents(eventsResult.value);
-        } else {
-          console.error("Error loading past events:", eventsResult.reason);
-        }
-
-        if (statsResult.status === "fulfilled") {
-          setStats(statsResult.value);
-        } else {
-          console.error("Error loading event stats:", statsResult.reason);
-        }
+        setPastEvents(buildPastEventsFromProposals(proposals));
+        setStats(buildStatsFromProposals(proposals));
       } catch (err) {
         if (!isActive) {
           return;

@@ -20,7 +20,7 @@ export default function MinistryProposalsPage() {
 
   const filtered = proposals.filter(p => {
     if (tab === 'pending' && !['submitted', 'ministry_review'].includes(p.status)) return false;
-    if (tab === 'approved' && p.status !== 'ministry_approved') return false;
+    if (tab === 'approved' && !['ministry_approved', 'approved'].includes(p.status)) return false;
     if (tab === 'rejected' && p.status !== 'rejected') return false;
     return p.title.toLowerCase().includes(query.toLowerCase());
   });

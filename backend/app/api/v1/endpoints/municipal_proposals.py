@@ -46,7 +46,14 @@ async def list_municipal_review_queue(current_user: dict = Depends(allow_municip
     assigned_user_id = _current_user_id(current_user)
     cursor = proposal_collection.find(
         {
-            "status": {"$in": [ProposalStatus.MINISTRY_APPROVED, ProposalStatus.MUNICIPAL_REVIEW]},
+            "status": {
+                "$in": [
+                    ProposalStatus.MINISTRY_APPROVED,
+                    ProposalStatus.MUNICIPAL_REVIEW,
+                    ProposalStatus.APPROVED,
+                    ProposalStatus.REJECTED,
+                ]
+            },
             "office_assignments.municipal.user_id": assigned_user_id,
         }
     ).sort("updated_at", -1)
@@ -108,8 +115,12 @@ async def approve_under_review(
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found")
 
-    if proposal.get("status") != ProposalStatus.MUNICIPAL_REVIEW:
-        raise HTTPException(status_code=400, detail="Proposal must be under municipal review")
+    allowed_statuses = {ProposalStatus.MINISTRY_APPROVED, ProposalStatus.MUNICIPAL_REVIEW}
+    if proposal.get("status") not in allowed_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail="Proposal must be ministry approved or under municipal review before final approval",
+        )
     office = _ensure_assigned_to_current_office(proposal, current_user, "municipal")
     police_office = _assigned_office(proposal, "police")
 

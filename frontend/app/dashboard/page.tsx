@@ -9,6 +9,7 @@ import {
   ROLE_DASHBOARDS,
   waitForToken,
 } from '@/app/lib/auth';
+import { api } from '@/app/lib/api';
 
 export default function DashboardRedirect() {
   const router = useRouter();
@@ -16,12 +17,17 @@ export default function DashboardRedirect() {
   useEffect(() => {
     const redirectUser = async () => {
       const token = await waitForToken();
-      if (!token) {
-        router.replace('/login');
-        return;
-      }
+      let role = getRoleFromToken(token);
 
-      const role = getRoleFromToken(token);
+      if (!role) {
+        try {
+          const me = await api.get<{ role?: string | null }>('/users/me');
+          role = (me.role || null) as string | null;
+        } catch {
+          router.replace('/login');
+          return;
+        }
+      }
 
       if (role === 'organizer') {
         const organizerRoute = await getOrganizerPortalRoute(token);
