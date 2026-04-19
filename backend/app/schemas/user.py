@@ -40,6 +40,7 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     email: str  # plain str so .local internal office accounts (e.g. gce.local) are not rejected by email-validator
     password: str
+    remember_me: bool = False
 
 class Token(BaseModel):
     access_token: str

@@ -1,7 +1,7 @@
 import secrets
 import logging
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.exc import PasswordValueError, UnknownHashError
 from pymongo.errors import PyMongoError
@@ -18,13 +18,14 @@ from app.schemas.user import (
 from app.models.roles import UserRole, normalize_role, to_user_role
 from app.core.config import settings
 from app.core import security
-from app.db.mongodb import organizer_collection, user_collection
+from app.db.mongodb import organizer_collection, session_collection, user_collection
 from app.services.email_service import EmailDeliveryError, ResendEmailService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 OTP_EXPIRY_MINUTES = 5
+SESSION_COOKIE_PATH = "/"
 INTERNAL_LOGIN_ROLES = {
     UserRole.SUPER_ADMIN,
     UserRole.ADMIN,
@@ -172,8 +173,56 @@ async def _issue_access_token(email: str, password: str) -> dict:
 
     return {
         "access_token": access_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user_id": str(user["_id"]),
+        "role": role,
     }
+
+
+async def _create_session(user_id: str, role: str, remember_me: bool) -> tuple[str, datetime]:
+    now = datetime.now(timezone.utc)
+    max_age = (
+        timedelta(days=settings.SESSION_REMEMBER_ME_DAYS)
+        if remember_me
+        else timedelta(minutes=settings.SESSION_MAX_AGE_MINUTES)
+    )
+    expires_at = now + max_age
+    session_id = secrets.token_urlsafe(48)
+    await session_collection.insert_one(
+        {
+            "_id": session_id,
+            "user_id": user_id,
+            "role": role,
+            "remember_me": remember_me,
+            "created_at": now,
+            "updated_at": now,
+            "expires_at": expires_at,
+        }
+    )
+    return session_id, expires_at
+
+
+def _set_session_cookie(response: Response, session_id: str, expires_at: datetime) -> None:
+    max_age = max(int((expires_at - datetime.now(timezone.utc)).total_seconds()), 1)
+    response.set_cookie(
+        key=settings.SESSION_COOKIE_NAME,
+        value=session_id,
+        max_age=max_age,
+        expires=max_age,
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="lax",
+        domain=settings.SESSION_COOKIE_DOMAIN,
+        path=SESSION_COOKIE_PATH,
+    )
+
+
+def _clear_session_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=settings.SESSION_COOKIE_NAME,
+        domain=settings.SESSION_COOKIE_DOMAIN,
+        path=SESSION_COOKIE_PATH,
+    )
 
 @router.post("/register")
 async def register(user_in: UserCreate):
@@ -246,8 +295,18 @@ async def register(user_in: UserCreate):
     ) | {"user_id": str(saved_user["_id"]) if saved_user else None}
 
 @router.post("/login", response_model=Token)
-async def login(user_in: UserLogin):
-    return await _issue_access_token(email=user_in.email, password=user_in.password)
+async def login(user_in: UserLogin, response: Response):
+    token_payload = await _issue_access_token(email=user_in.email, password=user_in.password)
+    session_id, expires_at = await _create_session(
+        user_id=token_payload["user_id"],
+        role=token_payload["role"],
+        remember_me=user_in.remember_me,
+    )
+    _set_session_cookie(response, session_id, expires_at)
+    return {
+        "access_token": token_payload["access_token"],
+        "token_type": token_payload["token_type"],
+    }
 
 
 @router.post(
@@ -258,7 +317,20 @@ async def login(user_in: UserLogin):
 )
 async def token_login(form_data: OAuth2PasswordRequestForm = Depends()):
     # Swagger OAuth2 password flow sends "username"; in this API it is the account email.
-    return await _issue_access_token(email=form_data.username, password=form_data.password)
+    token_payload = await _issue_access_token(email=form_data.username, password=form_data.password)
+    return {
+        "access_token": token_payload["access_token"],
+        "token_type": token_payload["token_type"],
+    }
+
+
+@router.post("/logout")
+async def logout(request: Request, response: Response):
+    session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if session_id:
+        await session_collection.delete_one({"_id": session_id})
+    _clear_session_cookie(response)
+    return {"message": "Logged out"}
 
 
 @router.post("/email-otp", response_model=OtpSendResponse)

@@ -31,7 +31,7 @@ async function request<T>(
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    return fetch(resolveUrl(path), { ...options, headers });
+    return fetch(resolveUrl(path), { ...options, headers, credentials: 'include' });
   };
 
   const initialToken = options.authToken ?? getToken();
@@ -72,7 +72,7 @@ async function requestBlob(
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    return fetch(resolveUrl(path), { ...options, headers });
+    return fetch(resolveUrl(path), { ...options, headers, credentials: 'include' });
   };
 
   const initialToken = options.authToken ?? getToken();

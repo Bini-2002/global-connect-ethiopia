@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     RESEND_FROM_EMAIL: Optional[str] = None
     RESEND_OTP_SUBJECT: str = "Your Global Connect Ethiopia verification code"
 
+    # Session cookie auth
+    SESSION_COOKIE_NAME: str = "gce_sid"
+    SESSION_COOKIE_SECURE: bool = False
+    SESSION_COOKIE_DOMAIN: Optional[str] = None
+    SESSION_MAX_AGE_MINUTES: int = 30
+    SESSION_REMEMBER_ME_DAYS: int = 30
+
     class Config:
         # case_sensitive = False
         env_file = ".env"

@@ -191,6 +191,16 @@ export function isLoggedIn(): boolean {
 
 export function logout(): void {
   if (typeof window === 'undefined') return;
+
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+  void fetch(`${apiBase}/auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+    keepalive: true,
+  }).catch(() => {
+    // best effort cleanup; local state clearing still proceeds
+  });
+
   inMemoryToken = null;
   clearStorageTokens(localStorage);
   clearStorageTokens(sessionStorage);
@@ -221,13 +231,11 @@ export function saveAuthSession(token: string, tokenType: string, persistent = f
 
 export async function getOrganizerPortalRoute(tokenOverride?: string | null): Promise<string> {
   const token = tokenOverride ?? getToken();
-  if (!token) return '/login';
 
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/organizers/verification-status`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      credentials: 'include',
       cache: 'no-store',
     });
 
@@ -244,15 +252,13 @@ export async function getOrganizerPortalRoute(tokenOverride?: string | null): Pr
 
 export async function getVendorPortalRoute(tokenOverride?: string | null): Promise<string> {
   const token = tokenOverride ?? getToken();
-  if (!token) return '/login';
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
   try {
     const res = await fetch(`${apiBase}/vendors/verification/status`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      credentials: 'include',
       cache: 'no-store',
     });
 

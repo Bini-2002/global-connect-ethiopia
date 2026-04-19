@@ -4,9 +4,11 @@ from bson import ObjectId
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from datetime import datetime, timezone
 
 from app.core.config import settings
 from app.db.mongodb import organizer_collection
+from app.db.mongodb import session_collection
 from app.db.mongodb import user_collection
 from app.models.roles import UserRole, normalize_role
 
@@ -29,40 +31,104 @@ def _resolve_token(request: Request, token: str | None) -> str | None:
     return None
 
 
+def _normalize_expiry(expires_at) -> datetime | None:
+    if isinstance(expires_at, datetime):
+        if expires_at.tzinfo is None:
+            return expires_at.replace(tzinfo=timezone.utc)
+        return expires_at.astimezone(timezone.utc)
+    return None
+
+
+async def _get_user_from_session(request: Request) -> tuple[dict, str | None] | None:
+    session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if not session_id:
+        return None
+
+    session_doc = await session_collection.find_one({"_id": session_id})
+    if not session_doc:
+        return None
+
+    expires_at = _normalize_expiry(session_doc.get("expires_at"))
+    now = datetime.now(timezone.utc)
+    if not expires_at or now >= expires_at:
+        await session_collection.delete_one({"_id": session_id})
+        return None
+
+    raw_user_id = session_doc.get("user_id")
+    user_object_id: ObjectId | None = None
+    if isinstance(raw_user_id, ObjectId):
+        user_object_id = raw_user_id
+    elif isinstance(raw_user_id, str):
+        try:
+            user_object_id = ObjectId(raw_user_id)
+        except Exception:
+            user_object_id = None
+
+    if user_object_id is None:
+        await session_collection.delete_one({"_id": session_id})
+        return None
+
+    user = await user_collection.find_one({"_id": user_object_id})
+    if not user:
+        await session_collection.delete_one({"_id": session_id})
+        return None
+
+    return user, normalize_role(session_doc.get("role"))
+
+
 async def get_current_user(request: Request, token: str | None = Depends(oauth2_scheme)):
-    resolved_token = _resolve_token(request, token)
-    if not resolved_token:
+    session_user = await _get_user_from_session(request)
+    user: dict | None = None
+    role: str | None = None
+
+    if session_user is not None:
+        user, role = session_user
+    else:
+        resolved_token = _resolve_token(request, token)
+        if not resolved_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        try:
+            payload = jwt.decode(
+                resolved_token,
+                settings.JWT_SECRET,
+                algorithms=[settings.ALGORITHM],
+                options={"leeway": 10}
+            )
+
+            user_id: str | None = payload.get("sub") or payload.get("user_id")
+            role = normalize_role(payload.get("role"))
+
+            if user_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid authentication token",
+                )
+
+            user = await user_collection.find_one({"_id": ObjectId(user_id)})
+
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User not found",
+                )
+        except JWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+            )
+
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
     try:
-        payload = jwt.decode(
-            resolved_token,
-            settings.JWT_SECRET,
-            algorithms=[settings.ALGORITHM],
-            options={"leeway": 10}
-        )
-
-        user_id: str | None = payload.get("sub") or payload.get("user_id")
-        role: str | None = normalize_role(payload.get("role"))
-
-        if user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication token",
-            )
-
-        user = await user_collection.find_one({"_id": ObjectId(user_id)})
-
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-            )
-
         if not user.get("is_active", True) and role == UserRole.ORGANIZER.value:
             organizer_profile = await organizer_collection.find_one({"user_id": user["_id"]})
             is_approved = (
@@ -90,12 +156,8 @@ async def get_current_user(request: Request, token: str | None = Depends(oauth2_
             role = normalize_role(user.get("role"))
         user["role"] = role
         return user
-
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-        )
+    except HTTPException:
+        raise
 
 
 class RoleChecker:

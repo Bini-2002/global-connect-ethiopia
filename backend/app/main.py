@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.api import api_router
+from app.db.mongodb import session_collection
 from app.services.marketplace_indexes import ensure_marketplace_indexes
 from app.services.review_offices import ensure_mock_office_accounts
 
@@ -23,6 +24,7 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.on_event("startup")
 async def startup_event() -> None:
+    await session_collection.create_index("expires_at", expireAfterSeconds=0)
     await ensure_marketplace_indexes()
     await ensure_mock_office_accounts()
 
