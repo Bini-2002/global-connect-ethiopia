@@ -47,12 +47,12 @@ def _police_match_clauses(current_user: dict) -> list[dict]:
     return clauses
 
 
+@router.get("", response_model=List[ProposalResponse], include_in_schema=False)
 @router.get("/", response_model=List[ProposalResponse])
 async def list_allowed_events(current_user: dict = Depends(allow_police)):
     """
     List approved events assigned to the current police office for notification.
     """
-    current_user_id = _current_user_id(current_user)
     cursor = proposal_collection.find(
         {
             "status": ProposalStatus.APPROVED,
@@ -71,7 +71,6 @@ async def get_allowed_event_detail(
     """
     Get detailed information about an allowed event.
     """
-    current_user_id = _current_user_id(current_user)
     proposal = await proposal_collection.find_one({
         "_id": ObjectId(proposal_id),
         "status": ProposalStatus.APPROVED,
