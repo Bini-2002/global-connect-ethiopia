@@ -139,11 +139,23 @@ export function getToken(): string | null {
 
   const candidates = getStoredTokenCandidates();
   const usableToken = candidates.find((token) => isTokenUsable(token));
-  const fallbackToken = candidates[0] ?? null;
-  const resolvedToken = usableToken ?? fallbackToken;
 
-  inMemoryToken = resolvedToken;
-  return resolvedToken;
+  if (usableToken) {
+    inMemoryToken = usableToken;
+    return usableToken;
+  }
+
+  if (candidates.length > 0) {
+    clearStorageTokens(localStorage);
+    clearStorageTokens(sessionStorage);
+    clearCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY);
+    clearCookieValue(ACCESS_TOKEN_KEY);
+    clearCookieValue(STORAGE_KEY + TOKEN_TYPE_KEY);
+    clearCookieValue(TOKEN_TYPE_KEY);
+  }
+
+  inMemoryToken = null;
+  return null;
 }
 
 export async function waitForToken(
