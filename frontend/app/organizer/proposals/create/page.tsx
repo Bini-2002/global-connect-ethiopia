@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ArrowLeft, X } from "lucide-react";
 import DashboardHeader from "@/components/DashboardHeader";
 import Sidebar from "@/components/Sidebar";
 import AIModal from "@/components/organizer/AIModal";
 import { api } from "@/app/lib/api";
-import { getToken, waitForToken } from "@/app/lib/auth";
+import { getOrganizerPortalRoute } from "@/app/lib/auth";
 import {
   appendProposalFields,
   buildSessionProposalData,
@@ -63,16 +62,17 @@ export default function CreateProposalPage() {
 
     const loadReviewTargets = async () => {
       try {
-        const token = (await waitForToken(2500, 100)) ?? getToken();
-        if (!token || !isActive) {
-          if (isActive) {
-            setReviewTargetsError("Your session expired. Please log in again.");
-            setTimeout(() => router.replace('/login'), 500);
-          }
+        const organizerRoute = await getOrganizerPortalRoute();
+        if (!isActive) {
           return;
         }
 
-        const data = await api.get<ReviewTargetsResponse>('/offices/review-targets', { authToken: token });
+        if (organizerRoute !== "/organizer/dashboard") {
+          router.replace(organizerRoute);
+          return;
+        }
+
+        const data = await api.get<ReviewTargetsResponse>('/offices/review-targets');
         if (!isActive) {
           return;
         }
@@ -98,6 +98,11 @@ export default function CreateProposalPage() {
         }
       } catch (err) {
         if (!isActive) {
+          return;
+        }
+
+        if (err instanceof Error && err.message === "Not authenticated") {
+          router.replace('/login');
           return;
         }
 
@@ -145,7 +150,7 @@ export default function CreateProposalPage() {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -201,7 +206,7 @@ export default function CreateProposalPage() {
       if (fileInput) fileInput.value = '';
 
       router.push('/organizer/proposal-review');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error saving proposal:", err);
       setError("Failed to save proposal. Please try again.");
     } finally {
@@ -239,9 +244,14 @@ export default function CreateProposalPage() {
         setToast(null);
         router.push(redirectTo);
       }, 1500);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message === "Not authenticated") {
+        router.replace('/login');
+        return;
+      }
+
       console.error("Error saving draft:", err);
-      setToast({ message: err?.message || 'Failed to save draft', type: 'error' });
+      setToast({ message: err instanceof Error ? err.message : 'Failed to save draft', type: 'error' });
       setTimeout(() => setToast(null), 3000);
     } finally {
       setLoading(false);

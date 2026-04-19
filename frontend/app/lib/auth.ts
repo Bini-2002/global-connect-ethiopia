@@ -67,6 +67,12 @@ export function decodeToken(token: string): JWTPayload | null {
 const STORAGE_KEY = 'gce_';
 const ACCESS_TOKEN_KEY = 'access_token';
 const TOKEN_TYPE_KEY = 'token_type';
+const SESSION_HINT_KEY = 'session_active';
+
+function hasSessionHint(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean(sessionStorage.getItem(STORAGE_KEY + SESSION_HINT_KEY) || localStorage.getItem(STORAGE_KEY + SESSION_HINT_KEY));
+}
 
 function getCookieValue(name: string): string | null {
   if (typeof document === 'undefined') return null;
@@ -183,9 +189,9 @@ export function getRole(): string | null {
 
 export function isLoggedIn(): boolean {
   const token = getToken();
-  if (!token) return false;
+  if (!token) return hasSessionHint();
   const payload = decodeToken(token);
-  if (!payload) return false;
+  if (!payload) return hasSessionHint();
   return Date.now() / 1000 < payload.exp;
 }
 
@@ -204,6 +210,8 @@ export function logout(): void {
   inMemoryToken = null;
   clearStorageTokens(localStorage);
   clearStorageTokens(sessionStorage);
+  localStorage.removeItem(STORAGE_KEY + SESSION_HINT_KEY);
+  sessionStorage.removeItem(STORAGE_KEY + SESSION_HINT_KEY);
   clearCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY);
   clearCookieValue(ACCESS_TOKEN_KEY);
   clearCookieValue(STORAGE_KEY + TOKEN_TYPE_KEY);
@@ -222,6 +230,7 @@ export function saveAuthSession(token: string, tokenType: string, persistent = f
 
   const storage = persistent ? localStorage : sessionStorage;
   setStorageTokens(storage, token, tokenType);
+  storage.setItem(STORAGE_KEY + SESSION_HINT_KEY, '1');
   setCookieValue(STORAGE_KEY + ACCESS_TOKEN_KEY, token, persistent);
   setCookieValue(ACCESS_TOKEN_KEY, token, persistent);
   setCookieValue(STORAGE_KEY + TOKEN_TYPE_KEY, tokenType, persistent);

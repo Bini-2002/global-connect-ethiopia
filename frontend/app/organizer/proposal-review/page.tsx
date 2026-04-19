@@ -6,7 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import Link from "next/link";
 import { api } from "@/app/lib/api";
-import { waitForToken } from "@/app/lib/auth";
+import { getOrganizerPortalRoute } from "@/app/lib/auth";
 import {
   appendProposalFields,
   base64ToFile,
@@ -36,16 +36,30 @@ export default function ProposalReview() {
 
     const loadReviewTargets = async () => {
       try {
-        const token = await waitForToken();
-        if (!token || !isActive) {
+        const organizerRoute = await getOrganizerPortalRoute();
+        if (!isActive) {
           return;
         }
 
-        const data = await api.get<ReviewTargetsResponse>('/offices/review-targets', { authToken: token });
+        if (organizerRoute !== "/organizer/dashboard") {
+          router.replace(organizerRoute);
+          return;
+        }
+
+        const data = await api.get<ReviewTargetsResponse>('/offices/review-targets');
         if (isActive) {
           setReviewTargets(data);
         }
       } catch (err) {
+        if (!isActive) {
+          return;
+        }
+
+        if (err instanceof Error && err.message === "Not authenticated") {
+          router.replace('/login');
+          return;
+        }
+
         if (isActive) {
           console.error('Error loading review offices:', err);
         }
@@ -62,7 +76,7 @@ export default function ProposalReview() {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [router]);
 
   const handleEdit = () => {
     if (proposal) {
@@ -98,6 +112,11 @@ export default function ProposalReview() {
       });
       router.push('/organizer/proposals');
     } catch (error) {
+      if (error instanceof Error && error.message === "Not authenticated") {
+        router.replace('/login');
+        return;
+      }
+
       console.error('Error saving draft:', error);
       setError(error instanceof Error ? error.message : 'Failed to save draft. Please try again.');
     } finally {
@@ -134,6 +153,11 @@ export default function ProposalReview() {
         router.push('/organizer/proposals');
       }, 2000);
     } catch (error) {
+      if (error instanceof Error && error.message === "Not authenticated") {
+        router.replace('/login');
+        return;
+      }
+
       console.error('Error submitting proposal:', error);
       setError(error instanceof Error ? error.message : 'Failed to submit proposal. Please try again.');
     } finally {

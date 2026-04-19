@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
-import { getToken, isLoggedIn, waitForToken } from "@/app/lib/auth";
+import { getOrganizerPortalRoute } from "@/app/lib/auth";
 import { eventsService } from "@/app/services/eventsService";
 import { PastEvent, EventStats } from "@/app/types/event";
 import { 
@@ -34,37 +34,75 @@ export default function CreateEventPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isActive = true;
+
     const fetchData = async () => {
       try {
-        if (!isLoggedIn()) {
+        const organizerRoute = await getOrganizerPortalRoute();
+        if (!isActive) {
+          return;
+        }
+
+        if (organizerRoute !== "/organizer/dashboard") {
+          router.replace(organizerRoute);
+          return;
+        }
+
+        const [eventsResult, statsResult] = await Promise.allSettled([
+          eventsService.getPastEvents(),
+          eventsService.getEventStats(),
+        ]);
+
+        if (!isActive) {
+          return;
+        }
+
+        const authFailure = [eventsResult, statsResult].find(
+          (result): result is PromiseRejectedResult =>
+            result.status === "rejected" &&
+            result.reason instanceof Error &&
+            result.reason.message === "Not authenticated"
+        );
+
+        if (authFailure) {
           router.replace("/login");
           return;
         }
 
-        const authToken = (await waitForToken(2500, 100)) ?? getToken();
-        if (!authToken) {
-          router.replace('/login');
+        if (eventsResult.status === "fulfilled") {
+          setPastEvents(eventsResult.value);
+        } else {
+          console.error("Error loading past events:", eventsResult.reason);
+        }
+
+        if (statsResult.status === "fulfilled") {
+          setStats(statsResult.value);
+        } else {
+          console.error("Error loading event stats:", statsResult.reason);
+        }
+      } catch (err) {
+        if (!isActive) {
           return;
         }
 
-        const [eventsData, statsData] = await Promise.all([
-          eventsService.getPastEvents(authToken),
-          eventsService.getEventStats(authToken),
-        ]);
-        setPastEvents(eventsData);
-        setStats(statsData);
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        if (err instanceof Error && err.message === 'Not authenticated') {
-          router.replace('/login');
+        if (err instanceof Error && err.message === "Not authenticated") {
+          router.replace("/login");
           return;
         }
+
+        console.error("Error preparing create event page:", err);
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchData();
+    void fetchData();
+
+    return () => {
+      isActive = false;
+    };
   }, [router]);
 
   return (
@@ -101,7 +139,7 @@ export default function CreateEventPage() {
           {/* Quick Start Options */}
           <div className="mb-8">
             <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-[#062E22] mb-6">Let's Get Started</h2>
+              <h2 className="text-xl font-bold text-[#062E22] mb-6">Let&apos;s Get Started</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <QuickStartCard 
                   icon={<Plus className="w-6 h-6" />}
@@ -325,7 +363,15 @@ export default function CreateEventPage() {
 }
 
 // Components
-function QuickStartCard({ icon, iconBg, title, description, href }: any) {
+interface QuickStartCardProps {
+  icon: ReactNode;
+  iconBg: string;
+  title: string;
+  description: string;
+  href: string;
+}
+
+function QuickStartCard({ icon, iconBg, title, description, href }: QuickStartCardProps) {
   return (
     <Link href={href}>
       <div className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-[#062E22] hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer group h-full">
@@ -339,7 +385,13 @@ function QuickStartCard({ icon, iconBg, title, description, href }: any) {
   );
 }
 
-function StepItem({ number, title, description }: any) {
+interface StepItemProps {
+  number: number;
+  title: string;
+  description: string;
+}
+
+function StepItem({ number, title, description }: StepItemProps) {
   return (
     <div className="flex gap-3 items-start p-2 rounded-xl hover:bg-gray-50 transition-colors">
       <div className="flex-shrink-0 w-6 h-6 bg-[#062E22] text-white rounded-full flex items-center justify-center font-semibold text-xs">
@@ -353,7 +405,12 @@ function StepItem({ number, title, description }: any) {
   );
 }
 
-function CloneItem({ title, date }: any) {
+interface CloneItemProps {
+  title: string;
+  date: string;
+}
+
+function CloneItem({ title, date }: CloneItemProps) {
   return (
     <div className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-[#062E22]/30 hover:bg-green-50/50 transition-all cursor-pointer group">
       <div>
@@ -367,7 +424,13 @@ function CloneItem({ title, date }: any) {
   );
 }
 
-function TemplateCard({ icon, title, color }: any) {
+interface TemplateCardProps {
+  icon: ReactNode;
+  title: string;
+  color: string;
+}
+
+function TemplateCard({ icon, title, color }: TemplateCardProps) {
   return (
     <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all ${color} border border-transparent hover:border-current/20`}>
       <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
@@ -378,7 +441,13 @@ function TemplateCard({ icon, title, color }: any) {
   );
 }
 
-function ResourceLink({ icon, title, href }: any) {
+interface ResourceLinkProps {
+  icon: ReactNode;
+  title: string;
+  href: string;
+}
+
+function ResourceLink({ icon, title, href }: ResourceLinkProps) {
   return (
     <li>
       <a 
@@ -392,7 +461,11 @@ function ResourceLink({ icon, title, href }: any) {
   );
 }
 
-function TipItem({ text }: any) {
+interface TipItemProps {
+  text: string;
+}
+
+function TipItem({ text }: TipItemProps) {
   return (
     <li className="flex items-start gap-2 text-sm text-gray-600">
       <span className="text-[#EC5B13] mt-0.5">•</span>
