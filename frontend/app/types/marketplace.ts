@@ -1,3 +1,11 @@
+export type RequestStatus = 'REQUESTED' | 'QUOTED' | 'NEGOTIATING' | 'ACCEPTED';
+export type NegotiationMessageType = 'QUOTE' | 'COUNTER';
+export type ContractStatus = 'AGREED' | 'FUNDED' | 'COMPLETED' | 'PAID';
+export type EscrowStatus = 'NONE' | 'LOCKED' | 'RELEASED';
+export type PaymentStatus = 'PENDING' | 'PAID';
+export type TransactionType = 'DEPOSIT' | 'ESCROW_LOCK' | 'RELEASE' | 'REFUND' | 'COMMISSION';
+export type TransactionStatus = 'SUCCESS';
+
 export interface ServiceImageAsset {
   url: string;
   storage_key?: string | null;
@@ -71,74 +79,6 @@ export interface VendorPortalSummary {
   }>;
 }
 
-export interface RequestMessageSummary {
-  sender_id: string;
-  sender_role: string;
-  sender_name?: string | null;
-  body: string;
-  message_type: string;
-  created_at: string;
-}
-
-export interface VendorRequestRecord {
-  id: string;
-  proposal_id?: string | null;
-  event_id?: string | null;
-  event_title?: string | null;
-  service_id: string;
-  organizer_id: string;
-  vendor_id: string;
-  vendor_user_id: string;
-  proposal_title?: string | null;
-  service_title?: string | null;
-  organizer_name?: string | null;
-  vendor_name?: string | null;
-  status: string;
-  message: string;
-  proposed_amount?: number | null;
-  agreed_amount?: number | null;
-  currency: string;
-  event_date?: string | null;
-  requirements?: string | null;
-  decision_message?: string | null;
-  messages: RequestMessageSummary[];
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ContractPartySignature {
-  signed: boolean;
-  user_id?: string | null;
-  name?: string | null;
-  signed_at?: string | null;
-}
-
-export interface VendorContractRecord {
-  id: string;
-  request_id: string;
-  proposal_id?: string | null;
-  event_id?: string | null;
-  service_id: string;
-  organizer_id: string;
-  vendor_id: string;
-  vendor_user_id: string;
-  title: string;
-  scope: string;
-  amount: number;
-  currency: string;
-  terms?: string | null;
-  status: string;
-  payment_status?: string | null;
-  start_date?: string | null;
-  end_date?: string | null;
-  organizer_signature: ContractPartySignature;
-  vendor_signature: ContractPartySignature;
-  created_at: string;
-  updated_at: string;
-  signed_at?: string | null;
-  completed_at?: string | null;
-}
-
 export interface VendorServiceCreatePayload {
   title: string;
   description: string;
@@ -152,7 +92,87 @@ export interface VendorServiceCreatePayload {
   availability?: string;
 }
 
-export interface RequestDecisionPayload {
+export interface MarketplaceVendorRecord {
+  id: string;
+  user_id: string;
+  business_name: string;
+  services: string[];
+  is_verified: boolean;
+  rating: number;
+  created_at: string;
+}
+
+export interface NegotiationMessageRecord {
+  sender_id: string;
+  type: NegotiationMessageType;
+  amount: number;
+  message?: string | null;
+  timestamp: string;
+}
+
+export interface MarketplaceRequestRecord {
+  id: string;
+  organizer_id: string;
+  vendor_id: string;
+  event_id?: string | null;
+  description: string;
+  status: RequestStatus;
+  messages: NegotiationMessageRecord[];
+  current_amount?: number | null;
+  organizer_name?: string | null;
+  vendor_business_name?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MarketplaceContractRecord {
+  id: string;
+  request_id: string;
+  organizer_id: string;
+  vendor_id: string;
+  price: number;
+  status: ContractStatus;
+  escrow_status: EscrowStatus;
+  payment_status: PaymentStatus;
+  organizer_name?: string | null;
+  vendor_business_name?: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+  funded_at?: string | null;
+  paid_at?: string | null;
+}
+
+export interface WalletRecord {
+  id: string;
+  user_id: string;
+  balance: number;
+  locked_balance: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WalletTransactionRecord {
+  id: string;
+  user_id: string;
+  type: TransactionType;
+  amount: number;
+  reference_id?: string | null;
+  status: TransactionStatus;
+  created_at: string;
+}
+
+export interface CreateMarketplaceRequestPayload {
+  vendor_id: string;
+  event_id?: string | null;
+  description: string;
+}
+
+export interface NegotiationActionPayload {
+  amount: number;
   message?: string;
-  final_amount?: number;
+}
+
+export interface WalletDepositPayload {
+  amount: number;
 }
