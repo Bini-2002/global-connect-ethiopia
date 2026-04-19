@@ -1,0 +1,74 @@
+'use client';
+
+import { useState } from 'react';
+
+import DashboardHeader from '@/components/DashboardHeader';
+import Sidebar from '@/components/Sidebar';
+import ContractCard from '@/components/marketplace/ContractCard';
+import { useMarketplaceContracts } from '@/app/hooks/useMarketplace';
+
+export default function OrganizerContractsPage() {
+  const { data: contracts, error, loading } = useMarketplaceContracts();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredContracts = contracts.filter((contract) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return true;
+    }
+
+    return [contract.vendor_business_name, contract.status, contract.request_id]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
+  });
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Sidebar role="organizer" />
+      <DashboardHeader
+        searchPlaceholder="Search contracts..."
+        onSearch={setSearchQuery}
+        actionHref="/organizer/wallet"
+        actionLabel="Open Wallet"
+      />
+
+      <main className="pt-16 md:ml-60 p-6">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#0a4a37]">Contracts</p>
+            <h1 className="mt-2 text-3xl font-bold text-[#062E22]">Move accepted deals through escrow and payment.</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-500">
+              Fund agreed contracts from the organizer wallet, wait for completion, then release payment to close the engagement cleanly.
+            </p>
+          </div>
+
+          {error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+          ) : null}
+
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#062E22] border-t-transparent" />
+            </div>
+          ) : filteredContracts.length === 0 ? (
+            <div className="rounded-[32px] border border-dashed border-slate-200 bg-white p-10 text-center shadow-sm">
+              <h2 className="text-2xl font-bold text-[#062E22]">No contracts yet</h2>
+              <p className="mt-2 text-sm text-slate-500">Accepted requests will appear here once you convert them into contracts.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredContracts.map((contract) => (
+                <ContractCard
+                  key={contract.id}
+                  contract={contract}
+                  href={`/organizer/contracts/${contract.id}`}
+                  role="organizer"
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}

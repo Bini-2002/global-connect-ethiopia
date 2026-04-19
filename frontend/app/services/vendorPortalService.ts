@@ -1,9 +1,6 @@
 import { api } from '../lib/api';
 import {
-  RequestDecisionPayload,
-  VendorContractRecord,
   VendorPortalSummary,
-  VendorRequestRecord,
   VendorServiceCreatePayload,
   VendorServiceRecord,
 } from '../types/marketplace';
@@ -44,49 +41,6 @@ export const vendorPortalService = {
 
   createService: async (payload: VendorServiceCreatePayload): Promise<VendorServiceRecord> => {
     return api.post<VendorServiceRecord>('/vendors/services', buildServiceFormData(payload));
-  },
-
-  getRequests: async (): Promise<VendorRequestRecord[]> => {
-    return api.get<VendorRequestRecord[]>('/requests/vendor');
-  },
-
-  getRequestById: async (requestId: string): Promise<VendorRequestRecord> => {
-    return api.get<VendorRequestRecord>(`/requests/${requestId}`);
-  },
-
-  counterOfferRequest: async (
-    requestId: string,
-    payload: RequestDecisionPayload
-  ): Promise<VendorRequestRecord> => {
-    return api.post<VendorRequestRecord>(`/requests/${requestId}/counter-offer`, payload);
-  },
-
-  acceptRequest: async (
-    requestId: string,
-    payload?: RequestDecisionPayload
-  ): Promise<VendorRequestRecord> => {
-    return api.post<VendorRequestRecord>(`/requests/${requestId}/accept`, payload);
-  },
-
-  rejectRequest: async (requestId: string): Promise<VendorRequestRecord> => {
-    return api.post<VendorRequestRecord>(`/requests/${requestId}/reject`);
-  },
-
-  getContracts: async (): Promise<VendorContractRecord[]> => {
-    return api.get<VendorContractRecord[]>('/contracts/vendor');
-  },
-
-  getContractById: async (contractId: string): Promise<VendorContractRecord> => {
-    return api.get<VendorContractRecord>(`/contracts/${contractId}`);
-  },
-
-  signContract: async (
-    contractId: string,
-    signatureName?: string
-  ): Promise<VendorContractRecord> => {
-    return api.post<VendorContractRecord>(`/contracts/${contractId}/sign`, {
-      signature_name: signatureName || undefined,
-    });
   },
 };
 

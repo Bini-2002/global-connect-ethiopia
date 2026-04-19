@@ -87,6 +87,9 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Dashboard', href: '/organizer/dashboard', icon: <HomeIcon className="w-5 h-5" /> },
     { label: 'My Events', href: '/organizer/events', icon: <CalendarIcon className="w-5 h-5" /> },
     { label: 'Vendors', href: '/organizer/vendors', icon: <BuildingOfficeIcon className="w-5 h-5" /> },
+    { label: 'Requests', href: '/organizer/requests', icon: icons.queue },
+    { label: 'Contracts', href: '/organizer/contracts', icon: icons.proposals },
+    { label: 'Wallet', href: '/organizer/wallet', icon: icons.vendor },
     { label: 'Attendees', href: '/organizer/attendees', icon: <UsersIcon className="w-5 h-5" /> },
     { label: 'Team', href: '/organizer/team', icon: <UserGroupIcon className="w-5 h-5" /> },
     { label: 'Government', href: '/organizer/government', icon: <ClipboardDocumentListIcon className="w-5 h-5" /> },
@@ -118,6 +121,7 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Dashboard', href: '/vendor/dashboard', icon: icons.dashboard },
     { label: 'Requests', href: '/vendor/requests', icon: icons.queue },
     { label: 'Contracts', href: '/vendor/contracts', icon: icons.proposals },
+    { label: 'Wallet', href: '/vendor/wallet', icon: icons.vendor },
     { label: 'Verification', href: '/vendor/verification', icon: icons.shield },
   ],
 };
