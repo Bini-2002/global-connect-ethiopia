@@ -1,354 +1,99 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.api.v1.deps import get_current_user
-from app.db.mongodb import event_collection, proposal_collection, request_collection, vendor_service_collection
-from app.models.roles import UserRole, to_user_role
-from app.schemas.marketplace import RequestCreate, RequestDecisionPayload, RequestResponse
-from app.services.marketplace import (
-    append_message,
-    get_user_name,
-    parse_object_id,
-    require_organizer_profile,
-    require_vendor_profile,
-    utc_now,
+from app.schemas.marketplace_mvp import (
+    MarketplaceRequestCreate,
+    MarketplaceRequestResponse,
+    RequestNegotiationCreate,
 )
+from app.services.marketplace_mvp import (
+    add_request_message,
+    create_request,
+    get_request_detail,
+    list_requests_for_user,
+)
+from app.models.marketplace import NegotiationMessageType
 
 router = APIRouter()
 
 
-def _serialize_request(document: dict) -> dict:
-    return {
-        "id": str(document["_id"]),
-        "proposal_id": document.get("proposal_id"),
-        "event_id": document.get("event_id"),
-        "service_id": document["service_id"],
-        "organizer_id": document["organizer_id"],
-        "vendor_id": document["vendor_id"],
-        "vendor_user_id": document["vendor_user_id"],
-        "proposal_title": document.get("proposal_title"),
-        "event_title": document.get("event_title"),
-        "service_title": document.get("service_title"),
-        "organizer_name": document.get("organizer_name"),
-        "vendor_name": document.get("vendor_name"),
-        "status": document["status"],
-        "message": document["message"],
-        "proposed_amount": document.get("proposed_amount"),
-        "agreed_amount": document.get("agreed_amount"),
-        "currency": document.get("currency", "ETB"),
-        "event_date": document.get("event_date"),
-        "requirements": document.get("requirements"),
-        "decision_message": document.get("decision_message"),
-        "messages": document.get("messages", []),
-        "created_at": document["created_at"],
-        "updated_at": document["updated_at"],
-    }
-
-
-@router.post("", response_model=RequestResponse, status_code=201)
-@router.post("/", response_model=RequestResponse, status_code=201)
-async def create_request(payload: RequestCreate, current_user: dict = Depends(get_current_user)):
-    await require_organizer_profile(current_user)
-
-    service = await vendor_service_collection.find_one({"_id": parse_object_id(payload.service_id, field_name="service id")})
-    if not service or not service.get("is_active", True):
-        raise HTTPException(status_code=404, detail="Service not found")
-
-    proposal_id = payload.proposal_id
-    if proposal_id:
-        proposal = await proposal_collection.find_one({"_id": parse_object_id(proposal_id, field_name="proposal id")})
-        if not proposal:
-            raise HTTPException(status_code=404, detail="Proposal not found")
-        if proposal.get("organizer_id") != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Proposal does not belong to the current organizer")
-        if str(proposal.get("status")) != "approved":
-            raise HTTPException(status_code=400, detail="Organizer proposal must be approved before sending a vendor request")
-    event_id = payload.event_id
-    if event_id:
-        event = await event_collection.find_one({"_id": parse_object_id(event_id, field_name="event id")})
-        if not event:
-            raise HTTPException(status_code=404, detail="Event not found")
-        if event.get("organizer_id") != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Event does not belong to the current organizer")
-        if not proposal_id and event.get("proposal_id"):
-            proposal_id = event.get("proposal_id")
-        if proposal_id and event.get("proposal_id") and event.get("proposal_id") != proposal_id:
-            raise HTTPException(status_code=400, detail="The selected event does not match the provided proposal")
-
-    organizer_name = await get_user_name(current_user["id"])
-    vendor_name = await get_user_name(service["vendor_user_id"])
-    proposal_title = None
-    event_title = None
-    if proposal_id:
-        proposal_title = (proposal or {}).get("title") if "proposal" in locals() else None
-    if event_id:
-        event_title = (event or {}).get("title") if "event" in locals() else None
-
-    offered_amount = payload.offered_amount if payload.offered_amount is not None else payload.proposed_amount
-
-    now = utc_now()
-    first_message = {
-        "sender_id": current_user["id"],
-        "sender_role": UserRole.ORGANIZER.value,
-        "sender_name": organizer_name,
-        "body": payload.message,
-        "message_type": "request",
-        "created_at": now,
-    }
-
-    document = {
-        "proposal_id": proposal_id,
-        "event_id": event_id,
-        "service_id": payload.service_id,
-        "organizer_id": current_user["id"],
-        "vendor_id": service["vendor_id"],
-        "vendor_user_id": service["vendor_user_id"],
-        "proposal_title": proposal_title,
-        "event_title": event_title,
-        "service_title": service.get("title"),
-        "organizer_name": organizer_name,
-        "vendor_name": vendor_name,
-        "status": "pending",
-        "message": payload.message,
-        "proposed_amount": offered_amount,
-        "agreed_amount": None,
-        "currency": payload.currency,
-        "event_date": payload.event_date,
-        "requirements": payload.requirements,
-        "decision_message": None,
-        "messages": [first_message],
-        "created_at": now,
-        "updated_at": now,
-    }
-    result = await request_collection.insert_one(document)
-    document["_id"] = result.inserted_id
-
-    await append_message(
-        entity_type="request",
-        entity_id=str(result.inserted_id),
-        sender_id=current_user["id"],
-        sender_role=UserRole.ORGANIZER.value,
-        sender_name=organizer_name,
-        body=payload.message,
-        message_type="request",
-        metadata={"service_id": payload.service_id, "event_id": event_id, "proposal_id": proposal_id},
+@router.post("", response_model=MarketplaceRequestResponse, status_code=201)
+@router.post("/", response_model=MarketplaceRequestResponse, status_code=201)
+async def create_marketplace_request(
+    payload: MarketplaceRequestCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    return await create_request(
+        current_user,
+        vendor_id=payload.vendor_id,
+        event_id=payload.event_id,
+        description=payload.description,
     )
 
-    return _serialize_request(document)
+
+@router.get("", response_model=list[MarketplaceRequestResponse])
+@router.get("/", response_model=list[MarketplaceRequestResponse])
+async def list_marketplace_requests(current_user: dict = Depends(get_current_user)):
+    return await list_requests_for_user(current_user)
 
 
-@router.get("/vendor", response_model=list[RequestResponse])
+@router.get("/vendor", response_model=list[MarketplaceRequestResponse])
 async def list_vendor_requests(current_user: dict = Depends(get_current_user)):
-    await require_vendor_profile(current_user)
-    cursor = request_collection.find({"vendor_user_id": current_user["id"]}, sort=[("created_at", -1)])
-    items = await cursor.to_list(length=300)
-    return [_serialize_request(item) for item in items]
+    return await list_requests_for_user(current_user)
 
 
-@router.get("/organizer", response_model=list[RequestResponse])
+@router.get("/organizer", response_model=list[MarketplaceRequestResponse])
 async def list_organizer_requests(current_user: dict = Depends(get_current_user)):
-    await require_organizer_profile(current_user)
-    cursor = request_collection.find({"organizer_id": current_user["id"]}, sort=[("created_at", -1)])
-    items = await cursor.to_list(length=300)
-    return [_serialize_request(item) for item in items]
+    return await list_requests_for_user(current_user)
 
 
-@router.get("/{request_id}", response_model=RequestResponse)
-async def get_request_detail(request_id: str, current_user: dict = Depends(get_current_user)):
-    request_doc = await request_collection.find_one({"_id": parse_object_id(request_id, field_name="request id")})
-    if not request_doc:
-        raise HTTPException(status_code=404, detail="Request not found")
-
-    role = to_user_role(current_user.get("role"))
-    allowed = {
-        request_doc.get("organizer_id"),
-        request_doc.get("vendor_user_id"),
-    }
-    if role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN} and current_user["id"] not in allowed:
-        raise HTTPException(status_code=403, detail="You are not allowed to access this request")
-    return _serialize_request(request_doc)
+@router.get("/{request_id}", response_model=MarketplaceRequestResponse)
+async def get_marketplace_request(request_id: str, current_user: dict = Depends(get_current_user)):
+    return await get_request_detail(request_id, current_user)
 
 
-@router.post("/{request_id}/counter-offer", response_model=RequestResponse)
+@router.post("/{request_id}/quote", response_model=MarketplaceRequestResponse)
+async def quote_request(
+    request_id: str,
+    payload: RequestNegotiationCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    return await add_request_message(
+        request_id,
+        current_user=current_user,
+        message_type=NegotiationMessageType.QUOTE,
+        amount=payload.amount,
+        message=payload.message,
+    )
+
+
+@router.post("/{request_id}/counter", response_model=MarketplaceRequestResponse)
+async def counter_request(
+    request_id: str,
+    payload: RequestNegotiationCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    return await add_request_message(
+        request_id,
+        current_user=current_user,
+        message_type=NegotiationMessageType.COUNTER,
+        amount=payload.amount,
+        message=payload.message,
+    )
+
+
+@router.post("/{request_id}/counter-offer", response_model=MarketplaceRequestResponse)
 async def counter_offer_request(
     request_id: str,
-    payload: RequestDecisionPayload,
+    payload: RequestNegotiationCreate,
     current_user: dict = Depends(get_current_user),
 ):
-    role = to_user_role(current_user.get("role"))
-    if role not in {UserRole.VENDOR, UserRole.ORGANIZER}:
-        raise HTTPException(status_code=403, detail="Only vendors or organizers can negotiate a request")
-
-    request_doc = await request_collection.find_one({"_id": parse_object_id(request_id, field_name="request id")})
-    if not request_doc:
-        raise HTTPException(status_code=404, detail="Request not found")
-    if role == UserRole.VENDOR and request_doc.get("vendor_user_id") != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Only the targeted vendor can negotiate this request")
-    if role == UserRole.ORGANIZER and request_doc.get("organizer_id") != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Only the organizer who created the request can negotiate it")
-    if request_doc.get("status") not in {"pending", "negotiating"}:
-        raise HTTPException(status_code=400, detail="Only pending or negotiating requests can be updated")
-
-    actor_name = await get_user_name(current_user["id"])
-    now = utc_now()
-    next_amount = payload.final_amount if payload.final_amount is not None else request_doc.get("proposed_amount")
-    body = payload.message or "Counter-offer submitted."
-    await request_collection.update_one(
-        {"_id": request_doc["_id"]},
-        {
-            "$set": {
-                "status": "negotiating",
-                "proposed_amount": next_amount,
-                "decision_message": body,
-                "updated_at": now,
-            },
-            "$push": {
-                "messages": {
-                    "sender_id": current_user["id"],
-                    "sender_role": role.value,
-                    "sender_name": actor_name,
-                    "body": body,
-                    "message_type": "counter_offer",
-                    "created_at": now,
-                }
-            },
-        },
+    return await add_request_message(
+        request_id,
+        current_user=current_user,
+        message_type=NegotiationMessageType.COUNTER,
+        amount=payload.amount,
+        message=payload.message,
     )
-
-    await append_message(
-        entity_type="request",
-        entity_id=str(request_doc["_id"]),
-        sender_id=current_user["id"],
-        sender_role=role.value,
-        sender_name=actor_name,
-        body=body,
-        message_type="counter_offer",
-        metadata={"final_amount": next_amount},
-    )
-
-    updated = await request_collection.find_one({"_id": request_doc["_id"]})
-    if not updated:
-        raise HTTPException(status_code=404, detail="Request not found")
-    return _serialize_request(updated)
-
-
-@router.post("/{request_id}/accept", response_model=RequestResponse)
-async def accept_request(
-    request_id: str,
-    payload: RequestDecisionPayload | None = None,
-    current_user: dict = Depends(get_current_user),
-):
-    role = to_user_role(current_user.get("role"))
-    if role not in {UserRole.VENDOR, UserRole.ORGANIZER}:
-        raise HTTPException(status_code=403, detail="Only vendors or organizers can accept a request")
-
-    request_doc = await request_collection.find_one({"_id": parse_object_id(request_id, field_name="request id")})
-    if not request_doc:
-        raise HTTPException(status_code=404, detail="Request not found")
-    if role == UserRole.VENDOR and request_doc.get("vendor_user_id") != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Only the targeted vendor can accept this request")
-    if role == UserRole.ORGANIZER and request_doc.get("organizer_id") != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Only the organizer who created the request can accept this request")
-    if request_doc.get("status") not in {"pending", "negotiating"}:
-        raise HTTPException(status_code=400, detail="Only pending or negotiating requests can be accepted")
-
-    actor_name = await get_user_name(current_user["id"])
-    now = utc_now()
-    agreed_amount = payload.final_amount if payload and payload.final_amount is not None else request_doc.get("proposed_amount")
-    decision_message = payload.message if payload and payload.message else "Request accepted."
-    await request_collection.update_one(
-        {"_id": request_doc["_id"]},
-        {
-            "$set": {
-                "status": "accepted",
-                "agreed_amount": agreed_amount,
-                "decision_message": decision_message,
-                "updated_at": now,
-                "vendor_name": request_doc.get("vendor_name") if role == UserRole.ORGANIZER else actor_name,
-                "organizer_name": request_doc.get("organizer_name") if role == UserRole.VENDOR else actor_name,
-            },
-            "$push": {
-                "messages": {
-                    "sender_id": current_user["id"],
-                    "sender_role": role.value,
-                    "sender_name": actor_name,
-                    "body": decision_message,
-                    "message_type": "decision",
-                    "created_at": now,
-                }
-            },
-        },
-    )
-
-    await append_message(
-        entity_type="request",
-        entity_id=str(request_doc["_id"]),
-        sender_id=current_user["id"],
-        sender_role=role.value,
-        sender_name=actor_name,
-        body=decision_message,
-        message_type="decision",
-    )
-
-    updated = await request_collection.find_one({"_id": request_doc["_id"]})
-    if not updated:
-        raise HTTPException(status_code=404, detail="Request not found")
-    return _serialize_request(updated)
-
-
-@router.post("/{request_id}/reject", response_model=RequestResponse)
-async def reject_request(request_id: str, current_user: dict = Depends(get_current_user)):
-    role = to_user_role(current_user.get("role"))
-    if role not in {UserRole.VENDOR, UserRole.ORGANIZER}:
-        raise HTTPException(status_code=403, detail="Only vendors or organizers can reject a request")
-
-    request_doc = await request_collection.find_one({"_id": parse_object_id(request_id, field_name="request id")})
-    if not request_doc:
-        raise HTTPException(status_code=404, detail="Request not found")
-
-    if role == UserRole.VENDOR and request_doc.get("vendor_user_id") != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Only the targeted vendor can reject this request")
-    if role == UserRole.ORGANIZER and request_doc.get("organizer_id") != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Only the organizer who sent the request can reject it")
-    if request_doc.get("status") not in {"pending", "negotiating"}:
-        raise HTTPException(status_code=400, detail="Only pending or negotiating requests can be rejected")
-
-    actor_name = await get_user_name(current_user["id"])
-    now = utc_now()
-    decision_message = "Request rejected."
-    await request_collection.update_one(
-        {"_id": request_doc["_id"]},
-        {
-            "$set": {
-                "status": "rejected",
-                "decision_message": decision_message,
-                "updated_at": now,
-            },
-            "$push": {
-                "messages": {
-                    "sender_id": current_user["id"],
-                    "sender_role": role.value,
-                    "sender_name": actor_name,
-                    "body": decision_message,
-                    "message_type": "decision",
-                    "created_at": now,
-                }
-            },
-        },
-    )
-
-    await append_message(
-        entity_type="request",
-        entity_id=str(request_doc["_id"]),
-        sender_id=current_user["id"],
-        sender_role=role.value,
-        sender_name=actor_name,
-        body=decision_message,
-        message_type="decision",
-    )
-
-    updated = await request_collection.find_one({"_id": request_doc["_id"]})
-    if not updated:
-        raise HTTPException(status_code=404, detail="Request not found")
-    return _serialize_request(updated)

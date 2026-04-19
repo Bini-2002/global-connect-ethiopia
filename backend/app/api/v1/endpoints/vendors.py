@@ -8,12 +8,14 @@ from app.core.config import settings
 from app.core.queue import get_verification_queue
 from app.db.mongodb import contract_collection, request_collection, vendor_collection, vendor_service_collection, verification_job_collection
 from app.models.roles import UserRole
+from app.schemas.marketplace_mvp import VendorMarketplaceResponse
 from app.schemas.vendor import (
     VendorPortalSummaryResponse,
     VendorReviewSummaryResponse,
     VendorStatusResponse,
     VendorVerificationResponse,
 )
+from app.services.marketplace_mvp import get_vendor_detail, list_verified_vendors
 from app.services.object_storage import ObjectStorageService
 
 router = APIRouter()
@@ -377,12 +379,14 @@ async def get_vendor_portal_summary(current_user: dict = Depends(get_current_use
         {"vendor_user_id": current_user["id"]},
         sort=[("created_at", -1)],
     ).to_list(length=5)
+    request_query = {"$or": [{"vendor_user_id": current_user["id"]}, {"vendor_id": vendor["_id"]}]}
     requests = await request_collection.find(
-        {"vendor_user_id": current_user["id"]},
+        request_query,
         sort=[("created_at", -1)],
     ).to_list(length=5)
+    contract_query = {"$or": [{"vendor_user_id": current_user["id"]}, {"vendor_id": vendor["_id"]}]}
     contracts = await contract_collection.find(
-        {"vendor_user_id": current_user["id"]},
+        contract_query,
         sort=[("created_at", -1)],
     ).to_list(length=5)
 
@@ -394,9 +398,30 @@ async def get_vendor_portal_summary(current_user: dict = Depends(get_current_use
         "business_category": details.get("business_category"),
         "verification_status": vendor.get("verification_status", "not_started"),
         "services_count": await vendor_service_collection.count_documents({"vendor_user_id": current_user["id"]}),
-        "pending_requests_count": await request_collection.count_documents({"vendor_user_id": current_user["id"], "status": "pending"}),
-        "accepted_requests_count": await request_collection.count_documents({"vendor_user_id": current_user["id"], "status": "accepted"}),
-        "active_contracts_count": await contract_collection.count_documents({"vendor_user_id": current_user["id"], "status": "active"}),
+        "pending_requests_count": await request_collection.count_documents(
+            {
+                "$and": [
+                    request_query,
+                    {"status": {"$in": ["pending", "REQUESTED", "QUOTED", "NEGOTIATING"]}},
+                ]
+            }
+        ),
+        "accepted_requests_count": await request_collection.count_documents(
+            {
+                "$and": [
+                    request_query,
+                    {"status": {"$in": ["accepted", "ACCEPTED"]}},
+                ]
+            }
+        ),
+        "active_contracts_count": await contract_collection.count_documents(
+            {
+                "$and": [
+                    contract_query,
+                    {"status": {"$in": ["active", "AGREED", "FUNDED", "COMPLETED"]}},
+                ]
+            }
+        ),
         "recent_services": [
             {
                 "id": str(item["_id"]),
@@ -413,7 +438,7 @@ async def get_vendor_portal_summary(current_user: dict = Depends(get_current_use
                 "event_id": item.get("event_id"),
                 "service_title": item.get("service_title"),
                 "status": item.get("status"),
-                "proposed_amount": item.get("proposed_amount"),
+                "proposed_amount": item.get("proposed_amount") or item.get("current_amount"),
                 "created_at": item.get("created_at"),
             }
             for item in requests
@@ -424,10 +449,21 @@ async def get_vendor_portal_summary(current_user: dict = Depends(get_current_use
                 "event_id": item.get("event_id"),
                 "title": item.get("title"),
                 "status": item.get("status"),
-                "amount": float(item.get("amount", 0.0)),
+                "amount": float(item.get("amount", item.get("price", 0.0))),
                 "created_at": item.get("created_at"),
             }
             for item in contracts
         ],
     }
+
+
+@router.get("", response_model=list[VendorMarketplaceResponse])
+@router.get("/", response_model=list[VendorMarketplaceResponse])
+async def list_marketplace_vendors():
+    return await list_verified_vendors()
+
+
+@router.get("/{vendor_id}", response_model=VendorMarketplaceResponse)
+async def get_marketplace_vendor(vendor_id: str):
+    return await get_vendor_detail(vendor_id)
 
