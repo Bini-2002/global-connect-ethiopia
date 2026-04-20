@@ -5,6 +5,8 @@ from pymongo import ASCENDING, DESCENDING, TEXT
 from app.db.mongodb import (
     contract_collection,
     message_collection,
+    marketplace_opportunity_collection,
+    opportunity_proposal_collection,
     request_collection,
     transaction_collection,
     vendor_service_collection,
@@ -30,6 +32,62 @@ async def ensure_marketplace_indexes() -> None:
     await request_collection.create_index([("vendor_user_id", ASCENDING), ("status", ASCENDING), ("created_at", DESCENDING)])
     await request_collection.create_index([("organizer_id", ASCENDING), ("status", ASCENDING), ("created_at", DESCENDING)])
     await request_collection.create_index([("service_id", ASCENDING), ("proposal_id", ASCENDING)])
+
+    await marketplace_opportunity_collection.create_index([("client_user_id", ASCENDING), ("status", ASCENDING), ("created_at", DESCENDING)])
+    await marketplace_opportunity_collection.create_index([("status", ASCENDING), ("submission_deadline", ASCENDING)])
+    await marketplace_opportunity_collection.create_index(
+        [("sourcing_mode", ASCENDING), ("status", ASCENDING), ("submission_deadline", ASCENDING)]
+    )
+    await marketplace_opportunity_collection.create_index(
+        [("invited_vendor_user_ids", ASCENDING), ("status", ASCENDING), ("submission_deadline", ASCENDING)]
+    )
+    await marketplace_opportunity_collection.create_index([("event_id", ASCENDING)])
+    await marketplace_opportunity_collection.create_index(
+        [("compatibility_request_id", ASCENDING)],
+        unique=True,
+        sparse=True,
+    )
+    await marketplace_opportunity_collection.create_index(
+        [("selected_proposal_id", ASCENDING)],
+        sparse=True,
+    )
+    await marketplace_opportunity_collection.create_index(
+        [("title", TEXT), ("description", TEXT), ("category", TEXT)],
+        name="marketplace_opportunity_text_search",
+    )
+
+    await opportunity_proposal_collection.create_index(
+        [("opportunity_id", ASCENDING), ("vendor_user_id", ASCENDING)],
+        unique=True,
+    )
+    await opportunity_proposal_collection.create_index(
+        [("opportunity_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)]
+    )
+    await opportunity_proposal_collection.create_index(
+        [("vendor_user_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)]
+    )
+    await opportunity_proposal_collection.create_index(
+        [("client_user_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)]
+    )
+    await opportunity_proposal_collection.create_index(
+        [("awaiting_action_by", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)]
+    )
+    await opportunity_proposal_collection.create_index(
+        [("compatibility_request_id", ASCENDING)],
+        unique=True,
+        sparse=True,
+    )
+    await opportunity_proposal_collection.create_index(
+        [("contract_id", ASCENDING)],
+        unique=True,
+        sparse=True,
+    )
+    await opportunity_proposal_collection.create_index(
+        [("opportunity_id", ASCENDING)],
+        unique=True,
+        partialFilterExpression={"status": {"$in": ["selected", "converted"]}},
+        name="one_selected_proposal_per_opportunity",
+    )
 
     await contract_collection.create_index([("request_id", ASCENDING)], unique=True)
     await contract_collection.create_index([("organizer_id", ASCENDING), ("vendor_user_id", ASCENDING), ("status", ASCENDING)])
