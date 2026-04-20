@@ -41,6 +41,8 @@ event_final_report_collection = db.event_final_reports
 # marketplace collections
 vendor_service_collection = db.vendor_services
 request_collection = db.requests
+marketplace_opportunity_collection = db.marketplace_opportunities
+opportunity_proposal_collection = db.opportunity_proposals
 contract_collection = db.contracts
 transaction_collection = db.transactions
 wallet_collection = db.wallets
