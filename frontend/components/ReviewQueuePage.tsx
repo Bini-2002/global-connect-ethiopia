@@ -37,7 +37,7 @@ const STATUS_DOT_MAP: Record<string, string> = {
   rejected: 'bg-red-500',
 };
 const STATUS_LABEL_MAP: Record<string, string> = {
-  submitted: 'Submitted (Waiting Admin)',
+  submitted: 'Submitted (Waiting Ministry)',
   under_review: 'Under Review',
   ministry_review: 'Ministry Review',
   ministry_approved: 'Ministry Approved (Waiting Municipal)',
@@ -64,7 +64,7 @@ export function ReviewQueuePage({ role, title, subtitle, apiEndpoint, detailBase
   const pendingCount = proposals.filter(p => p.status === statusFilter).length;
 
   const statsCards = [
-    { label: 'PENDING', value: pending.toString(), icon: '📋', color: 'text-amber-600' },
+    { label: 'PENDING', value: pendingCount.toString(), icon: '📋', color: 'text-amber-600' },
     { label: 'AVG REVIEW TIME', value: '3.4 Days', icon: '⏱️', color: 'text-blue-600' },
     { label: 'REVIEWED TODAY', value: '8', icon: '✅', color: 'text-green-600' },
   ];

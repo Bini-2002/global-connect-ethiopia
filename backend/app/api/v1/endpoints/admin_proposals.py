@@ -1,0 +1,113 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import List
+
+from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from app.api.v1.deps import allow_admin
+from app.db.mongodb import proposal_collection
+from app.models.proposal_states import ProposalStatus
+from app.schemas.proposal import ProposalResponse
+
+router = APIRouter()
+
+
+class ProposalDecisionPayload(BaseModel):
+    reason: str | None = None
+    notes: str | None = None
+
+
+def _to_response(proposal: dict) -> dict:
+    response = dict(proposal)
+    response["id"] = str(response["_id"])
+    for field in ("organizer_id", "event_id"):
+        if field in response and response[field] is not None:
+            response[field] = str(response[field])
+    return response
+
+
+async def _get_proposal_or_404(proposal_id: str) -> dict:
+    try:
+        oid = ObjectId(proposal_id)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid proposal ID") from exc
+
+    proposal = await proposal_collection.find_one({"_id": oid})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return proposal
+
+
+@router.get("", response_model=List[ProposalResponse], include_in_schema=False)
+@router.get("/", response_model=List[ProposalResponse])
+async def list_admin_review_queue(current_user: dict = Depends(allow_admin)):
+    _ = current_user
+    cursor = proposal_collection.find(
+        {
+            "status": {
+                "$in": [
+                    ProposalStatus.DRAFT,
+                    ProposalStatus.SUBMITTED,
+                    ProposalStatus.CHANGES_REQUESTED,
+                    ProposalStatus.MINISTRY_REVIEW,
+                    ProposalStatus.MINISTRY_APPROVED,
+                    ProposalStatus.MUNICIPAL_REVIEW,
+                    ProposalStatus.APPROVED,
+                    ProposalStatus.REJECTED,
+                ]
+            }
+        }
+    ).sort("updated_at", -1)
+    proposals = await cursor.to_list(length=200)
+    return [_to_response(proposal) for proposal in proposals]
+
+
+@router.get("/{proposal_id}", response_model=ProposalResponse)
+async def get_admin_proposal_detail(
+    proposal_id: str,
+    current_user: dict = Depends(allow_admin),
+):
+    _ = current_user
+    proposal = await _get_proposal_or_404(proposal_id)
+    return _to_response(proposal)
+
+
+@router.post("/{proposal_id}/accept", response_model=ProposalResponse)
+async def accept_proposal_for_ministry_review(
+    proposal_id: str,
+    current_user: dict = Depends(allow_admin),
+):
+    _ = (proposal_id, current_user)
+    raise HTTPException(
+        status_code=403,
+        detail="Proposal approval is handled by the selected ministry and municipal offices.",
+    )
+
+
+@router.post("/{proposal_id}/reject", response_model=ProposalResponse)
+async def reject_proposal(
+    proposal_id: str,
+    payload: ProposalDecisionPayload | None = None,
+    current_user: dict = Depends(allow_admin),
+):
+    _ = (proposal_id, payload, current_user)
+    raise HTTPException(
+        status_code=403,
+        detail="Proposal approval is handled by the selected ministry and municipal offices.",
+    )
+
+
+@router.post("/{proposal_id}/request-changes", response_model=ProposalResponse)
+async def request_changes(
+    proposal_id: str,
+    payload: ProposalDecisionPayload | None = None,
+    current_user: dict = Depends(allow_admin),
+):
+    _ = (proposal_id, payload, current_user)
+    raise HTTPException(
+        status_code=403,
+        detail="Proposal approval is handled by the selected ministry and municipal offices.",
+    )

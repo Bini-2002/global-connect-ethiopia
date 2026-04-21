@@ -5,26 +5,31 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
+import { ProposalRecord } from '@/app/types/proposal';
 
-interface Proposal {
-  id: string;
-  title: string;
-  event_type?: string;
-  location?: string;
-  organizer_id: string;
-  start_date?: string;
-  end_date?: string;
-  status: string;
-  updated_at: string;
+function getAssignedPoliceLabel(proposal: ProposalRecord): string {
+  return proposal.security_assignment?.office_name
+    || proposal.security_assignment?.city
+    || proposal.office_assignments?.police?.display_label
+    || proposal.office_assignments?.police?.office_name
+    || 'Assigned City Police Office';
+}
+
+function getAssignedPoliceSubtitle(proposal: ProposalRecord): string {
+  const city = proposal.security_assignment?.city || proposal.office_assignments?.police?.city;
+  const officeName = proposal.security_assignment?.office_name || proposal.office_assignments?.police?.office_name;
+  if (officeName && city) return `${officeName} • ${city}`;
+  if (city) return city;
+  return officeName || 'Assigned City Police Office';
 }
 
 export default function PoliceProposalsPage() {
-  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    api.get<Proposal[]>('/police/proposals/').then(setProposals).catch(console.error).finally(() => setLoading(false));
+    api.get<ProposalRecord[]>('/police/proposals/').then(setProposals).catch(console.error).finally(() => setLoading(false));
   }, []);
 
   const filtered = proposals.filter(p =>
@@ -38,12 +43,12 @@ export default function PoliceProposalsPage() {
       <main className="ml-60 pt-16 p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 animate-fade-in">
           <div>
-            <h1 className="text-2xl font-bold text-[#062E22]">Approved Events</h1>
-            <p className="text-slate-500 text-sm mt-1">Read-only view of fully approved events in your jurisdiction.</p>
+            <h1 className="text-2xl font-bold text-[#062E22]">Approved Event Notifications</h1>
+            <p className="text-slate-500 text-sm mt-1">Read-only notifications for approved events assigned to your police office.</p>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            {filtered.length} Active Events
+            {filtered.length} Assigned Events
           </div>
         </div>
 
@@ -53,14 +58,15 @@ export default function PoliceProposalsPage() {
             <div className="col-span-2">Type</div>
             <div className="col-span-2">Location</div>
             <div className="col-span-2">Event Dates</div>
-            <div className="col-span-2 text-right">Status</div>
+            <div className="col-span-1">Certificate</div>
+            <div className="col-span-1 text-right">Action</div>
           </div>
           {loading ? (
             <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" /></div>
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
               <span className="text-5xl">🛡️</span>
-              <p className="text-slate-500 mt-3 text-sm">No approved events found.</p>
+              <p className="text-slate-500 mt-3 text-sm">No approved event notifications found.</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -68,6 +74,7 @@ export default function PoliceProposalsPage() {
                 <div key={p.id} className="grid grid-cols-12 gap-4 items-center px-6 py-4 hover:bg-slate-50 transition">
                   <div className="col-span-4">
                     <p className="font-semibold text-[#062E22] text-sm">{p.title}</p>
+                    <p className="text-xs text-slate-500 mt-1">{getAssignedPoliceLabel(p)}</p>
                     <p className="text-xs font-mono text-slate-400">ORG-{p.organizer_id.substring(0, 4).toUpperCase()}</p>
                   </div>
                   <div className="col-span-2 text-sm text-slate-600">{p.event_type || '—'}</div>
@@ -79,11 +86,11 @@ export default function PoliceProposalsPage() {
                     {p.start_date ? new Date(p.start_date).toLocaleDateString() : '—'}
                     {p.end_date ? ` → ${new Date(p.end_date).toLocaleDateString()}` : ''}
                   </div>
-                  <div className="col-span-2 flex justify-end">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                      Approved
-                    </span>
+                  <div className="col-span-1 text-xs text-slate-500">{p.approval_certificate_number || '—'}</div>
+                  <div className="col-span-1 flex justify-end">
+                    <Link href={`/police/proposals/${p.id}`} className="text-xs border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-[#062E22] hover:text-white hover:border-[#062E22] transition font-medium">
+                      Open
+                    </Link>
                   </div>
                 </div>
               ))}

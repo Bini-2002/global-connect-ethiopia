@@ -87,6 +87,9 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Dashboard', href: '/organizer/dashboard', icon: <HomeIcon className="w-5 h-5" /> },
     { label: 'My Events', href: '/organizer/events', icon: <CalendarIcon className="w-5 h-5" /> },
     { label: 'Vendors', href: '/organizer/vendors', icon: <BuildingOfficeIcon className="w-5 h-5" /> },
+    { label: 'Requests', href: '/organizer/requests', icon: icons.queue },
+    { label: 'Contracts', href: '/organizer/contracts', icon: icons.proposals },
+    { label: 'Wallet', href: '/organizer/wallet', icon: icons.vendor },
     { label: 'Attendees', href: '/organizer/attendees', icon: <UsersIcon className="w-5 h-5" /> },
     { label: 'Team', href: '/organizer/team', icon: <UserGroupIcon className="w-5 h-5" /> },
     { label: 'Government', href: '/organizer/government', icon: <ClipboardDocumentListIcon className="w-5 h-5" /> },
@@ -95,8 +98,6 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Settings', href: '/organizer/settings', icon: <CogIcon className="w-5 h-5" /> },
   ],
   admin: [
-    { label: 'Overview', href: '/admin/proposals', icon: icons.dashboard },
-    { label: 'Review Queue', href: '/admin/proposals', icon: icons.queue },
     { label: 'Organizers', href: '/admin/organizers', icon: icons.users },
     { label: 'Vendors', href: '/admin/vendors', icon: icons.vendor },
   ],
@@ -117,6 +118,10 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Allowed Events', href: '/police/proposals', icon: icons.events },
   ],
   vendor: [
+    { label: 'Dashboard', href: '/vendor/dashboard', icon: icons.dashboard },
+    { label: 'Requests', href: '/vendor/requests', icon: icons.queue },
+    { label: 'Contracts', href: '/vendor/contracts', icon: icons.proposals },
+    { label: 'Wallet', href: '/vendor/wallet', icon: icons.vendor },
     { label: 'Verification', href: '/vendor/verification', icon: icons.shield },
   ],
 };
@@ -153,8 +158,8 @@ export default function Sidebar({ role, portalName }: SidebarProps) {
           </svg>
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-bold text-[#062E22] truncate">{name}</p>
-          <p className="text-[10px] text-slate-400 truncate">Global Connect</p>
+          <p suppressHydrationWarning className="text-xs font-bold text-[#062E22] truncate">{name}</p>
+          <p suppressHydrationWarning className="text-[10px] text-slate-400 truncate">Global Connect</p>
         </div>
       </div>
 
@@ -182,7 +187,7 @@ export default function Sidebar({ role, portalName }: SidebarProps) {
               onClick={() => setIsOpen(false)}
             >
               <span className="flex-shrink-0">{item.icon}</span>
-              <span className="truncate">{item.label}</span>
+              <span suppressHydrationWarning className="truncate">{item.label}</span>
             </Link>
           );
         })}
@@ -198,7 +203,7 @@ export default function Sidebar({ role, portalName }: SidebarProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          <span className="truncate">Sign Out</span>
+          <span suppressHydrationWarning className="truncate">Sign Out</span>
         </button>
       </div>
     </>

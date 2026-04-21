@@ -70,6 +70,21 @@ class VendorStatusResponse(BaseModel):
     status: str
 
 
+class VendorPortalSummaryResponse(BaseModel):
+    vendor_id: str
+    vendor_user_id: str
+    business_name: str | None = None
+    business_category: str | None = None
+    verification_status: str
+    services_count: int
+    pending_requests_count: int
+    accepted_requests_count: int
+    active_contracts_count: int
+    recent_services: list[dict] = []
+    recent_requests: list[dict] = []
+    recent_contracts: list[dict] = []
+
+
 class VendorReviewSummaryResponse(BaseModel):
     business_name: str
     business_category: str

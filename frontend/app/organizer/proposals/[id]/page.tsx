@@ -6,33 +6,13 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
-
-interface Proposal {
-  id: string;
-  title: string;
-  description?: string;
-  event_type?: string;
-  location?: string;
-  start_date?: string;
-  end_date?: string;
-  expected_attendees?: number;
-  budget_estimate?: number;
-  status: string;
-  organizer_id: string;
-  created_at: string;
-  updated_at: string;
-}
-
-const STATUS_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
-  draft: { label: 'Draft', cls: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
-  submitted: { label: 'Submitted', cls: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400' },
-  ministry_review: { label: 'Ministry Review', cls: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
-  ministry_approved: { label: 'Ministry Approved', cls: 'bg-teal-100 text-teal-700', dot: 'bg-teal-400' },
-  municipal_review: { label: 'Municipal Review', cls: 'bg-purple-100 text-purple-700', dot: 'bg-purple-400' },
-  approved: { label: 'Approved ✓', cls: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
-  rejected: { label: 'Rejected', cls: 'bg-red-100 text-red-600', dot: 'bg-red-500' },
-  changes_requested: { label: 'Changes Requested', cls: 'bg-orange-100 text-orange-700', dot: 'bg-orange-400' },
-};
+import {
+  formatProposalStage,
+  getOfficeLabel,
+  proposalToSessionData,
+  PROPOSAL_STATUS_META,
+} from '@/app/lib/proposals';
+import { ProposalRecord } from '@/app/types/proposal';
 
 const TIMELINE_STEPS = [
   { key: 'submitted', label: 'Submitted' },
@@ -46,21 +26,21 @@ export default function ProposalDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [proposal, setProposal] = useState<ProposalRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    api.get<Proposal>(`/proposals/${id}`).then(setProposal).catch(() => setError('Proposal not found')).finally(() => setLoading(false));
+    api.get<ProposalRecord>(`/proposals/${id}`).then(setProposal).catch(() => setError('Proposal not found')).finally(() => setLoading(false));
   }, [id]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
     setError('');
     try {
-      const updated = await api.post<Proposal>(`/proposals/${id}/submit`);
+      const updated = await api.post<ProposalRecord>(`/proposals/${id}/submit`);
       setProposal(updated);
       setSuccess('Proposal submitted for review!');
     } catch (err) {
@@ -68,6 +48,12 @@ export default function ProposalDetailPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEdit = () => {
+    if (!proposal) return;
+    localStorage.setItem('pendingProposal', JSON.stringify(proposalToSessionData(proposal)));
+    router.push('/organizer/proposals/create');
   };
 
   const canEdit = proposal && ['draft', 'changes_requested'].includes(proposal.status);
@@ -99,7 +85,7 @@ export default function ProposalDetailPage() {
               <div>
                 <div className="flex items-center gap-3 mb-1">
                   {(() => {
-                    const cfg = STATUS_CONFIG[proposal.status] || { label: proposal.status, cls: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' };
+                    const cfg = PROPOSAL_STATUS_META[proposal.status] || { label: proposal.status, cls: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' };
                     return (
                       <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${cfg.cls}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`}></span>
@@ -112,10 +98,11 @@ export default function ProposalDetailPage() {
               </div>
               <div className="flex gap-2 flex-wrap">
                 {canEdit && (
-                  <Link href={`/organizer/proposals/${id}/edit`}
+                  <button
+                    onClick={handleEdit}
                     className="px-4 py-2 border border-slate-200 text-sm font-medium rounded-lg hover:bg-slate-100 transition text-slate-700">
                     Edit
-                  </Link>
+                  </button>
                 )}
                 {canSubmit && (
                   <button onClick={handleSubmit} disabled={submitting}
@@ -129,6 +116,14 @@ export default function ProposalDetailPage() {
                     className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition flex items-center gap-1.5">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                     View Permit
+                  </Link>
+                )}
+                {isApproved && (
+                  <Link
+                    href={proposal.event_id ? `/organizer/events/${proposal.event_id}` : `/organizer/create-event/${id}`}
+                    className="px-4 py-2 bg-[#062E22] text-white text-sm font-semibold rounded-lg hover:bg-[#0a4a37] transition"
+                  >
+                    {proposal.event_id ? 'Open Event Workspace' : 'Create Event'}
                   </Link>
                 )}
               </div>
@@ -185,18 +180,97 @@ export default function ProposalDetailPage() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     Program Details
                   </div>
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Expected Attendees</p>
-                      <p className="text-sm font-medium text-slate-800">{proposal.expected_attendees?.toLocaleString() || '—'}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Expected Attendees</p>
+                        <p className="text-sm font-medium text-slate-800">{proposal.expected_attendees?.toLocaleString() || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Program Overview</p>
+                        <p className="text-sm text-slate-600 leading-relaxed">{proposal.program_overview || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Event Objectives</p>
+                        <p className="text-sm text-slate-600 leading-relaxed">{proposal.event_objectives || '—'}</p>
+                      </div>
                     </div>
-                    <div className="flex-1 bg-[#062E22] rounded-xl p-4 text-white">
-                      <p className="text-[10px] font-semibold text-white/60 uppercase tracking-widest mb-1">Budget Estimate</p>
-                      <p className="text-xl font-bold">{proposal.budget_estimate?.toLocaleString() || '—'}</p>
-                      <p className="text-xs text-white/60 mt-0.5">ETB</p>
+                    <div className="space-y-4">
+                      <div className="bg-[#062E22] rounded-xl p-4 text-white">
+                        <p className="text-[10px] font-semibold text-white/60 uppercase tracking-widest mb-1">Budget Estimate</p>
+                        <p className="text-xl font-bold">{proposal.budget_estimate?.toLocaleString() || '—'}</p>
+                        <p className="text-xs text-white/60 mt-0.5">ETB</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Target Audience</p>
+                        <div className="flex flex-wrap gap-2">
+                          {(proposal.target_audience || []).map((audience) => (
+                            <span key={audience} className="px-2.5 py-1 rounded-full bg-green-50 border border-green-200 text-xs font-medium text-green-700">
+                              {audience}
+                            </span>
+                          ))}
+                          {!proposal.target_audience?.length && <span className="text-sm text-slate-500">—</span>}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Security Level</p>
+                          <p className="text-sm font-medium text-slate-800">{proposal.security_level || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Personnel Count</p>
+                          <p className="text-sm font-medium text-slate-800">{proposal.personnel_count || 0}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wide mb-4">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A2 2 0 013 15.382V5.618a2 2 0 011.553-1.894l4-1A2 2 0 019 2.764m0 17.236l6-2m-6 2V2.764m6 15.236l5.447-2.724A2 2 0 0021 13.382V3.618a2 2 0 00-1.553-1.894l-4-1A2 2 0 0015 0.764m0 17.236V0.764m0 0L9 2.764" /></svg>
+                    Approval Routing & Police Notification
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Ministry</p>
+                      <p className="font-semibold text-[#062E22]">{getOfficeLabel(proposal.office_assignments?.ministry)}</p>
+                      <p className="text-xs text-slate-500 mt-2">{proposal.office_assignments?.ministry?.email || 'No ministry office assigned'}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Municipal</p>
+                      <p className="font-semibold text-[#062E22]">{getOfficeLabel(proposal.office_assignments?.municipal)}</p>
+                      <p className="text-xs text-slate-500 mt-2">{proposal.office_assignments?.municipal?.email || 'No municipal office assigned'}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Police Notification</p>
+                      <p className="font-semibold text-[#062E22]">{getOfficeLabel(proposal.office_assignments?.police)}</p>
+                      <p className="text-xs text-slate-500 mt-2">{proposal.office_assignments?.police?.email || 'No police notification office assigned'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {(proposal.organizer_updates?.length || 0) > 0 && (
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wide mb-4">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h6m-6 4h10M5 3h14a2 2 0 012 2v14l-4-3-4 3-4-3-4 3V5a2 2 0 012-2z" /></svg>
+                      Organizer Updates
+                    </div>
+                    <div className="space-y-3">
+                      {[...(proposal.organizer_updates || [])]
+                        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                        .map((update, index) => (
+                          <div key={`${update.created_at}-${index}`} className="rounded-xl border border-slate-200 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="font-semibold text-[#062E22]">{update.office_name || formatProposalStage(update.stage)}</p>
+                              <span className="text-xs text-slate-400">{new Date(update.created_at).toLocaleString()}</span>
+                            </div>
+                            <p className="text-sm text-slate-600 mt-2">{update.message}</p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Sidebar */}
@@ -206,6 +280,35 @@ export default function ProposalDetailPage() {
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Proposal ID</p>
                   <p className="text-xs font-mono text-slate-600 break-all">{proposal.id}</p>
                 </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Current Review Stage</p>
+                  <p className="text-sm font-semibold text-[#062E22]">{formatProposalStage(proposal.status)}</p>
+                  {proposal.rejection_reason && (
+                    <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                      {proposal.rejection_reason}
+                    </div>
+                  )}
+                </div>
+
+                {proposal.approval_certificate_number && (
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Approval Certificate</p>
+                    <p className="text-lg font-bold text-[#062E22]">{proposal.approval_certificate_number}</p>
+                    <p className="text-xs text-slate-500 mt-2">Issued after municipal approval.</p>
+                    <Link href={`/organizer/proposals/${id}/permit`} className="inline-flex mt-4 text-sm font-semibold text-green-700 hover:underline">
+                      Open approval certificate
+                    </Link>
+                  </div>
+                )}
+
+                {proposal.security_assignment && (
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Security Assignment</p>
+                    <p className="text-sm font-semibold text-[#062E22]">{proposal.security_assignment.office_name}</p>
+                    <p className="text-sm text-slate-600 mt-2">{proposal.security_assignment.message}</p>
+                  </div>
+                )}
 
                 {/* Review Timeline */}
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">

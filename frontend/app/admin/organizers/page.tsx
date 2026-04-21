@@ -1,15 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
+import { getRole, getToken } from '@/app/lib/auth';
 
 interface OrganizerApp {
   id: string;
   user_id: string;
-  organizer_type?: string;
+  profile_type?: string;
   full_name?: string;
   organization_name?: string;
   status: string;
@@ -18,14 +20,38 @@ interface OrganizerApp {
   updated_at: string;
 }
 
+interface OrganizerPendingResponse {
+  count: number;
+  items: OrganizerApp[];
+}
+
 export default function AdminOrganizersPage() {
+  const router = useRouter();
   const [apps, setApps] = useState<OrganizerApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    api.get<OrganizerApp[]>('/admin/organizers/pending').then(setApps).catch(console.error).finally(() => setLoading(false));
-  }, []);
+    const token = getToken();
+    const role = getRole();
+
+    if (!token || (role !== 'admin' && role !== 'super_admin')) {
+      setLoading(false);
+      router.replace('/login');
+      return;
+    }
+
+    api.get<OrganizerPendingResponse>('/admin/organizers/pending')
+      .then((response) => setApps(response.items || []))
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
+        console.error(err);
+      })
+      .finally(() => setLoading(false));
+  }, [router]);
 
   const filtered = apps.filter(a =>
     (a.full_name || a.organization_name || '').toLowerCase().includes(query.toLowerCase())
@@ -74,7 +100,7 @@ export default function AdminOrganizersPage() {
                       <p className="font-semibold text-[#062E22] text-sm">{a.full_name || a.organization_name || 'N/A'}</p>
                       <p className="text-xs font-mono text-slate-400">{a.user_id.substring(0, 8)}</p>
                     </div>
-                    <div className="col-span-2 text-sm text-slate-600 capitalize">{a.organizer_type || '—'}</div>
+                    <div className="col-span-2 text-sm text-slate-600 capitalize">{a.profile_type || '—'}</div>
                     <div className="col-span-2">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">

@@ -36,8 +36,7 @@ def _append_if_valid(items: list[dict], owner_type: str, entity: dict, key: str,
             "uploaded_at": document.get("uploaded_at"),
             "download_endpoint": f"/api/v1/admin/documents/download?owner_type={owner_type}&entity_id={entity_id}&document_key={key}",
         }
-    )
-
+        )
 
 def _extract_document(owner_type: str, entity: dict, document_key: str) -> dict:
     if owner_type == "vendor":
@@ -47,18 +46,26 @@ def _extract_document(owner_type: str, entity: dict, document_key: str) -> dict:
         if document_key == "government_issued_id":
             return docs.get("government_issued_id") or {}
     elif owner_type == "organizer":
-        if document_key == "national_id_document":
-            return entity.get("national_id_document") or {}
-
+        profile_type = entity.get("profile_type")
         step_1 = entity.get("organization_profile", {}).get("step_1", {})
-        step_3 = entity.get("organization_profile", {}).get("step_3", {})
+        step_2 = entity.get("organization_profile", {}).get("step_2", {})
 
-        if document_key == "business_license_or_registration_document":
-            return step_1.get("business_license_or_registration_document") or {}
-        if document_key == "verification_government_id_document":
-            return step_3.get("identity_verification", {}).get("government_id_document") or {}
-        if document_key == "authorization_letter":
-            return step_3.get("authorization_proof", {}).get("authorization_letter") or {}
+        if document_key in {"national_id", "national_id_document"}:
+            return entity.get("national_id") or {}
+        if document_key in {"government_issued_id", "verification_government_id_document"}:
+            return entity.get("government_issued_id") or {}
+        if document_key in {
+            "business_licence",
+            "business_license_or_registration_document",
+        }:
+            return step_1.get("business_licence") or step_1.get("business_license_or_registration_document") or {}
+        if document_key in {"representative_id_document", "government_id_document"}:
+            return step_2.get("representative_id_document") or {}
+        if document_key in {"authorization_proof", "authorization_letter"}:
+            return step_2.get("authorization_proof") or {}
+
+        if profile_type == "individual":
+            raise HTTPException(status_code=404, detail="Document not found for individual organizer")
 
     raise HTTPException(status_code=404, detail="Document not found")
 
@@ -66,13 +73,18 @@ def _extract_document(owner_type: str, entity: dict, document_key: str) -> dict:
 @router.get("/documents")
 async def list_documents(
     owner_type: str = Query("all", pattern="^(all|vendor|organizer)$"),
+    entity_id: str | None = Query(default=None),
     limit: int = Query(100, ge=1, le=500),
     current_user: dict = Depends(allow_admin),
 ):
     items: list[dict] = []
 
     if owner_type in {"all", "vendor"}:
-        vendors = await vendor_collection.find({}).to_list(length=limit)
+        vendor_query = {}
+        if owner_type == "vendor" and entity_id:
+            vendor_query = {"_id": _to_object_id(entity_id)}
+
+        vendors = await vendor_collection.find(vendor_query).to_list(length=limit)
         for vendor in vendors:
             required = vendor.get("step_2", {}).get("required_documents", {})
             _append_if_valid(
@@ -91,39 +103,53 @@ async def list_documents(
             )
 
     if owner_type in {"all", "organizer"}:
-        organizers = await organizer_collection.find({}).to_list(length=limit)
-        for organizer in organizers:
-            _append_if_valid(
-                items,
-                "organizer",
-                organizer,
-                "national_id_document",
-                organizer.get("national_id_document"),
-            )
+        organizer_query = {}
+        if owner_type == "organizer" and entity_id:
+            organizer_query = {"_id": _to_object_id(entity_id)}
 
+        organizers = await organizer_collection.find(organizer_query).to_list(length=limit)
+        for organizer in organizers:
+            profile_type = organizer.get("profile_type")
             step_1 = organizer.get("organization_profile", {}).get("step_1", {})
-            step_3 = organizer.get("organization_profile", {}).get("step_3", {})
-            _append_if_valid(
-                items,
-                "organizer",
-                organizer,
-                "business_license_or_registration_document",
-                step_1.get("business_license_or_registration_document"),
-            )
-            _append_if_valid(
-                items,
-                "organizer",
-                organizer,
-                "verification_government_id_document",
-                step_3.get("identity_verification", {}).get("government_id_document"),
-            )
-            _append_if_valid(
-                items,
-                "organizer",
-                organizer,
-                "authorization_letter",
-                step_3.get("authorization_proof", {}).get("authorization_letter"),
-            )
+            step_2 = organizer.get("organization_profile", {}).get("step_2", {})
+
+            if profile_type == "individual":
+                _append_if_valid(
+                    items,
+                    "organizer",
+                    organizer,
+                    "national_id",
+                    organizer.get("national_id"),
+                )
+                _append_if_valid(
+                    items,
+                    "organizer",
+                    organizer,
+                    "government_issued_id",
+                    organizer.get("government_issued_id"),
+                )
+            else:
+                _append_if_valid(
+                    items,
+                    "organizer",
+                    organizer,
+                    "business_licence",
+                    step_1.get("business_licence"),
+                )
+                _append_if_valid(
+                    items,
+                    "organizer",
+                    organizer,
+                    "representative_id_document",
+                    step_2.get("representative_id_document"),
+                )
+                _append_if_valid(
+                    items,
+                    "organizer",
+                    organizer,
+                    "authorization_proof",
+                    step_2.get("authorization_proof"),
+                )
 
     return {
         "requested_by": current_user.get("email"),

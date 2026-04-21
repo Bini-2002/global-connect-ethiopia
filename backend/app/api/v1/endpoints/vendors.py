@@ -6,13 +6,16 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from app.api.v1.deps import get_current_user
 from app.core.config import settings
 from app.core.queue import get_verification_queue
-from app.db.mongodb import vendor_collection, verification_job_collection
+from app.db.mongodb import contract_collection, request_collection, vendor_collection, vendor_service_collection, verification_job_collection
 from app.models.roles import UserRole
+from app.schemas.marketplace_mvp import VendorMarketplaceResponse
 from app.schemas.vendor import (
+    VendorPortalSummaryResponse,
     VendorReviewSummaryResponse,
     VendorStatusResponse,
     VendorVerificationResponse,
 )
+from app.services.marketplace_mvp import get_vendor_detail, list_verified_vendors
 from app.services.object_storage import ObjectStorageService
 
 router = APIRouter()
@@ -39,7 +42,8 @@ def _is_valid_url(url: str) -> bool:
 
 
 def _require_vendor(current_user: dict) -> None:
-    if current_user.get("role") != UserRole.VENDOR:
+    from app.models.roles import normalize_role
+    if normalize_role(current_user.get("role")) != UserRole.VENDOR.value:
         raise HTTPException(status_code=403, detail="Only vendors can submit this form")
 
 
@@ -361,4 +365,105 @@ async def get_vendor_verification_status(current_user: dict = Depends(get_curren
         "status": vendor.get("status", "draft"),
     }
 
+
+@router.get("/portal/summary", response_model=VendorPortalSummaryResponse)
+async def get_vendor_portal_summary(current_user: dict = Depends(get_current_user)):
+    vendor = await vendor_collection.find_one({"user_id": ObjectId(current_user["id"])})
+    _require_vendor(current_user)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor record not found")
+    if vendor.get("verification_status") != "approved":
+        raise HTTPException(status_code=403, detail="Vendor must be approved before accessing the portal")
+
+    services = await vendor_service_collection.find(
+        {"vendor_user_id": current_user["id"]},
+        sort=[("created_at", -1)],
+    ).to_list(length=5)
+    request_query = {"$or": [{"vendor_user_id": current_user["id"]}, {"vendor_id": vendor["_id"]}]}
+    requests = await request_collection.find(
+        request_query,
+        sort=[("created_at", -1)],
+    ).to_list(length=5)
+    contract_query = {"$or": [{"vendor_user_id": current_user["id"]}, {"vendor_id": vendor["_id"]}]}
+    contracts = await contract_collection.find(
+        contract_query,
+        sort=[("created_at", -1)],
+    ).to_list(length=5)
+
+    details = (vendor.get("step_2") or {}).get("business_details") or {}
+    return {
+        "vendor_id": str(vendor["_id"]),
+        "vendor_user_id": current_user["id"],
+        "business_name": details.get("business_name"),
+        "business_category": details.get("business_category"),
+        "verification_status": vendor.get("verification_status", "not_started"),
+        "services_count": await vendor_service_collection.count_documents({"vendor_user_id": current_user["id"]}),
+        "pending_requests_count": await request_collection.count_documents(
+            {
+                "$and": [
+                    request_query,
+                    {"status": {"$in": ["pending", "REQUESTED", "QUOTED", "NEGOTIATING"]}},
+                ]
+            }
+        ),
+        "accepted_requests_count": await request_collection.count_documents(
+            {
+                "$and": [
+                    request_query,
+                    {"status": {"$in": ["accepted", "ACCEPTED"]}},
+                ]
+            }
+        ),
+        "active_contracts_count": await contract_collection.count_documents(
+            {
+                "$and": [
+                    contract_query,
+                    {"status": {"$in": ["active", "AGREED", "FUNDED", "COMPLETED"]}},
+                ]
+            }
+        ),
+        "recent_services": [
+            {
+                "id": str(item["_id"]),
+                "title": item.get("title"),
+                "category": item.get("category"),
+                "is_active": bool(item.get("is_active", True)),
+                "created_at": item.get("created_at"),
+            }
+            for item in services
+        ],
+        "recent_requests": [
+            {
+                "id": str(item["_id"]),
+                "event_id": item.get("event_id"),
+                "service_title": item.get("service_title"),
+                "status": item.get("status"),
+                "proposed_amount": item.get("proposed_amount") or item.get("current_amount"),
+                "created_at": item.get("created_at"),
+            }
+            for item in requests
+        ],
+        "recent_contracts": [
+            {
+                "id": str(item["_id"]),
+                "event_id": item.get("event_id"),
+                "title": item.get("title"),
+                "status": item.get("status"),
+                "amount": float(item.get("amount", item.get("price", 0.0))),
+                "created_at": item.get("created_at"),
+            }
+            for item in contracts
+        ],
+    }
+
+
+@router.get("", response_model=list[VendorMarketplaceResponse])
+@router.get("/", response_model=list[VendorMarketplaceResponse])
+async def list_marketplace_vendors():
+    return await list_verified_vendors()
+
+
+@router.get("/{vendor_id}", response_model=VendorMarketplaceResponse)
+async def get_marketplace_vendor(vendor_id: str):
+    return await get_vendor_detail(vendor_id)
 

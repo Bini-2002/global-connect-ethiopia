@@ -6,27 +6,39 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
-
-interface Permit {
-  id: string;
-  proposal_id: string;
-  organizer_id: string;
-  permit_number: string;
-  issued_at: string;
-  issued_by_role: string;
-  created_at: string;
-}
+import { PermitRecord } from '@/app/types/proposal';
 
 export default function OrganizerPermitPage() {
   const params = useParams();
   const id = params.id as string;
-  const [permit, setPermit] = useState<Permit | null>(null);
+  const [permit, setPermit] = useState<PermitRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<Permit>(`/permits/${id}`).then(setPermit).catch(() => setError('Permit not found or not yet issued.')).finally(() => setLoading(false));
+    api.get<PermitRecord>(`/permits/${id}`).then(setPermit).catch(() => setError('Permit not found or not yet issued.')).finally(() => setLoading(false));
   }, [id]);
+
+  const handleDownloadPermit = async () => {
+    if (!permit) return;
+    setDownloading(true);
+    try {
+      const blob = await api.getBlob(`/permits/${id}/download`);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `permit-${permit.permit_number}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to download permit');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -105,7 +117,7 @@ export default function OrganizerPermitPage() {
                           <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Issued By</p>
                         </div>
-                        <p className="text-sm font-bold text-[#062E22] capitalize">{permit.issued_by_role?.replace(/_/g, ' ')}</p>
+                        <p className="text-sm font-bold text-[#062E22] capitalize">{permit.issued_by_office_name || permit.issued_by_role?.replace(/_/g, ' ')}</p>
                       </div>
                     </div>
                   </div>
@@ -143,9 +155,14 @@ export default function OrganizerPermitPage() {
                         <p className="text-xs text-slate-400">Official Government Permit</p>
                       </div>
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-[#062E22] text-white text-xs font-semibold rounded-lg hover:bg-[#0a4a37] transition">
+                    <button
+                      type="button"
+                      onClick={handleDownloadPermit}
+                      disabled={downloading}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#062E22] text-white text-xs font-semibold rounded-lg hover:bg-[#0a4a37] transition disabled:opacity-60"
+                    >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                      Download Permit
+                      {downloading ? 'Downloading...' : 'Download Permit'}
                     </button>
                   </div>
                 </div>

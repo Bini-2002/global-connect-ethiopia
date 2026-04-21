@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
+import { getRole, getToken } from '@/app/lib/auth';
 
 interface VendorApp {
   id: string;
@@ -16,14 +18,49 @@ interface VendorApp {
   created_at: string;
 }
 
+interface VendorPendingResponse {
+  count: number;
+  items: VendorApp[];
+}
+
 export default function AdminVendorsPage() {
+  const router = useRouter();
   const [apps, setApps] = useState<VendorApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    api.get<VendorApp[]>('/admin/vendors/pending').then(setApps).catch(console.error).finally(() => setLoading(false));
-  }, []);
+    const token = getToken();
+    const role = getRole();
+
+    if (!token || (role !== 'admin' && role !== 'super_admin')) {
+      setLoading(false);
+      router.replace('/login');
+      return;
+    }
+
+    api.get<VendorPendingResponse>('/admin/vendors/pending')
+      .then((response) => {
+        const mappedApps: VendorApp[] = (response.items || []).map((item) => ({
+          id: item.id,
+          user_id: item.user_id,
+          business_name: item.business_name,
+          business_category: item.business_category,
+          status: item.status,
+          ocr_score: item.ocr_score,
+          created_at: item.created_at || new Date().toISOString(),
+        }));
+        setApps(mappedApps);
+      })
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
+        console.error(err);
+      })
+      .finally(() => setLoading(false));
+  }, [router]);
 
   const filtered = apps.filter(a =>
     (a.business_name || '').toLowerCase().includes(query.toLowerCase()) ||

@@ -2,19 +2,50 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getRole, isLoggedIn, ROLE_DASHBOARDS } from '@/app/lib/auth';
+import {
+  getOrganizerPortalRoute,
+  getRoleFromToken,
+  getVendorPortalRoute,
+  ROLE_DASHBOARDS,
+  waitForToken,
+} from '@/app/lib/auth';
+import { api } from '@/app/lib/api';
 
 export default function DashboardRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.replace('/login');
-      return;
-    }
-    const role = getRole();
-    const dest = role ? ROLE_DASHBOARDS[role] ?? '/' : '/';
-    router.replace(dest);
+    const redirectUser = async () => {
+      const token = await waitForToken();
+      let role = getRoleFromToken(token);
+
+      if (!role) {
+        try {
+          const me = await api.get<{ role?: string | null }>('/users/me');
+          role = (me.role || null) as string | null;
+        } catch {
+          router.replace('/login');
+          return;
+        }
+      }
+
+      if (role === 'organizer') {
+        const organizerRoute = await getOrganizerPortalRoute(token);
+        router.replace(organizerRoute);
+        return;
+      }
+
+      if (role === 'vendor') {
+        const vendorRoute = await getVendorPortalRoute(token);
+        router.replace(vendorRoute);
+        return;
+      }
+
+      const dest = role ? ROLE_DASHBOARDS[role] ?? '/' : '/';
+      router.replace(dest);
+    };
+
+    void redirectUser();
   }, [router]);
 
   return (

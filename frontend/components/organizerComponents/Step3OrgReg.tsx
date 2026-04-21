@@ -11,8 +11,17 @@ export default function Step3OrgReg({
   backStep,
 }: any) {
   const [idType, setIdType] = useState<'national' | 'kebele' | 'passport'>('national');
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const governmentIdRef = useRef<HTMLInputElement | null>(null);
+  const workspaceIdRef = useRef<HTMLInputElement | null>(null);
   const authLetterRef = useRef<HTMLInputElement | null>(null);
+
+  const updateFile = (field: string, file: File | null) => {
+    if (!file) return;
+    setFormData((prev: any) => ({
+      ...prev,
+      [field]: file,
+    }));
+  };
 
   return (
     <div className="max-w-3xl w-full bg-[#8CB98820] rounded-2xl shadow-xl p-6 sm:p-8 border border-slate-200">
@@ -24,7 +33,7 @@ export default function Step3OrgReg({
           <span className="text-xs">90% Completed</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2 mt-2 mb-5">
-          <div className="bg-[#062E22] h-2 rounded-full" style={{ width: '90%' }} />
+          <div className="bg-[#062E22] h-2 rounded-full w-[90%]" />
         </div>
       </div>
 
@@ -87,7 +96,10 @@ export default function Step3OrgReg({
                 className={`flex-1 px-4 sm:px-14 py-2 rounded border text-center ${
                   idType === type ? 'bg-[#062E2240] border-gray-700' : 'border-gray-300'
                 }`}
-                onClick={() => setIdType(type as any)}
+                onClick={() => {
+                  setIdType(type as any);
+                  setFormData((prev: any) => ({ ...prev, id_type: type }));
+                }}
               >
                 {type === 'national'
                   ? 'National ID'
@@ -99,10 +111,22 @@ export default function Step3OrgReg({
           </div>
           <div
             className="mt-4 border-2 border-dashed border-gray-300 rounded p-4 sm:p-6 text-center cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => governmentIdRef.current?.click()}
           >
-            <input ref={fileInputRef} type="file" className="hidden" />
+            <input
+              ref={governmentIdRef}
+              type="file"
+              name="government_issued_id"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              className="hidden"
+              onChange={(e) => updateFile("government_issued_id", e.target.files?.[0] || null)}
+              title="Upload Government ID (PDF, JPG, max 5MB)"
+              placeholder="Upload Government ID"
+            />
             <p>Upload Government ID (PDF, JPG, max 5MB)</p>
+            {formData.government_issued_id && (
+              <p className="mt-2 text-sm text-gray-600">{formData.government_issued_id.name}</p>
+            )}
           </div>
         </section>
 
@@ -115,10 +139,22 @@ export default function Step3OrgReg({
           <p className="text-sm text-gray-500">Please upload your workspace ID</p>
           <div
             className="mt-4 border-2 border-dashed border-gray-300 rounded p-4 sm:p-6 text-center cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => workspaceIdRef.current?.click()}
           >
-            <input ref={fileInputRef} type="file" className="hidden" />
+            <input
+              ref={workspaceIdRef}
+              type="file"
+              name="workspace_id"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              className="hidden"
+              onChange={(e) => updateFile("workspace_id", e.target.files?.[0] || null)}
+              title="Upload your workspace ID (PDF, JPG, max 5MB)"
+              placeholder="Upload your workspace ID"
+            />
             <p>Upload Workspace ID (PDF, JPG, max 5MB)</p>
+            {formData.workspace_id && (
+              <p className="mt-2 text-sm text-gray-600">{formData.workspace_id.name}</p>
+            )}
           </div>
         </section>
 
@@ -136,8 +172,19 @@ export default function Step3OrgReg({
             className="mt-2 border-2 border-dashed border-gray-300 rounded p-4 sm:p-6 text-center cursor-pointer"
             onClick={() => authLetterRef.current?.click()}
           >
-            <input ref={authLetterRef} type="file" className="hidden" />
+            <input
+              ref={authLetterRef}
+              type="file"
+              name="authorization_letter"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              className="hidden"
+              onChange={(e) => updateFile("authorization_letter", e.target.files?.[0] || null)}
+              title="Upload Authorization Letter"
+            />
             <p>Upload Authorization Letter</p>
+            {formData.authorization_letter && (
+              <p className="mt-2 text-sm text-gray-600">{formData.authorization_letter.name}</p>
+            )}
           </div>
         </section>
 

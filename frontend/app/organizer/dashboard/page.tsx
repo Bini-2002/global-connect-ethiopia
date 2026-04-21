@@ -2,42 +2,31 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
-import axios from 'axios';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import AIModal, { AIFloatingButton } from '@/components/organizer/AIModal';
-import EmptyDashboard from '@/components/organizer/EmptyDashboard';
+import { api } from '@/app/lib/api';
+import { getOfficeLabel, PROPOSAL_STATUS_META } from '@/app/lib/proposals';
+import { ProposalOrganizerUpdate, ProposalRecord } from '@/app/types/proposal';
 import {
-  Calendar,
-  MapPin,
   Activity,
-  TrendingUp,
-  Users,
-  Plus,
-  BarChart3,
-  FileCheck,
-  Bot,
   ArrowRight,
-  Store,
+  Bot,
+  Calendar,
+  CheckCircle2,
+  Clock3,
+  FileCheck,
   FolderKanban,
-  Circle,
   Gauge,
-  Ticket,
-  DollarSign,
+  Gavel,
+  MapPin,
+  Plus,
+  ShieldCheck,
+  Sparkles,
+  TriangleAlert,
 } from 'lucide-react';
-import { getToken } from '@/app/lib/auth';
-
-interface Proposal {
-  id: string;
-  title: string;
-  event_type?: string;
-  location?: string;
-  status: string;
-  created_at: string;
-  updated_at?: string;
-}
+import { getOrganizerPortalRoute, waitForToken } from '@/app/lib/auth';
 
 interface UserProfile {
   id: string;
@@ -49,129 +38,152 @@ interface UserProfile {
   phone?: string;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
-  draft: { label: 'Draft', cls: 'bg-slate-100 text-slate-600' },
-  submitted: { label: 'Submitted', cls: 'bg-amber-100 text-amber-700' },
-  ministry_review: { label: 'Ministry Review', cls: 'bg-blue-100 text-blue-700' },
-  ministry_approved: { label: 'Ministry Approved', cls: 'bg-teal-100 text-teal-700' },
-  municipal_review: { label: 'Municipal Review', cls: 'bg-purple-100 text-purple-700' },
-  approved: { label: 'Approved', cls: 'bg-green-100 text-green-700' },
-  rejected: { label: 'Rejected', cls: 'bg-red-100 text-red-700' },
-  changes_requested: { label: 'Changes Requested', cls: 'bg-orange-100 text-orange-700' },
-};
+interface OrganizerFeedItem {
+  proposalId: string;
+  proposalTitle: string;
+  update: ProposalOrganizerUpdate;
+}
 
-const MOCK_STATS = {
-  ticketsSold: 2450,
-  totalRevenue: '1.2M',
-  revenueGrowth: 23,
-  ticketsGrowth: 23,
-  successRate: 67,
-  approvalRate: 83,
-};
+function formatDateLabel(date?: string | null): string {
+  if (!date) return 'Date pending';
+  return new Date(date).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 
-const MOCK_UPCOMING_EVENTS = [
-  {
-    id: 'mock-1',
-    title: 'Ethiopia Tech Summit 2026',
-    org: 'Ethiopian Tech Alliance',
-    location: 'Addis Ababa Convention Center',
-    date: 'Nov 12, 2026',
-    status: 'LIVE',
-    progress: { proposal: 100, approval: 100, vendors: 80, tickets: 60 },
-  },
-  {
-    id: 'mock-2',
-    title: 'Cultural Heritage Festival',
-    org: 'Heritage Foundation',
-    location: 'Ethio-Russian Friendship Hall',
-    date: 'Jan 18, 2027',
-    status: 'UPCOMING',
-    progress: { proposal: 100, approval: 100, vendors: 40, tickets: 20 },
-  },
-  {
-    id: 'mock-3',
-    title: 'National Youth Workshop',
-    org: 'Youth Initiative',
-    location: 'Bole Community Center',
-    date: 'Mar 5, 2027',
-    status: 'UPCOMING',
-    progress: { proposal: 100, approval: 100, vendors: 60, tickets: 30 },
-  },
-];
+function formatDateTimeLabel(date?: string | null): string {
+  if (!date) return 'Not available';
+  return new Date(date).toLocaleString();
+}
 
-const MOCK_RECENT_PROPOSALS: { id: string; title: string; status: string; created: string }[] = [];
-
-const MOCK_VENDORS = [
-  { id: 'vnd-1', name: 'Ethio Catering Services', category: 'Catering', rating: 4.8, status: 'verified' },
-  { id: 'vnd-2', name: 'Addis Sound & Lights', category: 'Audio/Visual', rating: 4.6, status: 'verified' },
-  { id: 'vnd-3', name: 'Bole Security Co.', category: 'Security', rating: 4.5, status: 'verified' },
-  { id: 'vnd-4', name: 'Debre Berhan Venues', category: 'Venue', rating: 4.7, status: 'verified' },
-  { id: 'vnd-5', name: 'Tech Solutions Ethiopia', category: 'IT Support', rating: 4.4, status: 'pending' },
-  { id: 'vnd-6', name: 'Ambassador Transport', category: 'Transportation', rating: 4.3, status: 'verified' },
-];
+function compareByNewest(a?: string | null, b?: string | null): number {
+  return new Date(b || 0).getTime() - new Date(a || 0).getTime();
+}
 
 export default function OrganizerDashboard() {
   const router = useRouter();
-  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [accessAllowed, setAccessAllowed] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      router.replace('/login');
-      return;
-    }
-
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-    
-    Promise.all([
-      axios.get(`${API_BASE_URL}/proposals`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }),
-      axios.get(`${API_BASE_URL}/users/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-    ])
-    .then(([proposalsRes, profileRes]) => {
-      setProposals(proposalsRes.data);
-      setUserProfile(profileRes.data);
-      setLoading(false);
-    })
-    .catch(err => {
-      console.error('Error fetching data:', err);
-      if (err.response?.status === 401) {
+    const loadDashboard = async () => {
+      const token = await waitForToken();
+      if (!token) {
+        setAccessChecked(true);
+        setAccessAllowed(false);
         router.replace('/login');
-      } else {
-        setError(err.message || 'Failed to load data');
+        return;
+      }
+
+      const organizerRoute = await getOrganizerPortalRoute(token);
+      if (organizerRoute !== '/organizer/dashboard') {
+        setAccessChecked(true);
+        setAccessAllowed(false);
+        router.replace(organizerRoute);
+        return;
+      }
+
+      setAccessAllowed(true);
+      setAccessChecked(true);
+
+      try {
+        const [proposalData, profileData] = await Promise.all([
+          api.get<ProposalRecord[]>('/proposals/', { authToken: token }),
+          api.get<UserProfile>('/users/me', { authToken: token }),
+        ]);
+        setProposals(proposalData);
+        setUserProfile(profileData);
+        setError(null);
+      } catch (err) {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          setAccessAllowed(false);
+          setError(null);
+          router.replace('/login');
+          return;
+        }
+        console.error('Error fetching organizer dashboard data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+      } finally {
         setLoading(false);
       }
-    });
+    };
+
+    void loadDashboard();
   }, [router]);
 
-  // Calculate real proposal counts
+  const today = new Date();
+  const sortedProposals = [...proposals].sort((a, b) => compareByNewest(a.updated_at, b.updated_at));
+  const approvedEvents = proposals
+    .filter((proposal) => proposal.status === 'approved')
+    .sort((a, b) => new Date(a.start_date || a.updated_at).getTime() - new Date(b.start_date || b.updated_at).getTime());
+  const upcomingEvents = approvedEvents.filter((proposal) => {
+    if (!proposal.end_date) return true;
+    return new Date(proposal.end_date) >= today;
+  });
+  const recentUpdates: OrganizerFeedItem[] = proposals
+    .flatMap((proposal) =>
+      (proposal.organizer_updates || []).map((update) => ({
+        proposalId: proposal.id,
+        proposalTitle: proposal.title,
+        update,
+      })),
+    )
+    .sort((a, b) => compareByNewest(a.update.created_at, b.update.created_at))
+    .slice(0, 5);
+  const securityAssignments = approvedEvents
+    .filter((proposal) => proposal.security_assignment)
+    .sort((a, b) => compareByNewest(a.security_assignment?.assigned_at, b.security_assignment?.assigned_at))
+    .slice(0, 3);
+  const approvalsReady = approvedEvents
+    .filter((proposal) => proposal.approval_certificate_number)
+    .sort((a, b) => compareByNewest(a.updated_at, b.updated_at))
+    .slice(0, 4);
+
   const counts = {
     total: proposals.length,
     approved: proposals.filter(p => p.status === 'approved').length,
-    pending: proposals.filter(p => ['submitted', 'ministry_review', 'municipal_review'].includes(p.status)).length,
+    pending: proposals.filter(p => ['submitted', 'ministry_review', 'ministry_approved', 'municipal_review'].includes(p.status)).length,
     draft: proposals.filter(p => p.status === 'draft').length,
     rejected: proposals.filter(p => p.status === 'rejected').length,
   };
 
-  const hasEvents = proposals.length > 0;
+  const approvalRate = proposals.length ? Math.round((counts.approved / proposals.length) * 100) : 0;
+  const reviewCompletionRate = proposals.length
+    ? Math.round(((counts.approved + counts.rejected) / proposals.length) * 100)
+    : 0;
+  const currentMonthCount = proposals.filter((proposal) => {
+    const createdAt = new Date(proposal.created_at);
+    return createdAt.getMonth() === today.getMonth() && createdAt.getFullYear() === today.getFullYear();
+  }).length;
+  const nextApprovedEvent = upcomingEvents[0] || null;
+  const hasData = proposals.length > 0;
+
+  if (!accessChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-500 text-sm">Checking organizer access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!accessAllowed) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
       <Sidebar role="organizer" />
-      <DashboardHeader searchPlaceholder="Search " />
+      <DashboardHeader searchPlaceholder="Search proposals and events..." />
       <main className="md:ml-60 pt-3 md:pt-16 relative p-4 md:p-8">
         <div className="min-h-screen bg-gray-50 p-4 md:p-6">
           <div className='flex flex-col md:flex-row justify-between md:pb-8 gap-4'>
@@ -192,65 +204,153 @@ export default function OrganizerDashboard() {
             </div>
           </div>
 
-          {/* Stats Cards - Mock */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex justify-center items-center py-16">
+              <div className="w-10 h-10 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : !hasData ? (
+            <div className="space-y-8">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 md:p-10 flex flex-col lg:flex-row gap-8 lg:items-center lg:justify-between">
+                <div className="max-w-2xl">
+                  <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#EC5B13]">
+                    <Sparkles className="w-4 h-4" />
+                    Organizer Workspace
+                  </p>
+                  <h2 className="text-3xl font-bold text-[#062E22] mt-3">Start your first event approval journey</h2>
+                  <p className="text-slate-600 mt-3 leading-relaxed">
+                    Create an event proposal, choose the ministry and municipal approval offices, then select the police notification office,
+                    and track every review update from this dashboard.
+                  </p>
+                  <div className="flex flex-wrap gap-3 mt-6">
+                    <Link
+                      href="/organizer/create-event"
+                      className="px-4 py-2.5 bg-[#062E22] text-white rounded-xl font-semibold hover:bg-[#0a4a37] transition flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Create Event Proposal
+                    </Link>
+                    <Link
+                      href="/organizer/proposals/create"
+                      className="px-4 py-2.5 border border-slate-300 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition flex items-center gap-2"
+                    >
+                      <FileCheck className="w-4 h-4" />
+                      Open Proposal Form
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-[#062E22]/95 via-[#0B3A2E]/90 to-[#1E6F5C]/80 text-white rounded-2xl shadow p-6 flex flex-col justify-between w-full lg:w-80">
+                  <div>
+                    <h3 className="text-xl font-bold mt-2 mb-6 flex items-center gap-2">
+                      <Bot className="w-6 h-6" />
+                      AI Assistant
+                    </h3>
+                    <p className="text-sm text-white/90">
+                      Ask for help planning your first event proposal, checklist, or review strategy.
+                    </p>
+                  </div>
+                  <div className="mt-6">
+                    <button
+                      onClick={() => setIsAIModalOpen(true)}
+                      className="w-full px-4 py-2 bg-white text-[#062E22] rounded-lg font-semibold hover:bg-gray-100 flex items-center justify-center gap-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Ask AI Assistant
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white shadow rounded-xl p-6 border border-slate-200">
+                <h3 className="text-lg font-bold text-[#062E22] mb-5 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-[#EC5B13]" />
+                  What happens next
+                </h3>
+                <div className="grid md:grid-cols-4 gap-4">
+                  {[
+                    { title: 'Create Proposal', text: 'Enter event details and choose the review offices.' },
+                    { title: 'Ministry Review', text: 'The selected ministry office checks compliance first.' },
+                    { title: 'Municipal Review', text: 'After ministry approval, the municipal office makes the final decision.' },
+                    { title: 'Approval & Police Notice', text: 'Approved events get a certificate and the selected police office receives the event notice.' },
+                  ].map((step, index) => (
+                    <div key={step.title} className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Step {index + 1}</p>
+                      <p className="font-semibold text-[#062E22] mt-2">{step.title}</p>
+                      <p className="text-sm text-slate-600 mt-2">{step.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white p-4 rounded-xl border-l-4 border-green-500 shadow-sm hover:shadow-md transition">
-              <p className="text-[10px] font-bold text-gray-400 tracking-wider">TOTAL EVENTS</p>
-              <h3 className="text-2xl font-bold text-[#062E22] my-1">12</h3>
-              <p className="text-xs font-semibold text-green-600">+3 this month</p>
+            <div className="bg-white p-4 rounded-xl border-l-4 border-[#062E22] shadow-sm hover:shadow-md transition">
+              <p className="text-[10px] font-bold text-gray-400 tracking-wider">TOTAL PROPOSALS</p>
+              <h3 className="text-2xl font-bold text-[#062E22] my-1">{counts.total}</h3>
+              <p className="text-xs font-semibold text-slate-600">{currentMonthCount} created this month</p>
             </div>
 
             <div className="bg-white p-4 rounded-xl border-l-4 border-blue-500 shadow-sm hover:shadow-md transition">
-              <p className="text-[10px] font-bold text-gray-400 tracking-wider">TICKETS SOLD</p>
-              <h3 className="text-2xl font-bold text-[#062E22] my-1">2,450</h3>
-              <p className="text-xs font-semibold text-blue-600">+23% this month</p>
+              <p className="text-[10px] font-bold text-gray-400 tracking-wider">IN REVIEW</p>
+              <h3 className="text-2xl font-bold text-[#062E22] my-1">{counts.pending}</h3>
+              <p className="text-xs font-semibold text-blue-600">Across ministry and municipal offices</p>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl border-l-4 border-green-500 shadow-sm hover:shadow-md transition">
+              <p className="text-[10px] font-bold text-gray-400 tracking-wider">APPROVED EVENTS</p>
+              <h3 className="text-2xl font-bold text-[#062E22] my-1">{counts.approved}</h3>
+              <p className="text-xs font-semibold text-green-600">{approvalsReady.length} certificates ready</p>
             </div>
 
             <div className="bg-white p-4 rounded-xl border-l-4 border-orange-500 shadow-sm hover:shadow-md transition">
-              <p className="text-[10px] font-bold text-gray-400 tracking-wider">DRAFT</p>
-              <h3 className="text-2xl font-bold text-[#062E22] my-1">3</h3>
-              <p className="text-xs font-semibold text-orange-600">In progress</p>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl border-l-4 border-teal-700 shadow-sm hover:shadow-md transition">
-              <p className="text-[10px] font-bold text-gray-400 tracking-wider">REVENUE</p>
-              <h3 className="text-2xl font-bold text-[#062E22] my-1">1.2M ETB</h3>
-              <p className="text-xs font-semibold text-teal-700">+23% growth</p>
+              <p className="text-[10px] font-bold text-gray-400 tracking-wider">DRAFTS</p>
+              <h3 className="text-2xl font-bold text-[#062E22] my-1">{counts.draft}</h3>
+              <p className="text-xs font-semibold text-orange-600">{counts.rejected} rejected proposals need attention</p>
             </div>
           </div>
 
-          {/* Upcoming Events & Recent Proposals */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Upcoming Events - Mock */}
             <div className="bg-white shadow rounded-xl p-4 md:p-6">
               <div className='flex justify-between items-center mb-4'>
                 <h2 className="text-lg font-bold text-[#062E22] flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-[#EC5B13]" />
-                  Upcoming Events
+                  Upcoming Approved Events
                 </h2>
                 <Link href="/organizer/events" className="text-xs md:text-sm text-[#EC5B13] hover:underline font-medium flex items-center gap-1">
                   See More <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
-              <div className="space-y-4">
-                {MOCK_UPCOMING_EVENTS.map((event) => (
-                  <div key={event.id} className="flex gap-4 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition cursor-pointer">
-                    <div className="w-12 h-12 bg-[#062E22] rounded-lg flex items-center justify-center text-white flex-shrink-0">
-                      <Calendar className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-[#062E22] truncate">{event.title}</h3>
-                      <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
-                        <MapPin className="w-3 h-3" /> {event.location}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">{event.date}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {upcomingEvents.length === 0 ? (
+                <div className="text-center py-10 text-slate-500">
+                  <p className="text-sm">No approved upcoming events yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {upcomingEvents.slice(0, 3).map((event) => (
+                    <Link key={event.id} href={`/organizer/proposals/${event.id}`} className="flex gap-4 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition cursor-pointer">
+                      <div className="w-12 h-12 bg-[#062E22] rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                        <Calendar className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-[#062E22] truncate">{event.title}</h3>
+                        <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> {event.location || 'Location pending'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">{formatDateLabel(event.start_date)}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Recent Proposals - Real */}
             <div className="bg-white shadow rounded-xl p-4 md:p-6">
               <div className='flex justify-between items-center mb-4'>
                 <h2 className="text-lg font-bold text-[#062E22] flex items-center gap-2">
@@ -261,44 +361,27 @@ export default function OrganizerDashboard() {
                   View All <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="w-6 h-6 border-2 border-[#062E22] border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : proposals.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <p className="text-sm">No proposals yet</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {proposals.slice(0, 4).map((proposal) => {
-                    const statusConfig = STATUS_CONFIG[proposal.status] || STATUS_CONFIG.draft;
-                    return (
-                      <Link key={proposal.id} href={`/organizer/proposals/${proposal.id}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition cursor-pointer">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Circle className={`w-3 h-3 flex-shrink-0 ${
-                            proposal.status === 'approved' ? 'text-green-500 fill-green-500' :
-                            proposal.status === 'rejected' ? 'text-red-500 fill-red-500' :
-                            proposal.status === 'draft' ? 'text-slate-400 fill-slate-400' :
-                            'text-blue-500 fill-blue-500'
-                          }`} />
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm text-[#062E22] truncate">{proposal.title}</p>
-                            <p className="text-xs text-gray-500">{proposal.location || 'No location'}</p>
-                          </div>
-                        </div>
-                        <span className={`text-xs px-2 py-1 rounded-full flex-shrink-0 ml-2 ${statusConfig.cls}`}>
-                          {statusConfig.label}
-                        </span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="space-y-3">
+                {sortedProposals.slice(0, 4).map((proposal) => {
+                  const statusConfig = PROPOSAL_STATUS_META[proposal.status] || PROPOSAL_STATUS_META.draft;
+                  return (
+                    <Link key={proposal.id} href={`/organizer/proposals/${proposal.id}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition cursor-pointer">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm text-[#062E22] truncate">{proposal.title}</p>
+                        <p className="text-xs text-gray-500">
+                          {getOfficeLabel(proposal.office_assignments?.ministry, 'Ministry pending')} • {formatDateLabel(proposal.updated_at)}
+                        </p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full flex-shrink-0 ml-2 ${statusConfig.cls}`}>
+                        {statusConfig.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          {/* Quick Actions - Mock */}
           <div className="bg-white shadow rounded-xl p-4 md:p-6 mb-8">
             <h2 className="text-lg font-bold text-[#062E22] mb-4 flex items-center gap-2">
               <Activity className="w-5 h-5 text-[#EC5B13]" />
@@ -309,13 +392,13 @@ export default function OrganizerDashboard() {
                 <Plus className="w-8 h-8" />
                 <span className="text-sm font-semibold">Create Event</span>
               </Link>
-              <Link href="/organizer/reports" className="flex flex-col items-center gap-2 p-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                <BarChart3 className="w-8 h-8" />
-                <span className="text-sm font-semibold">Analytics</span>
-              </Link>
               <Link href="/organizer/proposals" className="flex flex-col items-center gap-2 p-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
                 <FileCheck className="w-8 h-8" />
-                <span className="text-sm font-semibold">Proposals</span>
+                <span className="text-sm font-semibold">Proposal Tracker</span>
+              </Link>
+              <Link href="/organizer/events" className="flex flex-col items-center gap-2 p-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                <Calendar className="w-8 h-8" />
+                <span className="text-sm font-semibold">Approved Events</span>
               </Link>
               <button onClick={() => setIsAIModalOpen(true)} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#062E22]/95 to-[#1E6F5C] text-white rounded-lg hover:opacity-90 transition">
                 <Bot className="w-8 h-8" />
@@ -324,187 +407,192 @@ export default function OrganizerDashboard() {
             </div>
           </div>
 
-          {/* Performance & Quick Stats - Mock */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* Performance Metrics - Mock */}
             <div className="bg-white shadow rounded-xl p-4 md:p-6">
               <h2 className="text-lg font-bold text-[#062E22] mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-[#EC5B13]" />
-                Performance Metrics
+                <Gauge className="w-5 h-5 text-[#EC5B13]" />
+                Approval Health
               </h2>
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-600 flex items-center gap-2">
-                      <Gauge className="w-4 h-4" />
-                      Success Rate
-                    </span>
-                    <span className="font-bold text-green-600">{MOCK_STATS.successRate}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-green-500 h-2 rounded-full" style={{ width: `${MOCK_STATS.successRate}%` }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600 flex items-center gap-2">
-                      <Users className="w-4 h-4" />
+                      <CheckCircle2 className="w-4 h-4" />
                       Approval Rate
                     </span>
-                    <span className="font-bold text-blue-600">{MOCK_STATS.approvalRate}%</span>
+                    <span className="font-bold text-green-600">{approvalRate}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${MOCK_STATS.approvalRate}%` }}></div>
+                    <div className="bg-green-500 h-2 rounded-full" style={{ width: `${approvalRate}%` }}></div>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-600 flex items-center gap-2">
-                      <Ticket className="w-4 h-4" />
-                      Tickets Sold
+                      <Gavel className="w-4 h-4" />
+                      Review Completion
                     </span>
-                    <span className="font-bold text-purple-600">{MOCK_STATS.ticketsSold.toLocaleString()}</span>
+                    <span className="font-bold text-blue-600">{reviewCompletionRate}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-purple-500 h-2 rounded-full" style={{ width: '75%' }}></div>
+                    <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${reviewCompletionRate}%` }}></div>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-600 flex items-center gap-2">
-                      <DollarSign className="w-4 h-4" />
-                      Revenue Growth
+                      <Clock3 className="w-4 h-4" />
+                      Proposals In Review
                     </span>
-                    <span className="font-bold text-teal-600">{MOCK_STATS.revenueGrowth}%</span>
+                    <span className="font-bold text-amber-600">{counts.pending}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${MOCK_STATS.revenueGrowth * 3}%` }}></div>
+                    <div className="bg-amber-500 h-2 rounded-full" style={{ width: `${proposals.length ? Math.min((counts.pending / proposals.length) * 100, 100) : 0}%` }}></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600 flex items-center gap-2">
+                      <TriangleAlert className="w-4 h-4" />
+                      Rejected / Needs Action
+                    </span>
+                    <span className="font-bold text-red-600">{counts.rejected}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-red-500 h-2 rounded-full" style={{ width: `${proposals.length ? Math.min((counts.rejected / proposals.length) * 100, 100) : 0}%` }}></div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Quick Stats - Mock */}
             <div className="bg-gradient-to-br from-[#062E22] to-[#1E6F5C] rounded-xl p-4 md:p-6 text-white">
               <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <Bot className="w-5 h-5" />
-                Quick Stats
+                <Sparkles className="w-5 h-5" />
+                Approval Snapshot
               </h2>
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/10 rounded-lg p-3">
-                  <p className="text-2xl font-bold">{MOCK_UPCOMING_EVENTS.length}</p>
-                  <p className="text-xs text-green-200">Upcoming Events</p>
+                  <p className="text-2xl font-bold">{upcomingEvents.length}</p>
+                  <p className="text-xs text-green-200">Upcoming Approved Events</p>
                 </div>
                 <div className="bg-white/10 rounded-lg p-3">
-                  <p className="text-2xl font-bold">{MOCK_VENDORS.length}</p>
-                  <p className="text-xs text-green-200">Vendors</p>
+                  <p className="text-2xl font-bold">{recentUpdates.length}</p>
+                  <p className="text-xs text-green-200">Recent Gov Updates</p>
                 </div>
                 <div className="bg-white/10 rounded-lg p-3">
-                  <p className="text-2xl font-bold">{MOCK_STATS.ticketsSold.toLocaleString()}</p>
-                  <p className="text-xs text-green-200">Tickets Sold</p>
+                  <p className="text-2xl font-bold">{securityAssignments.length}</p>
+                  <p className="text-xs text-green-200">Security Assignments</p>
                 </div>
                 <div className="bg-white/10 rounded-lg p-3">
-                  <p className="text-2xl font-bold">{MOCK_STATS.totalRevenue}M</p>
-                  <p className="text-xs text-green-200">Revenue (ETB)</p>
+                  <p className="text-2xl font-bold">{nextApprovedEvent ? formatDateLabel(nextApprovedEvent.start_date) : '—'}</p>
+                  <p className="text-xs text-green-200">Next Approved Event</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Upcoming Events - Mock Gradient Cards */}
           <div className="bg-white shadow rounded-lg p-4 md:p-6 mb-8">
             <div className='flex justify-between items-center mb-6'>
               <h2 className="text-xl font-bold text-[#062E22] flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-[#EC5B13]" />
-                Upcoming Events
+                Approval Certificates Ready
               </h2>
-              <Link href="/organizer/events" className="text-sm text-[#EC5B13] hover:underline font-medium flex items-center gap-1">
+              <Link href="/organizer/proposals" className="text-sm text-[#EC5B13] hover:underline font-medium flex items-center gap-1">
                 View All <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {MOCK_UPCOMING_EVENTS.map((event, index) => {
-                const gradients = ['from-blue-600 to-purple-700', 'from-emerald-600 to-teal-700', 'from-amber-500 to-orange-600'];
-                return (
-                  <div key={event.id} className="relative group overflow-hidden rounded-xl h-64 cursor-pointer">
-                    <div className={`absolute inset-0 bg-gradient-to-br ${gradients[index % gradients.length]}`} />
-                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition" />
-                    <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
-                      <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
-                        <Calendar className="w-3 h-3 inline mr-1" />
-                        {event.date}
+            {approvalsReady.length === 0 ? (
+              <div className="text-center py-10 text-slate-500">
+                <p className="text-sm">No approval certificates available yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {approvalsReady.map((proposal) => (
+                  <Link key={proposal.id} href={`/organizer/proposals/${proposal.id}/permit`} className="block rounded-xl border border-slate-200 bg-slate-50 p-4 hover:bg-slate-100 transition">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-[#062E22] truncate">{proposal.title}</p>
+                        <p className="text-xs text-slate-500 mt-1">Certificate {proposal.approval_certificate_number}</p>
                       </div>
-                      <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
-                        {event.status}
-                      </div>
-                      <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-3">
-                        <Calendar className="w-6 h-6" />
-                      </div>
-                      <h3 className="text-xl font-bold mb-1">{event.title}</h3>
-                      <p className="text-sm text-white/90 flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {event.location}
-                      </p>
-                      <div className="mt-4 flex gap-2">
-                        <button className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium hover:bg-white/30 transition">
-                          Manage
-                        </button>
-                        <button className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium hover:bg-white/30 transition">
-                          View
-                        </button>
-                      </div>
+                      <span className="text-xs font-semibold text-green-700">Open</span>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Featured Vendors - Mock */}
-          <div className="bg-white shadow rounded-lg p-4 md:p-6 mb-8">
-            <div className='flex justify-between items-center mb-6'>
-              <h2 className="text-xl font-bold text-[#062E22] flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-[#EC5B13]" />
-                Featured Vendors
-              </h2>
-              <Link href="/organizer/vendors" className="text-sm text-[#EC5B13] hover:underline font-medium flex items-center gap-1">
-                View All <ArrowRight className="w-4 h-4" />
-              </Link>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white shadow rounded-lg p-4 md:p-6">
+              <div className='flex justify-between items-center mb-6'>
+                <h2 className="text-xl font-bold text-[#062E22] flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-[#EC5B13]" />
+                  Police Notifications
+                </h2>
+                <Link href="/organizer/proposals" className="text-sm text-[#EC5B13] hover:underline font-medium flex items-center gap-1">
+                  Proposal Details <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+              {securityAssignments.length === 0 ? (
+                <div className="text-center py-10 text-slate-500">
+                  <p className="text-sm">Police notifications will appear after municipal approval.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {securityAssignments.map((proposal) => (
+                    <Link key={proposal.id} href={`/organizer/proposals/${proposal.id}`} className="block rounded-xl border border-slate-200 bg-slate-50 p-4 hover:bg-slate-100 transition">
+                      <p className="font-semibold text-[#062E22]">{proposal.title}</p>
+                      <p className="text-sm text-slate-600 mt-2">{proposal.security_assignment?.message}</p>
+                      <p className="text-xs text-slate-500 mt-2">
+                        Assigned office: {proposal.security_assignment?.office_name || getOfficeLabel(proposal.office_assignments?.police)}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {MOCK_VENDORS.slice(0, 3).map((vendor, index) => {
-                const gradients = ['from-rose-500 to-pink-600', 'from-cyan-500 to-blue-600', 'from-slate-600 to-gray-700'];
-                return (
-                  <div key={vendor.id} className="relative group overflow-hidden rounded-xl h-64 cursor-pointer">
-                    <div className={`absolute inset-0 bg-gradient-to-br ${gradients[index % gradients.length]}`} />
-                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition" />
-                    <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
-                      <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
-                        ★ {vendor.rating}
+
+            <div className="bg-white shadow rounded-lg p-4 md:p-6">
+              <div className='flex justify-between items-center mb-6'>
+                <h2 className="text-xl font-bold text-[#062E22] flex items-center gap-2">
+                  <FolderKanban className="w-5 h-5 text-[#EC5B13]" />
+                  Government Updates Feed
+                </h2>
+                <Link href="/organizer/proposals" className="text-sm text-[#EC5B13] hover:underline font-medium flex items-center gap-1">
+                  Open Proposals <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+              {recentUpdates.length === 0 ? (
+                <div className="text-center py-10 text-slate-500">
+                  <p className="text-sm">Government updates will appear here once proposals enter review.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentUpdates.map((feedItem) => (
+                    <Link key={`${feedItem.proposalId}-${feedItem.update.created_at}`} href={`/organizer/proposals/${feedItem.proposalId}`} className="block rounded-xl border border-slate-200 bg-slate-50 p-4 hover:bg-slate-100 transition">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-[#062E22] truncate">{feedItem.proposalTitle}</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {feedItem.update.office_name || feedItem.update.stage || 'Government review'}
+                          </p>
+                        </div>
+                        <span className="text-xs text-slate-400">{formatDateTimeLabel(feedItem.update.created_at)}</span>
                       </div>
-                      <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-3">
-                        <Store className="w-6 h-6" />
-                      </div>
-                      <h3 className="text-xl font-bold mb-1">{vendor.name}</h3>
-                      <p className="text-sm text-white/90">{vendor.category}</p>
-                      <div className="mt-4">
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                          vendor.status === 'verified' ? 'bg-green-500' : 'bg-amber-500'
-                        }`}>
-                          {vendor.status === 'verified' ? '✓ Verified' : vendor.status}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                      <p className="text-sm text-slate-600 mt-3">{feedItem.update.message}</p>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
+        </>
+      )}
         </div>
       </main>
 
       <AIModal isOpen={isAIModalOpen} onClose={() => setIsAIModalOpen(false)} />
-      {hasEvents && <AIFloatingButton onClick={() => setIsAIModalOpen(true)} />}
+      {hasData && <AIFloatingButton onClick={() => setIsAIModalOpen(true)} />}
     </div>
   );
 }
