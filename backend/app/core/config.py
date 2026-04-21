@@ -38,6 +38,19 @@ class Settings(BaseSettings):
     MANUAL_REVIEW_MIN_SCORE: int = 50
     ENABLE_DEBUG_OTP_RESPONSE: bool = True
 
+    # Resend email delivery (OTP)
+    RESEND_ENABLED: bool = False
+    RESEND_API_KEY: Optional[str] = None
+    RESEND_FROM_EMAIL: Optional[str] = None
+    RESEND_OTP_SUBJECT: str = "Your Global Connect Ethiopia verification code"
+
+    # Session cookie auth
+    SESSION_COOKIE_NAME: str = "gce_sid"
+    SESSION_COOKIE_SECURE: bool = False
+    SESSION_COOKIE_DOMAIN: Optional[str] = None
+    SESSION_MAX_AGE_MINUTES: int = 30
+    SESSION_REMEMBER_ME_DAYS: int = 30
+
     class Config:
         # case_sensitive = False
         env_file = ".env"

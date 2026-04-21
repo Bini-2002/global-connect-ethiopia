@@ -85,6 +85,12 @@ CLOUDINARY_API_SECRET=
 # Queue / worker (only needed if running the verification worker)
 REDIS_URL=redis://localhost:6379/0
 VERIFICATION_QUEUE_NAME=document_verification
+
+# OTP email delivery (Resend)
+RESEND_ENABLED=false
+RESEND_API_KEY=
+RESEND_FROM_EMAIL=onboarding@resend.dev
+RESEND_OTP_SUBJECT=Your Global Connect Ethiopia verification code
 ```
 
 Notes:

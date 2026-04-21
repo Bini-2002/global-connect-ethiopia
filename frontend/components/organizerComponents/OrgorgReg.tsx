@@ -1,9 +1,11 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import Image from 'next/image'
 import { Props } from '@/app/types/types'
 
 
 export default function OrgorgReg({formData, Error,handleChange,handleFileUpload,handleSubmit,handleDrop}: Props) {
+  const businessLicenceRef = useRef<HTMLInputElement | null>(null);
+
   return (
     <>
           
@@ -33,8 +35,9 @@ export default function OrgorgReg({formData, Error,handleChange,handleFileUpload
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Organization Type */}
       <div>
-      <label className=" block text-sm font-medium text-slate-700 mb-1">Organization Type <span className='text-orange-600'>*</span></label>
+      <label htmlFor="organization_type" className=" block text-sm font-medium text-slate-700 mb-1">Organization Type <span className='text-orange-600'>*</span></label>
       <select
+        id="organization_type"
         name="organization_type"
         value={formData.organization_type}
         onChange={handleChange}
@@ -49,8 +52,9 @@ export default function OrgorgReg({formData, Error,handleChange,handleFileUpload
       </div>
       <div>
       {/* Industry */}
-      <label className=" block text-sm font-medium text-slate-700 mb-1">Industry <span className='text-orange-600'>*</span></label>
+      <label htmlFor="field_of_study" className=" block text-sm font-medium text-slate-700 mb-1">Industry <span className='text-orange-600'>*</span></label>
       <select
+        id="field_of_study"
         name="field_of_study"
         value={formData.field_of_study}
         onChange={handleChange}
@@ -65,8 +69,9 @@ export default function OrgorgReg({formData, Error,handleChange,handleFileUpload
       </select>
       </div></div>
       {/* Company Size */}
-      <label className=" block text-sm font-medium text-slate-700 mb-1">Organization size <span className='text-orange-600'>*</span></label>
+      <label htmlFor="employee_size" className=" block text-sm font-medium text-slate-700 mb-1">Organization size <span className='text-orange-600'>*</span></label>
       <select
+        id="employee_size"
         name="employee_size"
         value={formData.employee_size}
         onChange={handleChange}
@@ -105,17 +110,20 @@ export default function OrgorgReg({formData, Error,handleChange,handleFileUpload
 
       {/* File Upload */}
       <label className=" block text-sm font-medium text-slate-700 mb-1">Business License/ Registration Document <span className='text-orange-600'>*</span></label>
-      <div className="border-dashed border-2 border-gray-300 rounded-lg p-4 justify-center items-center text-center"
-      onDrop={handleDrop}                 
-      onDragOver={(e) => e.preventDefault()}>
+      <div
+        className="border-dashed border-2 border-gray-300 rounded-lg p-4 justify-center items-center text-center cursor-pointer"
+        onClick={() => businessLicenceRef.current?.click()}
+        onDrop={(e) => handleDrop?.(e, "business_licence")}
+        onDragOver={(e) => e.preventDefault()}
+      >
         <input
+          ref={businessLicenceRef}
           type="file"
           name="business_licence" 
-          accept=".pdf,.jpg,.png"
+          accept=".pdf,.jpg,.jpeg,.png,.webp"
           onChange={handleFileUpload}
           className="hidden"
           id="business_licence"
-
         />
         <div className="flex flex-col justify-center items-center p-3">
         <Image src='/icon.png' width={30} height={30} alt=''/>
@@ -124,8 +132,10 @@ export default function OrgorgReg({formData, Error,handleChange,handleFileUpload
         </label>
         {formData.business_licence && (
           <p className="text-sm text-gray-600 mt-2">{formData.business_licence.name}</p>
-        )}</div>   {/* Show validation error */}
-  {Error && <p className="text-red-600 text-sm mt-1">{Error}</p>}
-      </div> </>
+        )}
+        </div>
+        {Error && <p className="text-red-600 text-sm mt-1">{Error}</p>}
+      </div>
+    </>
   )
 }

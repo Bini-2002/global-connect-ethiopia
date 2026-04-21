@@ -21,3 +21,30 @@ verification_result_collection = db.verification_results
 
 # proposals collection
 proposal_collection = db.proposals
+
+# post-approval event lifecycle collections
+event_collection = db.events
+event_schedule_collection = db.event_schedules
+venue_reservation_collection = db.venue_reservations
+event_team_invitation_collection = db.event_team_invitations
+event_team_member_collection = db.event_team_members
+event_task_collection = db.event_tasks
+ticket_type_collection = db.ticket_types
+ticket_purchase_collection = db.ticket_purchases
+badge_collection = db.badges
+event_announcement_collection = db.event_announcements
+event_incident_collection = db.event_incidents
+feedback_survey_collection = db.feedback_surveys
+feedback_response_collection = db.feedback_responses
+event_final_report_collection = db.event_final_reports
+
+# marketplace collections
+vendor_service_collection = db.vendor_services
+request_collection = db.requests
+marketplace_opportunity_collection = db.marketplace_opportunities
+opportunity_proposal_collection = db.opportunity_proposals
+contract_collection = db.contracts
+transaction_collection = db.transactions
+wallet_collection = db.wallets
+withdrawal_collection = db.withdrawals
+message_collection = db.messages

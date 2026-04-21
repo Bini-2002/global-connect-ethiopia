@@ -1,52 +1,228 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
+import { getRole, getToken } from '@/app/lib/auth';
 
 interface OrganizerDetail {
   id: string;
   user_id: string;
-  organizer_type?: string;
+  profile_type?: string;
   full_name?: string;
   organization_name?: string;
   status: string;
+  verification_status?: string;
   ocr_score?: number;
   ocr_tier?: string;
   recommendation?: string;
+  recommended_status?: string;
   phone?: string;
   email?: string;
   national_id_number?: string;
   created_at: string;
 }
 
+interface AdminDocumentItem {
+  owner_type: string;
+  entity_id: string;
+  document_key: string;
+  filename?: string;
+  content_type?: string;
+  storage_provider?: string;
+  document_url?: string;
+  uploaded_at?: string;
+  download_endpoint: string;
+}
+
+interface AdminDocumentListResponse {
+  count: number;
+  items: AdminDocumentItem[];
+}
+
+const DOCUMENT_LABELS: Record<string, string> = {
+  business_licence: 'Business licence / registration document',
+  representative_id_document: 'Representative ID / passport',
+  authorization_proof: 'Authorization proof letter',
+  national_id: 'National ID / passport',
+  government_issued_id: 'Government-issued ID',
+};
+
+const DATE_ONLY_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'UTC',
+});
+
+function formatDate(value?: string) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return DATE_ONLY_FORMATTER.format(date);
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return DATE_TIME_FORMATTER.format(date);
+}
+
 export default function AdminOrganizerDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
   const [org, setOrg] = useState<OrganizerDetail | null>(null);
+  const [documents, setDocuments] = useState<AdminDocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState('');
+  const [docsLoading, setDocsLoading] = useState(true);
+  const [documentLoadingKey, setDocumentLoadingKey] = useState('');
   const [error, setError] = useState('');
+  const [docsError, setDocsError] = useState('');
   const [success, setSuccess] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-    api.get<OrganizerDetail>(`/admin/organizers/${id}`).then(setOrg).catch(() => setError('Not found')).finally(() => setLoading(false));
-  }, [id]);
+    const token = getToken();
+    const role = getRole();
+
+    if (!token || (role !== 'admin' && role !== 'super_admin')) {
+      setLoading(false);
+      setDocsLoading(false);
+      router.replace('/login');
+      return;
+    }
+
+    api.get<OrganizerDetail>(`/admin/organizers/${id}`)
+      .then(setOrg)
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
+        setError('Not found');
+      })
+      .finally(() => setLoading(false));
+
+    api.get<AdminDocumentListResponse>(`/admin/documents?owner_type=organizer&entity_id=${id}`)
+      .then((docs) => {
+        setDocuments(docs.items || []);
+        setDocsError('');
+      })
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'Not authenticated') {
+          router.replace('/login');
+          return;
+        }
+        setDocsError(err instanceof Error ? err.message : 'Failed to load documents');
+      })
+      .finally(() => setDocsLoading(false));
+  }, [id, router]);
 
   const doDecision = async (decision: 'approved' | 'rejected') => {
     setActionLoading(decision); setError(''); setSuccess('');
     try {
-      await api.patch(`/admin/organizers/${id}/decision`, { decision, notes });
+      const form = new FormData();
+      if (notes.trim()) {
+        form.append('notes', notes.trim());
+      }
+
+      await api.patch(
+        `/admin/organizers/${id}/decision?approved=${decision === 'approved'}`,
+        form,
+      );
       setSuccess(`Organizer ${decision} successfully.`);
       const updated = await api.get<OrganizerDetail>(`/admin/organizers/${id}`);
       setOrg(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');
     } finally { setActionLoading(''); }
+  };
+
+  const rerunOCR = async () => {
+    setActionLoading('ocr'); setError(''); setSuccess('');
+    try {
+      await api.post(`/admin/organizers/run-ocr/${id}`);
+      setSuccess('OCR completed successfully. Refreshing organizer review data...');
+
+      const updated = await api.get<OrganizerDetail>(`/admin/organizers/${id}`);
+      setOrg(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'OCR failed');
+    } finally { setActionLoading(''); }
+  };
+
+  const openDocument = async (doc: AdminDocumentItem) => {
+    const token = getToken();
+    if (!token) {
+      setDocsError('Your session expired. Please log in again.');
+      return;
+    }
+
+    setDocsError('');
+    setDocumentLoadingKey(doc.document_key);
+
+    try {
+      const response = await fetch(api.resolveUrl(doc.download_endpoint), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to access document (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const responseContentType = response.headers.get('Content-Type') || '';
+      const fileName = (doc.filename || '').toLowerCase();
+      const isInlineViewable =
+        responseContentType.includes('pdf') ||
+        responseContentType.startsWith('image/') ||
+        fileName.endsWith('.pdf') ||
+        fileName.endsWith('.png') ||
+        fileName.endsWith('.jpg') ||
+        fileName.endsWith('.jpeg') ||
+        fileName.endsWith('.webp') ||
+        fileName.endsWith('.gif');
+
+      if (isInlineViewable) {
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } else {
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = doc.filename || 'document';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+      }
+    } catch (err) {
+      setDocsError(err instanceof Error ? err.message : 'Failed to open document');
+    } finally {
+      setDocumentLoadingKey('');
+    }
   };
 
   const getTier = (score?: number) => {
@@ -74,8 +250,13 @@ export default function AdminOrganizerDetailPage() {
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
               <h1 className="text-2xl font-bold text-[#062E22]">{org.full_name || org.organization_name}</h1>
-              {org.status === 'pending_review' && (
-                <div className="flex gap-2">
+              {org.verification_status === 'pending_for_review' && (
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={rerunOCR} disabled={!!actionLoading}
+                    className="px-4 py-2 border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition disabled:opacity-50 flex items-center gap-2">
+                    {actionLoading === 'ocr' && <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />}
+                    Re-run OCR
+                  </button>
                   <button onClick={() => doDecision('rejected')} disabled={!!actionLoading}
                     className="px-4 py-2 border border-red-300 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50 transition disabled:opacity-50 flex items-center gap-2">
                     {actionLoading === 'rejected' && <div className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />}
@@ -100,12 +281,12 @@ export default function AdminOrganizerDetailPage() {
                   <h3 className="font-semibold text-[#062E22] mb-4 text-sm uppercase tracking-wide">Profile Information</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     {[
-                      { l: 'Type', v: org.organizer_type || '—' },
+                      { l: 'Type', v: org.profile_type || '—' },
                       { l: 'Name', v: org.full_name || org.organization_name || '—' },
                       { l: 'Email', v: org.email || '—' },
                       { l: 'Phone', v: org.phone || '—' },
                       { l: 'National ID', v: org.national_id_number || '—' },
-                      { l: 'Applied At', v: new Date(org.created_at).toLocaleDateString() },
+                      { l: 'Applied At', v: formatDate(org.created_at) },
                     ].map(({ l, v }) => (
                       <div key={l}>
                         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">{l}</p>
@@ -113,6 +294,55 @@ export default function AdminOrganizerDetailPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <h3 className="font-semibold text-[#062E22] text-sm uppercase tracking-wide">
+                      Submitted Documents
+                    </h3>
+                    <span className="text-xs font-medium text-slate-500">
+                      {docsLoading ? 'Loading...' : `${documents.length} file(s)`}
+                    </span>
+                  </div>
+
+                  {docsLoading ? (
+                    <div className="flex justify-center py-6">
+                      <div className="w-6 h-6 border-2 border-[#062E22] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : docsError ? (
+                    <p className="text-sm text-red-600">{docsError}</p>
+                  ) : documents.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      No submitted documents were found for this organizer yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {documents.map((doc) => (
+                        <div key={doc.document_key} className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <div className="min-w-0">
+                            <p className="font-medium text-slate-800">
+                              {DOCUMENT_LABELS[doc.document_key] || doc.document_key}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1 break-all">
+                              {doc.filename || 'Unnamed file'}
+                            </p>
+                            <p className="text-xs text-slate-400 mt-1">
+                              {doc.storage_provider || 'unknown'} {doc.uploaded_at ? `• ${formatDateTime(doc.uploaded_at)}` : ''}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => openDocument(doc)}
+                            disabled={documentLoadingKey === doc.document_key}
+                            className="shrink-0 rounded-lg border border-[#062E22] px-3 py-2 text-xs font-semibold text-[#062E22] transition hover:bg-[#062E22] hover:text-white"
+                          >
+                            {documentLoadingKey === doc.document_key ? 'Opening...' : 'Open'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Admin Notes */}
@@ -140,16 +370,24 @@ export default function AdminOrganizerDetailPage() {
                   </div>
                   {org.recommendation && (
                     <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Recommendation</p>
-                      <p className="text-xs text-slate-700 capitalize">{org.recommendation}</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">OCR Recommendation</p>
+                      <p className="text-xs text-slate-700 capitalize">{org.recommendation.replaceAll('_', ' ')}</p>
+                      {org.recommended_status && (
+                        <p className="text-xs text-slate-500 mt-1">
+                          Suggested outcome: {org.recommended_status.replaceAll('_', ' ')}
+                        </p>
+                      )}
+                      <p className="text-xs text-slate-500 mt-2">
+                        OCR is advisory only. Final approval stays with admin review.
+                      </p>
                     </div>
                   )}
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Status</p>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${org.status === 'approved' ? 'bg-green-100 text-green-700' : org.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>
-                    {org.status}
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${org.verification_status === 'approved' ? 'bg-green-100 text-green-700' : org.verification_status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>
+                    {org.verification_status || org.status}
                   </span>
                 </div>
               </div>

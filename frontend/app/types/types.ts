@@ -17,16 +17,17 @@ export type FormDataType = {
     [key: string]: unknown;
   };
 export type Props = {
-    formData: Record<string, unknown>;
-    setFormData: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
+    formData: any;
+    setFormData: React.Dispatch<React.SetStateAction<any>>;
     handleChange: (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
       ) => void;
-      handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-      handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+      handleFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+      handleSubmit?: (e: React.FormEvent<HTMLFormElement>) => void;
       nextStep?: () => void;
       backStep?: () => void;
-      handleDrop?: (e: React.DragEvent<HTMLInputElement>) => void; 
-
-    }
+      handleDrop?: (...args: any[]) => void;
+      Error?: string;
+      error?: string;
+    };
    
