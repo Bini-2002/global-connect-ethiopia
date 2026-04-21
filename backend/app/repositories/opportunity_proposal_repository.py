@@ -157,3 +157,31 @@ class OpportunityProposalRepository:
             {"$set": updates, "$inc": {"version": 1}},
         )
         return result.modified_count == 1
+
+    async def apply_counter(
+        self,
+        proposal_id: str,
+        *,
+        from_statuses: list[OpportunityProposalStatus],
+        to_status: OpportunityProposalStatus,
+        updates: dict,
+        now: datetime,
+    ) -> bool:
+        result = await self.collection.update_one(
+            {
+                "_id": _coerce_object_id(proposal_id),
+                "status": {"$in": [status.value for status in from_statuses]},
+            },
+            {
+                "$set": {
+                    **updates,
+                    "status": to_status.value,
+                    "updated_at": now,
+                },
+                "$inc": {
+                    "counter_round": 1,
+                    "version": 1,
+                },
+            },
+        )
+        return result.modified_count == 1

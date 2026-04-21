@@ -6,6 +6,7 @@ from app.api.v1.deps import get_current_user
 from app.schemas.opportunity import (
     OpportunityCreateRequest,
     OpportunityInviteVendorsRequest,
+    OpportunityProposalCounterRequest,
     OpportunityProposalResponse,
     OpportunityProposalSubmitRequest,
     OpportunityResponse,
@@ -54,6 +55,22 @@ async def submit_proposal(
 ):
     return await service.submit_proposal(
         opportunity_id=opportunity_id,
+        payload=payload,
+        current_user=current_user,
+    )
+
+
+@router.post("/{opportunity_id}/proposals/{proposal_id}/counter", response_model=OpportunityProposalResponse)
+async def counter_proposal(
+    opportunity_id: str,
+    proposal_id: str,
+    payload: OpportunityProposalCounterRequest,
+    current_user: dict = Depends(get_current_user),
+    service: OpportunityService = Depends(get_opportunity_service),
+):
+    return await service.counter_proposal(
+        opportunity_id=opportunity_id,
+        proposal_id=proposal_id,
         payload=payload,
         current_user=current_user,
     )

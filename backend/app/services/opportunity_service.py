@@ -5,23 +5,33 @@ from pymongo.errors import DuplicateKeyError
 
 from app.db.mongodb import event_collection, proposal_collection, vendor_collection, vendor_service_collection
 from app.models.opportunity_states import (
+    get_awaiting_action_by,
     MarketplaceActor,
     OpportunityProposalStatus,
     OpportunitySourcingMode,
     OpportunityStatus,
     ProposalSubmissionMode,
 )
+from app.models.roles import UserRole, to_user_role
 from app.repositories import OpportunityProposalRepository, OpportunityRepository
 from app.schemas.opportunity import (
     OpportunityCreateRequest,
     OpportunityDocument,
     OpportunityInviteVendorsRequest,
+    OpportunityProposalCounterRequest,
     OpportunityProposalDocument,
     OpportunityProposalResponse,
     OpportunityProposalSubmitRequest,
     OpportunityResponse,
 )
-from app.services.marketplace import parse_object_id, require_organizer_profile, require_vendor_profile, utc_now
+from app.services.marketplace import (
+    append_message,
+    get_user_name,
+    parse_object_id,
+    require_organizer_profile,
+    require_vendor_profile,
+    utc_now,
+)
 
 
 class OpportunityService:
@@ -231,6 +241,104 @@ class OpportunityService:
         )
         return self._serialize_proposal(created)
 
+    async def counter_proposal(
+        self,
+        *,
+        opportunity_id: str,
+        proposal_id: str,
+        payload: OpportunityProposalCounterRequest,
+        current_user: dict,
+    ) -> OpportunityProposalResponse:
+        role = to_user_role(current_user.get("role"))
+        if role == UserRole.ORGANIZER:
+            await require_organizer_profile(current_user)
+            actor = MarketplaceActor.CLIENT
+        elif role == UserRole.VENDOR:
+            await require_vendor_profile(current_user)
+            actor = MarketplaceActor.VENDOR
+        else:
+            raise HTTPException(status_code=403, detail="Only organizers or vendors can counter proposals")
+
+        proposal = await self.proposal_repository.get_by_id(proposal_id)
+        if not proposal:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        if proposal.get("opportunity_id") != opportunity_id:
+            raise HTTPException(status_code=400, detail="Proposal does not belong to the specified opportunity")
+
+        opportunity = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        if opportunity.get("status") not in {OpportunityStatus.PUBLISHED.value, OpportunityStatus.CLOSED.value}:
+            raise HTTPException(status_code=400, detail="This opportunity is not open for negotiation")
+
+        self._validate_counter_permissions(
+            actor=actor,
+            proposal=proposal,
+            opportunity=opportunity,
+            current_user=current_user,
+        )
+
+        next_status = (
+            OpportunityProposalStatus.CLIENT_COUNTERED
+            if actor == MarketplaceActor.CLIENT
+            else OpportunityProposalStatus.VENDOR_COUNTERED
+        )
+        next_amount = (
+            payload.proposal_amount
+            if payload.proposal_amount is not None
+            else proposal.get("proposal_amount")
+        )
+        now = utc_now()
+        updates = {
+            "proposal_amount": float(next_amount) if next_amount is not None else None,
+            "scope_summary": payload.scope_summary.strip() if payload.scope_summary else proposal.get("scope_summary"),
+            "delivery_timeline_days": (
+                payload.delivery_timeline_days
+                if payload.delivery_timeline_days is not None
+                else proposal.get("delivery_timeline_days")
+            ),
+            "terms": payload.terms.strip() if payload.terms else proposal.get("terms"),
+            "last_countered_by": actor.value,
+            "awaiting_action_by": get_awaiting_action_by(next_status).value,
+        }
+
+        updated = await self.proposal_repository.apply_counter(
+            proposal_id,
+            from_statuses=[
+                OpportunityProposalStatus.SUBMITTED,
+                OpportunityProposalStatus.CLIENT_COUNTERED,
+                OpportunityProposalStatus.VENDOR_COUNTERED,
+            ],
+            to_status=next_status,
+            updates=updates,
+            now=now,
+        )
+        if not updated:
+            raise HTTPException(status_code=409, detail="Proposal could not be updated")
+
+        actor_name = await get_user_name(current_user["id"])
+        await append_message(
+            entity_type="opportunity_proposal",
+            entity_id=proposal_id,
+            sender_id=current_user["id"],
+            sender_role=role.value if role else actor.value,
+            sender_name=actor_name,
+            body=payload.message.strip(),
+            message_type="counter_offer",
+            metadata={
+                "opportunity_id": opportunity_id,
+                "proposal_amount": float(next_amount) if next_amount is not None else None,
+                "scope_summary": updates["scope_summary"],
+                "delivery_timeline_days": updates["delivery_timeline_days"],
+                "terms": updates["terms"],
+            },
+        )
+
+        refreshed = await self.proposal_repository.get_by_id(proposal_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        return self._serialize_proposal(refreshed)
+
     async def _validate_submission_access(
         self,
         *,
@@ -280,6 +388,32 @@ class OpportunityService:
                 raise HTTPException(status_code=403, detail="You can only submit proposals using your own service listing")
             if not service.get("is_active", True):
                 raise HTTPException(status_code=400, detail="The selected vendor service is inactive")
+
+    def _validate_counter_permissions(
+        self,
+        *,
+        actor: MarketplaceActor,
+        proposal: dict,
+        opportunity: dict,
+        current_user: dict,
+    ) -> None:
+        if actor == MarketplaceActor.CLIENT:
+            if opportunity.get("client_user_id") != current_user["id"]:
+                raise HTTPException(status_code=403, detail="You can only counter proposals on your own opportunities")
+        elif actor == MarketplaceActor.VENDOR:
+            if proposal.get("vendor_user_id") != current_user["id"]:
+                raise HTTPException(status_code=403, detail="You can only counter your own proposal")
+
+        if proposal.get("status") not in {
+            OpportunityProposalStatus.SUBMITTED.value,
+            OpportunityProposalStatus.CLIENT_COUNTERED.value,
+            OpportunityProposalStatus.VENDOR_COUNTERED.value,
+        }:
+            raise HTTPException(status_code=400, detail="This proposal is not in a negotiable state")
+
+        waiting_for = proposal.get("awaiting_action_by")
+        if waiting_for != actor.value:
+            raise HTTPException(status_code=400, detail="It is not your turn to counter this proposal")
 
     def _serialize_proposal(self, document: dict) -> OpportunityProposalResponse:
         return OpportunityProposalResponse(
