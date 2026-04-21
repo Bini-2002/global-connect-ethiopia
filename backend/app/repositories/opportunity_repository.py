@@ -165,3 +165,29 @@ class OpportunityRepository:
             {"$set": updates, "$inc": {"version": 1}},
         )
         return result.modified_count == 1
+
+    async def add_vendor_invites(
+        self,
+        opportunity_id: str,
+        *,
+        vendor_ids: list[str],
+        vendor_user_ids: list[str],
+        now: datetime,
+        allowed_statuses: list[OpportunityStatus] | None = None,
+    ) -> bool:
+        statuses = allowed_statuses or [OpportunityStatus.DRAFT, OpportunityStatus.PUBLISHED]
+        result = await self.collection.update_one(
+            {
+                "_id": _coerce_object_id(opportunity_id),
+                "status": {"$in": [status.value for status in statuses]},
+            },
+            {
+                "$addToSet": {
+                    "invited_vendor_ids": {"$each": vendor_ids},
+                    "invited_vendor_user_ids": {"$each": vendor_user_ids},
+                },
+                "$set": {"updated_at": now},
+                "$inc": {"version": 1},
+            },
+        )
+        return result.modified_count == 1
