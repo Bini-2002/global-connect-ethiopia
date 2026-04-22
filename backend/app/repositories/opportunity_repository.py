@@ -152,6 +152,7 @@ class OpportunityRepository:
         contract_id: str | None,
         now: datetime,
         mark_contracted: bool = False,
+        extra_updates: dict | None = None,
     ) -> bool:
         updates = {
             "compatibility_request_id": compatibility_request_id,
@@ -160,6 +161,8 @@ class OpportunityRepository:
         }
         if mark_contracted:
             updates["status"] = OpportunityStatus.CONTRACTED.value
+        if extra_updates:
+            updates.update(extra_updates)
         result = await self.collection.update_one(
             {"_id": _coerce_object_id(opportunity_id)},
             {"$set": updates, "$inc": {"version": 1}},

@@ -142,6 +142,7 @@ class OpportunityProposalRepository:
         contract_id: str | None,
         now: datetime,
         mark_converted: bool = False,
+        extra_updates: dict | None = None,
     ) -> bool:
         updates = {
             "compatibility_request_id": compatibility_request_id,
@@ -151,6 +152,8 @@ class OpportunityProposalRepository:
         if mark_converted:
             updates["status"] = OpportunityProposalStatus.CONVERTED.value
             updates["converted_at"] = now
+        if extra_updates:
+            updates.update(extra_updates)
 
         result = await self.collection.update_one(
             {"_id": _coerce_object_id(proposal_id)},

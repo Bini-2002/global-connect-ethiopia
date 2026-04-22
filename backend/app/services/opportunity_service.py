@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError
 
-from app.db.mongodb import event_collection, proposal_collection, vendor_collection, vendor_service_collection
+from app.db.mongodb import contract_collection, event_collection, proposal_collection, vendor_collection, vendor_service_collection
 from app.models.opportunity_states import (
     get_awaiting_action_by,
     MarketplaceActor,
@@ -12,12 +12,14 @@ from app.models.opportunity_states import (
     OpportunityStatus,
     ProposalSubmissionMode,
 )
+from app.models.marketplace import NegotiationMessageType
 from app.models.roles import UserRole, to_user_role
 from app.repositories import OpportunityProposalRepository, OpportunityRepository
 from app.schemas.opportunity import (
     OpportunityCreateRequest,
     OpportunityDocument,
     OpportunityInviteVendorsRequest,
+    OpportunityProposalAcceptRequest,
     OpportunityProposalCounterRequest,
     OpportunityProposalDocument,
     OpportunityProposalResponse,
@@ -32,6 +34,7 @@ from app.services.marketplace import (
     require_vendor_profile,
     utc_now,
 )
+from app.services.marketplace_mvp import accept_request_contract, add_request_message, create_request
 
 
 class OpportunityService:
@@ -339,6 +342,164 @@ class OpportunityService:
             raise HTTPException(status_code=404, detail="Proposal not found")
         return self._serialize_proposal(refreshed)
 
+    async def accept_proposal(
+        self,
+        *,
+        opportunity_id: str,
+        proposal_id: str,
+        payload: OpportunityProposalAcceptRequest,
+        current_user: dict,
+    ) -> OpportunityProposalResponse:
+        await require_organizer_profile(current_user)
+
+        proposal = await self.proposal_repository.get_by_id(proposal_id)
+        if not proposal:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        if proposal.get("opportunity_id") != opportunity_id:
+            raise HTTPException(status_code=400, detail="Proposal does not belong to the specified opportunity")
+
+        opportunity = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        if opportunity.get("client_user_id") != current_user["id"]:
+            raise HTTPException(status_code=403, detail="You can only accept proposals on your own opportunities")
+        if opportunity.get("status") not in {
+            OpportunityStatus.PUBLISHED.value,
+            OpportunityStatus.CLOSED.value,
+            OpportunityStatus.AWARDED.value,
+        }:
+            raise HTTPException(status_code=400, detail="This opportunity is not in a selectable state")
+
+        self._validate_accept_permissions(proposal=proposal)
+
+        selected_proposal_id = opportunity.get("selected_proposal_id")
+        if selected_proposal_id and selected_proposal_id != proposal_id:
+            raise HTTPException(status_code=409, detail="Another proposal has already been selected for this opportunity")
+
+        if not selected_proposal_id:
+            selected = await self.opportunity_repository.assign_winner(
+                opportunity_id,
+                proposal_id=proposal_id,
+                vendor_id=proposal["vendor_id"],
+                vendor_user_id=proposal["vendor_user_id"],
+                now=utc_now(),
+                from_statuses=[OpportunityStatus.PUBLISHED, OpportunityStatus.CLOSED],
+            )
+            if not selected:
+                raise HTTPException(status_code=409, detail="Proposal could not be selected")
+
+        compatibility_request_id = proposal.get("compatibility_request_id")
+        if not compatibility_request_id:
+            request_doc = await create_request(
+                current_user,
+                vendor_id=proposal["vendor_id"],
+                event_id=opportunity.get("event_id"),
+                description=self._build_contract_bridge_description(
+                    opportunity=opportunity,
+                    proposal=proposal,
+                    payload=payload,
+                ),
+            )
+            compatibility_request_id = request_doc["id"]
+            request_link_time = utc_now()
+            await self.proposal_repository.attach_conversion_links(
+                proposal_id,
+                compatibility_request_id=compatibility_request_id,
+                contract_id=None,
+                now=request_link_time,
+            )
+            await self.opportunity_repository.attach_conversion_links(
+                opportunity_id,
+                compatibility_request_id=compatibility_request_id,
+                contract_id=None,
+                now=request_link_time,
+            )
+
+            vendor_context = {
+                "id": proposal["vendor_user_id"],
+                "role": UserRole.VENDOR.value,
+            }
+            await add_request_message(
+                compatibility_request_id,
+                current_user=vendor_context,
+                message_type=NegotiationMessageType.QUOTE,
+                amount=float(proposal.get("proposal_amount") or 0.0),
+                message=payload.selection_note or "Proposal accepted and prepared for contract conversion.",
+            )
+
+        contract_id = proposal.get("contract_id")
+        if not contract_id:
+            try:
+                contract = await accept_request_contract(compatibility_request_id, current_user)
+                contract_id = contract["id"]
+            except HTTPException as exc:
+                if exc.status_code == 400 and "already exists for this request" in str(exc.detail):
+                    existing_contract = await contract_collection.find_one(
+                        {"request_id": parse_object_id(compatibility_request_id, field_name="request id")}
+                    )
+                    if not existing_contract:
+                        raise
+                    contract_id = str(existing_contract["_id"])
+                else:
+                    raise
+
+        now = utc_now()
+        rejected_count = await self.proposal_repository.reject_other_active_proposals(
+            opportunity_id,
+            selected_proposal_id=proposal_id,
+            reason="Another proposal was selected for this opportunity.",
+            now=now,
+        )
+
+        await self.proposal_repository.attach_conversion_links(
+            proposal_id,
+            compatibility_request_id=compatibility_request_id,
+            contract_id=contract_id,
+            now=now,
+            mark_converted=True,
+            extra_updates={
+                "selected_at": now,
+                "selection_note": payload.selection_note,
+                "final_agreed_amount": float(proposal.get("proposal_amount") or 0.0),
+                "awaiting_action_by": MarketplaceActor.NONE.value,
+            },
+        )
+        await self.opportunity_repository.attach_conversion_links(
+            opportunity_id,
+            compatibility_request_id=compatibility_request_id,
+            contract_id=contract_id,
+            now=now,
+            mark_contracted=True,
+            extra_updates={
+                "selected_proposal_id": proposal_id,
+                "winning_vendor_id": proposal["vendor_id"],
+                "winning_vendor_user_id": proposal["vendor_user_id"],
+                "active_proposal_count": 0,
+            },
+        )
+
+        actor_name = await get_user_name(current_user["id"])
+        await append_message(
+            entity_type="opportunity_proposal",
+            entity_id=proposal_id,
+            sender_id=current_user["id"],
+            sender_role=UserRole.ORGANIZER.value,
+            sender_name=actor_name,
+            body=(payload.selection_note or "Proposal accepted and converted into a contract.").strip(),
+            message_type="selection",
+            metadata={
+                "opportunity_id": opportunity_id,
+                "compatibility_request_id": compatibility_request_id,
+                "contract_id": contract_id,
+                "rejected_competing_proposals": rejected_count,
+            },
+        )
+
+        refreshed = await self.proposal_repository.get_by_id(proposal_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        return self._serialize_proposal(refreshed)
+
     async def _validate_submission_access(
         self,
         *,
@@ -414,6 +575,33 @@ class OpportunityService:
         waiting_for = proposal.get("awaiting_action_by")
         if waiting_for != actor.value:
             raise HTTPException(status_code=400, detail="It is not your turn to counter this proposal")
+
+    def _validate_accept_permissions(self, *, proposal: dict) -> None:
+        if proposal.get("status") not in {
+            OpportunityProposalStatus.SUBMITTED.value,
+            OpportunityProposalStatus.VENDOR_COUNTERED.value,
+        }:
+            raise HTTPException(status_code=400, detail="Only vendor-submitted proposal states can be accepted")
+        if proposal.get("awaiting_action_by") != MarketplaceActor.CLIENT.value:
+            raise HTTPException(status_code=400, detail="This proposal is not ready for client acceptance")
+
+    def _build_contract_bridge_description(
+        self,
+        *,
+        opportunity: dict,
+        proposal: dict,
+        payload: OpportunityProposalAcceptRequest,
+    ) -> str:
+        parts = [
+            f"Opportunity: {opportunity.get('title') or 'Untitled opportunity'}",
+            f"Category: {opportunity.get('category') or 'unspecified'}",
+            f"Scope: {(payload.contract_scope or proposal.get('scope_summary') or opportunity.get('requirements') or 'Not specified').strip()}",
+        ]
+        if payload.contract_terms:
+            parts.append(f"Terms: {payload.contract_terms.strip()}")
+        if payload.selection_note:
+            parts.append(f"Selection note: {payload.selection_note.strip()}")
+        return " | ".join(parts)
 
     def _serialize_proposal(self, document: dict) -> OpportunityProposalResponse:
         return OpportunityProposalResponse(
