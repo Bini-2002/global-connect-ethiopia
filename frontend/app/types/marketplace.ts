@@ -164,7 +164,8 @@ export interface WalletTransactionRecord {
 
 export interface CreateMarketplaceRequestPayload {
   vendor_id: string;
-  event_id?: string | null;
+  event_id: string;
+  services?: string[];
   description: string;
 }
 
