@@ -21,7 +21,7 @@ class OpportunityProposalRepository:
         self.collection = collection or opportunity_proposal_collection
 
     async def create(self, payload: OpportunityProposalDocument) -> dict:
-        document = payload.model_dump(mode="python")
+        document = payload.model_dump(mode="python", exclude_none=True)
         result = await self.collection.insert_one(document)
         document["_id"] = result.inserted_id
         return document
@@ -146,9 +146,10 @@ class OpportunityProposalRepository:
     ) -> bool:
         updates = {
             "compatibility_request_id": compatibility_request_id,
-            "contract_id": contract_id,
             "updated_at": now,
         }
+        if contract_id is not None:
+            updates["contract_id"] = contract_id
         if mark_converted:
             updates["status"] = OpportunityProposalStatus.CONVERTED.value
             updates["converted_at"] = now

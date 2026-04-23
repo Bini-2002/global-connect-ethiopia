@@ -21,7 +21,7 @@ class OpportunityRepository:
         self.collection = collection or marketplace_opportunity_collection
 
     async def create(self, payload: OpportunityDocument) -> dict:
-        document = payload.model_dump(mode="python")
+        document = payload.model_dump(mode="python", exclude_none=True)
         result = await self.collection.insert_one(document)
         document["_id"] = result.inserted_id
         return document
@@ -156,9 +156,10 @@ class OpportunityRepository:
     ) -> bool:
         updates = {
             "compatibility_request_id": compatibility_request_id,
-            "contract_id": contract_id,
             "updated_at": now,
         }
+        if contract_id is not None:
+            updates["contract_id"] = contract_id
         if mark_contracted:
             updates["status"] = OpportunityStatus.CONTRACTED.value
         if extra_updates:

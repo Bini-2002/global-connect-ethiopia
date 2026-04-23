@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError
 
@@ -87,7 +89,9 @@ class OpportunityService:
         if payload.budget_min is not None and payload.budget_max is not None and payload.budget_min > payload.budget_max:
             raise HTTPException(status_code=400, detail="budget_min cannot be greater than budget_max")
 
-        if payload.submission_deadline and payload.event_date and payload.submission_deadline > payload.event_date:
+        submission_deadline = self._as_utc_aware(payload.submission_deadline)
+        event_date = self._as_utc_aware(payload.event_date)
+        if submission_deadline and event_date and submission_deadline > event_date:
             raise HTTPException(status_code=400, detail="submission_deadline must be on or before event_date")
 
         if payload.event_id:
@@ -154,6 +158,55 @@ class OpportunityService:
             raise HTTPException(status_code=404, detail="Opportunity not found")
         return self._serialize_opportunity(refreshed)
 
+    async def publish_opportunity(
+        self,
+        *,
+        opportunity_id: str,
+        current_user: dict,
+    ) -> OpportunityResponse:
+        await require_organizer_profile(current_user)
+
+        opportunity = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        if opportunity.get("client_user_id") != current_user["id"]:
+            raise HTTPException(status_code=403, detail="You can only publish your own opportunities")
+        if opportunity.get("status") != OpportunityStatus.DRAFT.value:
+            raise HTTPException(status_code=400, detail="Only draft opportunities can be published")
+
+        await self._validate_publishable_opportunity(opportunity=opportunity)
+
+        now = utc_now()
+        published = await self.opportunity_repository.transition_status(
+            opportunity_id,
+            from_statuses=[OpportunityStatus.DRAFT],
+            to_status=OpportunityStatus.PUBLISHED,
+            now=now,
+            extra_updates={"published_at": now},
+        )
+        if not published:
+            raise HTTPException(status_code=409, detail="Opportunity could not be published")
+
+        actor_name = await get_user_name(current_user["id"])
+        await append_message(
+            entity_type="opportunity",
+            entity_id=opportunity_id,
+            sender_id=current_user["id"],
+            sender_role=UserRole.ORGANIZER.value,
+            sender_name=actor_name,
+            body="Opportunity published and opened for proposal submissions.",
+            message_type="status_change",
+            metadata={
+                "from_status": OpportunityStatus.DRAFT.value,
+                "to_status": OpportunityStatus.PUBLISHED.value,
+            },
+        )
+
+        refreshed = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        return self._serialize_opportunity(refreshed)
+
     async def _validate_invites(self, *, payload: OpportunityInviteVendorsRequest) -> tuple[list[str], list[str]]:
         normalized_pairs: list[tuple[str, str]] = []
         seen: set[tuple[str, str]] = set()
@@ -189,6 +242,27 @@ class OpportunityService:
             vendor_user_ids.append(vendor_user_id)
 
         return vendor_ids, vendor_user_ids
+
+    async def _validate_publishable_opportunity(self, *, opportunity: dict) -> None:
+        budget_min = opportunity.get("budget_min")
+        budget_max = opportunity.get("budget_max")
+        if budget_min is not None and budget_max is not None and float(budget_min) > float(budget_max):
+            raise HTTPException(status_code=400, detail="budget_min cannot be greater than budget_max")
+
+        submission_deadline = self._as_utc_aware(opportunity.get("submission_deadline"))
+        event_date = self._as_utc_aware(opportunity.get("event_date"))
+        if submission_deadline and submission_deadline <= utc_now():
+            raise HTTPException(status_code=400, detail="submission_deadline must be in the future before publishing")
+        if submission_deadline and event_date and submission_deadline > event_date:
+            raise HTTPException(status_code=400, detail="submission_deadline must be on or before event_date")
+
+        sourcing_mode = opportunity.get("sourcing_mode")
+        invited_vendor_ids = opportunity.get("invited_vendor_ids", [])
+        if sourcing_mode == OpportunitySourcingMode.INVITE_ONLY.value and not invited_vendor_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="Invite-only opportunities must have at least one invited vendor before publishing",
+            )
 
     async def submit_proposal(
         self,
@@ -510,7 +584,8 @@ class OpportunityService:
         if opportunity.get("status") != OpportunityStatus.PUBLISHED.value:
             raise HTTPException(status_code=400, detail="Proposals can only be submitted to published opportunities")
 
-        if opportunity.get("submission_deadline") and opportunity["submission_deadline"] < utc_now():
+        submission_deadline = self._as_utc_aware(opportunity.get("submission_deadline"))
+        if submission_deadline and submission_deadline < utc_now():
             raise HTTPException(status_code=400, detail="This opportunity is no longer accepting proposals")
 
         sourcing_mode = opportunity.get("sourcing_mode")
@@ -584,6 +659,14 @@ class OpportunityService:
             raise HTTPException(status_code=400, detail="Only vendor-submitted proposal states can be accepted")
         if proposal.get("awaiting_action_by") != MarketplaceActor.CLIENT.value:
             raise HTTPException(status_code=400, detail="This proposal is not ready for client acceptance")
+
+    @staticmethod
+    def _as_utc_aware(value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
 
     def _build_contract_bridge_description(
         self,

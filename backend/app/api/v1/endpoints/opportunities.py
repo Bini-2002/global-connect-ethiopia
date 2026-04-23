@@ -47,6 +47,18 @@ async def invite_vendors(
     )
 
 
+@router.post("/{opportunity_id}/publish", response_model=OpportunityResponse)
+async def publish_opportunity(
+    opportunity_id: str,
+    current_user: dict = Depends(get_current_user),
+    service: OpportunityService = Depends(get_opportunity_service),
+):
+    return await service.publish_opportunity(
+        opportunity_id=opportunity_id,
+        current_user=current_user,
+    )
+
+
 @router.post("/{opportunity_id}/proposals", response_model=OpportunityProposalResponse, status_code=status.HTTP_201_CREATED)
 async def submit_proposal(
     opportunity_id: str,
