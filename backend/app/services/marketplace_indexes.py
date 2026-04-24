@@ -96,6 +96,12 @@ async def ensure_marketplace_indexes() -> None:
     )
 
     await contract_collection.create_index([("request_id", ASCENDING)], unique=True)
+    await contract_collection.create_index(
+        [("proposal_id", ASCENDING)],
+        unique=True,
+        sparse=True,
+    )
+    await contract_collection.create_index([("opportunity_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)])
     await contract_collection.create_index([("organizer_id", ASCENDING), ("vendor_user_id", ASCENDING), ("status", ASCENDING)])
     await contract_collection.create_index([("vendor_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)])
     await contract_collection.create_index([("organizer_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)])
