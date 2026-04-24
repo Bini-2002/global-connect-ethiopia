@@ -21,7 +21,7 @@ class OpportunityProposalRepository:
         self.collection = collection or opportunity_proposal_collection
 
     async def create(self, payload: OpportunityProposalDocument) -> dict:
-        document = payload.model_dump(mode="python")
+        document = payload.model_dump(mode="python", exclude_none=True)
         result = await self.collection.insert_one(document)
         document["_id"] = result.inserted_id
         return document
@@ -134,6 +134,36 @@ class OpportunityProposalRepository:
         )
         return result.modified_count
 
+    async def reject_active_for_opportunity(
+        self,
+        opportunity_id: str,
+        *,
+        reason: str,
+        now: datetime,
+    ) -> int:
+        result = await self.collection.update_many(
+            {
+                "opportunity_id": opportunity_id,
+                "status": {
+                    "$in": [
+                        OpportunityProposalStatus.SUBMITTED.value,
+                        OpportunityProposalStatus.CLIENT_COUNTERED.value,
+                        OpportunityProposalStatus.VENDOR_COUNTERED.value,
+                    ]
+                },
+            },
+            {
+                "$set": {
+                    "status": OpportunityProposalStatus.REJECTED.value,
+                    "rejection_reason": reason,
+                    "awaiting_action_by": MarketplaceActor.NONE.value,
+                    "updated_at": now,
+                },
+                "$inc": {"version": 1},
+            },
+        )
+        return result.modified_count
+
     async def attach_conversion_links(
         self,
         proposal_id: str,
@@ -142,18 +172,50 @@ class OpportunityProposalRepository:
         contract_id: str | None,
         now: datetime,
         mark_converted: bool = False,
+        extra_updates: dict | None = None,
     ) -> bool:
         updates = {
             "compatibility_request_id": compatibility_request_id,
-            "contract_id": contract_id,
             "updated_at": now,
         }
+        if contract_id is not None:
+            updates["contract_id"] = contract_id
         if mark_converted:
             updates["status"] = OpportunityProposalStatus.CONVERTED.value
             updates["converted_at"] = now
+        if extra_updates:
+            updates.update(extra_updates)
 
         result = await self.collection.update_one(
             {"_id": _coerce_object_id(proposal_id)},
             {"$set": updates, "$inc": {"version": 1}},
+        )
+        return result.modified_count == 1
+
+    async def apply_counter(
+        self,
+        proposal_id: str,
+        *,
+        from_statuses: list[OpportunityProposalStatus],
+        to_status: OpportunityProposalStatus,
+        updates: dict,
+        now: datetime,
+    ) -> bool:
+        result = await self.collection.update_one(
+            {
+                "_id": _coerce_object_id(proposal_id),
+                "status": {"$in": [status.value for status in from_statuses]},
+            },
+            {
+                "$set": {
+                    **updates,
+                    "status": to_status.value,
+                    "updated_at": now,
+                },
+                "$inc": {
+                    "counter_round": 1,
+                    "version": 1,
+                },
+            },
         )
         return result.modified_count == 1

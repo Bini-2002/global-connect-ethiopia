@@ -21,7 +21,7 @@ class OpportunityRepository:
         self.collection = collection or marketplace_opportunity_collection
 
     async def create(self, payload: OpportunityDocument) -> dict:
-        document = payload.model_dump(mode="python")
+        document = payload.model_dump(mode="python", exclude_none=True)
         result = await self.collection.insert_one(document)
         document["_id"] = result.inserted_id
         return document
@@ -152,16 +152,46 @@ class OpportunityRepository:
         contract_id: str | None,
         now: datetime,
         mark_contracted: bool = False,
+        extra_updates: dict | None = None,
     ) -> bool:
         updates = {
             "compatibility_request_id": compatibility_request_id,
-            "contract_id": contract_id,
             "updated_at": now,
         }
+        if contract_id is not None:
+            updates["contract_id"] = contract_id
         if mark_contracted:
             updates["status"] = OpportunityStatus.CONTRACTED.value
+        if extra_updates:
+            updates.update(extra_updates)
         result = await self.collection.update_one(
             {"_id": _coerce_object_id(opportunity_id)},
             {"$set": updates, "$inc": {"version": 1}},
+        )
+        return result.modified_count == 1
+
+    async def add_vendor_invites(
+        self,
+        opportunity_id: str,
+        *,
+        vendor_ids: list[str],
+        vendor_user_ids: list[str],
+        now: datetime,
+        allowed_statuses: list[OpportunityStatus] | None = None,
+    ) -> bool:
+        statuses = allowed_statuses or [OpportunityStatus.DRAFT, OpportunityStatus.PUBLISHED]
+        result = await self.collection.update_one(
+            {
+                "_id": _coerce_object_id(opportunity_id),
+                "status": {"$in": [status.value for status in statuses]},
+            },
+            {
+                "$addToSet": {
+                    "invited_vendor_ids": {"$each": vendor_ids},
+                    "invited_vendor_user_ids": {"$each": vendor_user_ids},
+                },
+                "$set": {"updated_at": now},
+                "$inc": {"version": 1},
+            },
         )
         return result.modified_count == 1
