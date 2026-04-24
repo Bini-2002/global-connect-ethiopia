@@ -74,6 +74,8 @@ class OpportunityResponse(BaseModel):
     awarded_at: datetime | None = None
     cancelled_at: datetime | None = None
     expired_at: datetime | None = None
+    closure_note: str | None = None
+    cancellation_note: str | None = None
     created_at: datetime
     updated_at: datetime
     version: int = 1
@@ -128,8 +130,28 @@ class OpportunityCreateRequest(BaseModel):
     sourcing_mode: OpportunitySourcingMode = OpportunitySourcingMode.OPEN_BID
 
 
+class OpportunityUpdateRequest(BaseModel):
+    event_id: str | None = None
+    legacy_organizer_proposal_id: str | None = None
+    title: str | None = Field(default=None, min_length=3, max_length=180)
+    description: str | None = Field(default=None, min_length=10, max_length=4000)
+    category: str | None = Field(default=None, min_length=2, max_length=80)
+    requirements: str | None = Field(default=None, max_length=5000)
+    location: OpportunityLocation | dict[str, Any] | str | None = None
+    budget_min: float | None = Field(default=None, ge=0)
+    budget_max: float | None = Field(default=None, ge=0)
+    currency: str | None = Field(default=None, min_length=3, max_length=8)
+    submission_deadline: datetime | None = None
+    event_date: datetime | None = None
+    sourcing_mode: OpportunitySourcingMode | None = None
+
+
 class OpportunityInviteVendorsRequest(BaseModel):
     invites: list[OpportunityVendorInvite] = Field(..., min_length=1, max_length=200)
+
+
+class OpportunityLifecycleRequest(BaseModel):
+    note: str | None = Field(default=None, max_length=2000)
 
 
 class OpportunityProposalSubmitRequest(BaseModel):
@@ -158,6 +180,10 @@ class OpportunityProposalAcceptRequest(BaseModel):
     contract_terms: str | None = Field(default=None, max_length=5000)
     contract_start_date: datetime | None = None
     contract_end_date: datetime | None = None
+
+
+class OpportunityProposalDecisionRequest(BaseModel):
+    reason: str | None = Field(default=None, max_length=2000)
 
 
 class OpportunityDocument(BaseModel):
@@ -191,6 +217,8 @@ class OpportunityDocument(BaseModel):
     awarded_at: datetime | None = None
     cancelled_at: datetime | None = None
     expired_at: datetime | None = None
+    closure_note: str | None = None
+    cancellation_note: str | None = None
     created_at: datetime
     updated_at: datetime
     version: int = 1

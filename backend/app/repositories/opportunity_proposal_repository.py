@@ -134,6 +134,36 @@ class OpportunityProposalRepository:
         )
         return result.modified_count
 
+    async def reject_active_for_opportunity(
+        self,
+        opportunity_id: str,
+        *,
+        reason: str,
+        now: datetime,
+    ) -> int:
+        result = await self.collection.update_many(
+            {
+                "opportunity_id": opportunity_id,
+                "status": {
+                    "$in": [
+                        OpportunityProposalStatus.SUBMITTED.value,
+                        OpportunityProposalStatus.CLIENT_COUNTERED.value,
+                        OpportunityProposalStatus.VENDOR_COUNTERED.value,
+                    ]
+                },
+            },
+            {
+                "$set": {
+                    "status": OpportunityProposalStatus.REJECTED.value,
+                    "rejection_reason": reason,
+                    "awaiting_action_by": MarketplaceActor.NONE.value,
+                    "updated_at": now,
+                },
+                "$inc": {"version": 1},
+            },
+        )
+        return result.modified_count
+
     async def attach_conversion_links(
         self,
         proposal_id: str,

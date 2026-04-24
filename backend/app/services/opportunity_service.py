@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
+from pydantic import ValidationError
 from pymongo.errors import DuplicateKeyError
 
 from app.db.mongodb import contract_collection, event_collection, proposal_collection, vendor_collection, vendor_service_collection
@@ -21,12 +22,15 @@ from app.schemas.opportunity import (
     OpportunityCreateRequest,
     OpportunityDocument,
     OpportunityInviteVendorsRequest,
+    OpportunityLifecycleRequest,
     OpportunityProposalAcceptRequest,
     OpportunityProposalCounterRequest,
+    OpportunityProposalDecisionRequest,
     OpportunityProposalDocument,
     OpportunityProposalResponse,
     OpportunityProposalSubmitRequest,
     OpportunityResponse,
+    OpportunityUpdateRequest,
 )
 from app.services.marketplace import (
     append_message,
@@ -84,6 +88,221 @@ class OpportunityService:
         )
         created = await self.opportunity_repository.create(document)
         return self._serialize_opportunity(created)
+
+    async def list_opportunities(self, *, current_user: dict) -> list[OpportunityResponse]:
+        role = to_user_role(current_user.get("role"))
+        if role == UserRole.ORGANIZER:
+            await require_organizer_profile(current_user)
+            documents = await self.opportunity_repository.list_by_client(current_user["id"])
+        elif role == UserRole.VENDOR:
+            await require_vendor_profile(current_user, approved_only=True)
+            documents = await self.opportunity_repository.list_visible_to_vendor(current_user["id"], now=utc_now())
+        else:
+            raise HTTPException(status_code=403, detail="Only organizers or approved vendors can list opportunities")
+        return [self._serialize_opportunity(document) for document in documents]
+
+    async def get_opportunity_detail(
+        self,
+        *,
+        opportunity_id: str,
+        current_user: dict,
+    ) -> OpportunityResponse:
+        opportunity = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+
+        role = to_user_role(current_user.get("role"))
+        if role == UserRole.ORGANIZER:
+            await require_organizer_profile(current_user)
+            if opportunity.get("client_user_id") != current_user["id"]:
+                raise HTTPException(status_code=403, detail="You can only view your own opportunities")
+        elif role == UserRole.VENDOR:
+            await require_vendor_profile(current_user)
+            has_access = await self._vendor_can_access_opportunity(
+                opportunity=opportunity,
+                vendor_user_id=current_user["id"],
+            )
+            if not has_access:
+                raise HTTPException(status_code=403, detail="You do not have access to this opportunity")
+        else:
+            raise HTTPException(status_code=403, detail="Only organizers or vendors can view opportunities")
+
+        return self._serialize_opportunity(opportunity)
+
+    async def update_opportunity(
+        self,
+        *,
+        opportunity_id: str,
+        payload: OpportunityUpdateRequest,
+        current_user: dict,
+    ) -> OpportunityResponse:
+        await require_organizer_profile(current_user)
+
+        opportunity = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        if opportunity.get("client_user_id") != current_user["id"]:
+            raise HTTPException(status_code=403, detail="You can only edit your own opportunities")
+        if opportunity.get("status") != OpportunityStatus.DRAFT.value:
+            raise HTTPException(status_code=400, detail="Only draft opportunities can be edited")
+
+        raw_updates = payload.model_dump(mode="python", exclude_unset=True)
+        if not raw_updates:
+            return self._serialize_opportunity(opportunity)
+
+        normalized_updates = self._normalize_opportunity_updates(raw_updates)
+        try:
+            merged_payload = OpportunityCreateRequest(
+                event_id=normalized_updates.get("event_id", opportunity.get("event_id")),
+                legacy_organizer_proposal_id=normalized_updates.get(
+                    "legacy_organizer_proposal_id",
+                    opportunity.get("legacy_organizer_proposal_id"),
+                ),
+                title=normalized_updates.get("title", opportunity.get("title")),
+                description=normalized_updates.get("description", opportunity.get("description")),
+                category=normalized_updates.get("category", opportunity.get("category")),
+                requirements=normalized_updates.get("requirements", opportunity.get("requirements")),
+                location=normalized_updates.get("location", opportunity.get("location")),
+                budget_min=normalized_updates.get("budget_min", opportunity.get("budget_min")),
+                budget_max=normalized_updates.get("budget_max", opportunity.get("budget_max")),
+                currency=normalized_updates.get("currency", opportunity.get("currency", "ETB")),
+                submission_deadline=normalized_updates.get("submission_deadline", opportunity.get("submission_deadline")),
+                event_date=normalized_updates.get("event_date", opportunity.get("event_date")),
+                sourcing_mode=normalized_updates.get("sourcing_mode", opportunity.get("sourcing_mode")),
+            )
+        except ValidationError as exc:
+            raise HTTPException(status_code=400, detail=exc.errors()) from exc
+        await self._validate_create_payload(payload=merged_payload, current_user=current_user)
+
+        normalized_updates["updated_at"] = utc_now()
+        updated = await self.opportunity_repository.update_versioned(
+            opportunity_id,
+            int(opportunity.get("version", 1)),
+            normalized_updates,
+        )
+        if not updated:
+            raise HTTPException(status_code=409, detail="Opportunity could not be updated")
+
+        refreshed = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        return self._serialize_opportunity(refreshed)
+
+    async def close_opportunity(
+        self,
+        *,
+        opportunity_id: str,
+        payload: OpportunityLifecycleRequest,
+        current_user: dict,
+    ) -> OpportunityResponse:
+        await require_organizer_profile(current_user)
+
+        opportunity = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        if opportunity.get("client_user_id") != current_user["id"]:
+            raise HTTPException(status_code=403, detail="You can only close your own opportunities")
+        if opportunity.get("status") != OpportunityStatus.PUBLISHED.value:
+            raise HTTPException(status_code=400, detail="Only published opportunities can be closed")
+
+        now = utc_now()
+        note = payload.note.strip() if payload.note else None
+        closed = await self.opportunity_repository.transition_status(
+            opportunity_id,
+            from_statuses=[OpportunityStatus.PUBLISHED],
+            to_status=OpportunityStatus.CLOSED,
+            now=now,
+            extra_updates={
+                "closed_at": now,
+                "closure_note": note,
+            },
+        )
+        if not closed:
+            raise HTTPException(status_code=409, detail="Opportunity could not be closed")
+
+        actor_name = await get_user_name(current_user["id"])
+        await append_message(
+            entity_type="opportunity",
+            entity_id=opportunity_id,
+            sender_id=current_user["id"],
+            sender_role=UserRole.ORGANIZER.value,
+            sender_name=actor_name,
+            body=note or "Opportunity closed for new proposal submissions.",
+            message_type="status_change",
+            metadata={
+                "from_status": OpportunityStatus.PUBLISHED.value,
+                "to_status": OpportunityStatus.CLOSED.value,
+            },
+        )
+
+        refreshed = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        return self._serialize_opportunity(refreshed)
+
+    async def cancel_opportunity(
+        self,
+        *,
+        opportunity_id: str,
+        payload: OpportunityLifecycleRequest,
+        current_user: dict,
+    ) -> OpportunityResponse:
+        await require_organizer_profile(current_user)
+
+        opportunity = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        if opportunity.get("client_user_id") != current_user["id"]:
+            raise HTTPException(status_code=403, detail="You can only cancel your own opportunities")
+        if opportunity.get("status") not in {
+            OpportunityStatus.DRAFT.value,
+            OpportunityStatus.PUBLISHED.value,
+            OpportunityStatus.CLOSED.value,
+        }:
+            raise HTTPException(status_code=400, detail="Only draft, published, or closed opportunities can be cancelled")
+
+        now = utc_now()
+        note = payload.note.strip() if payload.note else None
+        if opportunity.get("status") != OpportunityStatus.DRAFT.value:
+            await self.proposal_repository.reject_active_for_opportunity(
+                opportunity_id,
+                reason=note or "The opportunity was cancelled by the organizer.",
+                now=now,
+            )
+
+        cancelled = await self.opportunity_repository.transition_status(
+            opportunity_id,
+            from_statuses=[OpportunityStatus.DRAFT, OpportunityStatus.PUBLISHED, OpportunityStatus.CLOSED],
+            to_status=OpportunityStatus.CANCELLED,
+            now=now,
+            extra_updates={
+                "cancelled_at": now,
+                "cancellation_note": note,
+                "active_proposal_count": 0,
+            },
+        )
+        if not cancelled:
+            raise HTTPException(status_code=409, detail="Opportunity could not be cancelled")
+
+        actor_name = await get_user_name(current_user["id"])
+        await append_message(
+            entity_type="opportunity",
+            entity_id=opportunity_id,
+            sender_id=current_user["id"],
+            sender_role=UserRole.ORGANIZER.value,
+            sender_name=actor_name,
+            body=note or "Opportunity cancelled by the organizer.",
+            message_type="status_change",
+            metadata={
+                "from_status": opportunity.get("status"),
+                "to_status": OpportunityStatus.CANCELLED.value,
+            },
+        )
+
+        refreshed = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        return self._serialize_opportunity(refreshed)
 
     async def _validate_create_payload(self, *, payload: OpportunityCreateRequest, current_user: dict) -> None:
         if payload.budget_min is not None and payload.budget_max is not None and payload.budget_min > payload.budget_max:
@@ -264,6 +483,42 @@ class OpportunityService:
                 detail="Invite-only opportunities must have at least one invited vendor before publishing",
             )
 
+    @staticmethod
+    def _normalize_opportunity_updates(raw_updates: dict) -> dict:
+        normalized = dict(raw_updates)
+
+        for field_name in ("event_id", "legacy_organizer_proposal_id"):
+            if field_name in normalized and isinstance(normalized[field_name], str):
+                normalized[field_name] = normalized[field_name].strip() or None
+
+        for field_name in ("title", "description", "category"):
+            if field_name in normalized and isinstance(normalized[field_name], str):
+                normalized[field_name] = normalized[field_name].strip()
+
+        if "requirements" in normalized and isinstance(normalized["requirements"], str):
+            normalized["requirements"] = normalized["requirements"].strip() or None
+
+        if "currency" in normalized and isinstance(normalized["currency"], str):
+            normalized["currency"] = normalized["currency"].strip().upper()
+
+        return normalized
+
+    async def _vendor_can_access_opportunity(self, *, opportunity: dict, vendor_user_id: str) -> bool:
+        if vendor_user_id in set(opportunity.get("invited_vendor_user_ids", [])):
+            return True
+
+        proposal = await self.proposal_repository.get_by_opportunity_and_vendor(str(opportunity["_id"]), vendor_user_id)
+        if proposal:
+            return True
+
+        return bool(
+            opportunity.get("status") == OpportunityStatus.PUBLISHED.value
+            and opportunity.get("sourcing_mode") in {
+                OpportunitySourcingMode.OPEN_BID.value,
+                OpportunitySourcingMode.HYBRID.value,
+            }
+        )
+
     async def submit_proposal(
         self,
         *,
@@ -317,6 +572,78 @@ class OpportunityService:
             now=now,
         )
         return self._serialize_proposal(created)
+
+    async def list_proposals_for_opportunity(
+        self,
+        *,
+        opportunity_id: str,
+        current_user: dict,
+    ) -> list[OpportunityProposalResponse]:
+        opportunity = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+
+        role = to_user_role(current_user.get("role"))
+        if role == UserRole.ORGANIZER:
+            await require_organizer_profile(current_user)
+            if opportunity.get("client_user_id") != current_user["id"]:
+                raise HTTPException(status_code=403, detail="You can only view proposals on your own opportunities")
+            proposals = await self.proposal_repository.list_by_opportunity(opportunity_id)
+        elif role == UserRole.VENDOR:
+            await require_vendor_profile(current_user)
+            has_access = await self._vendor_can_access_opportunity(
+                opportunity=opportunity,
+                vendor_user_id=current_user["id"],
+            )
+            if not has_access:
+                raise HTTPException(status_code=403, detail="You do not have access to this opportunity")
+            proposal = await self.proposal_repository.get_by_opportunity_and_vendor(opportunity_id, current_user["id"])
+            proposals = [proposal] if proposal else []
+        else:
+            raise HTTPException(status_code=403, detail="Only organizers or vendors can view proposals")
+
+        return [self._serialize_proposal(proposal) for proposal in proposals if proposal]
+
+    async def list_my_proposals(self, *, current_user: dict) -> list[OpportunityProposalResponse]:
+        await require_vendor_profile(current_user)
+        proposals = await self.proposal_repository.list_by_vendor(current_user["id"])
+        return [self._serialize_proposal(proposal) for proposal in proposals]
+
+    async def list_actionable_proposals(self, *, current_user: dict) -> list[OpportunityProposalResponse]:
+        await require_organizer_profile(current_user)
+        proposals = await self.proposal_repository.list_actionable_for_client(current_user["id"])
+        return [self._serialize_proposal(proposal) for proposal in proposals]
+
+    async def get_proposal_detail(
+        self,
+        *,
+        opportunity_id: str,
+        proposal_id: str,
+        current_user: dict,
+    ) -> OpportunityProposalResponse:
+        proposal = await self.proposal_repository.get_by_id(proposal_id)
+        if not proposal:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        if proposal.get("opportunity_id") != opportunity_id:
+            raise HTTPException(status_code=400, detail="Proposal does not belong to the specified opportunity")
+
+        opportunity = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+
+        role = to_user_role(current_user.get("role"))
+        if role == UserRole.ORGANIZER:
+            await require_organizer_profile(current_user)
+            if opportunity.get("client_user_id") != current_user["id"]:
+                raise HTTPException(status_code=403, detail="You can only view proposals on your own opportunities")
+        elif role == UserRole.VENDOR:
+            await require_vendor_profile(current_user)
+            if proposal.get("vendor_user_id") != current_user["id"]:
+                raise HTTPException(status_code=403, detail="You can only view your own proposals")
+        else:
+            raise HTTPException(status_code=403, detail="Only organizers or vendors can view proposals")
+
+        return self._serialize_proposal(proposal)
 
     async def counter_proposal(
         self,
@@ -409,6 +736,157 @@ class OpportunityService:
                 "delivery_timeline_days": updates["delivery_timeline_days"],
                 "terms": updates["terms"],
             },
+        )
+
+        refreshed = await self.proposal_repository.get_by_id(proposal_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        return self._serialize_proposal(refreshed)
+
+    async def reject_proposal(
+        self,
+        *,
+        opportunity_id: str,
+        proposal_id: str,
+        payload: OpportunityProposalDecisionRequest,
+        current_user: dict,
+    ) -> OpportunityProposalResponse:
+        await require_organizer_profile(current_user)
+
+        proposal = await self.proposal_repository.get_by_id(proposal_id)
+        if not proposal:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        if proposal.get("opportunity_id") != opportunity_id:
+            raise HTTPException(status_code=400, detail="Proposal does not belong to the specified opportunity")
+
+        opportunity = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        if opportunity.get("client_user_id") != current_user["id"]:
+            raise HTTPException(status_code=403, detail="You can only reject proposals on your own opportunities")
+        if opportunity.get("status") in {
+            OpportunityStatus.CANCELLED.value,
+            OpportunityStatus.CONTRACTED.value,
+            OpportunityStatus.EXPIRED.value,
+        }:
+            raise HTTPException(status_code=400, detail="This opportunity no longer accepts proposal decisions")
+        if proposal.get("status") not in {
+            OpportunityProposalStatus.SUBMITTED.value,
+            OpportunityProposalStatus.CLIENT_COUNTERED.value,
+            OpportunityProposalStatus.VENDOR_COUNTERED.value,
+        }:
+            raise HTTPException(status_code=400, detail="Only active proposals can be rejected")
+
+        now = utc_now()
+        reason = payload.reason.strip() if payload.reason else "Proposal rejected by the organizer."
+        rejected = await self.proposal_repository.transition_status(
+            proposal_id,
+            from_statuses=[
+                OpportunityProposalStatus.SUBMITTED,
+                OpportunityProposalStatus.CLIENT_COUNTERED,
+                OpportunityProposalStatus.VENDOR_COUNTERED,
+            ],
+            to_status=OpportunityProposalStatus.REJECTED,
+            now=now,
+            extra_updates={
+                "rejection_reason": reason,
+                "awaiting_action_by": MarketplaceActor.NONE.value,
+            },
+        )
+        if not rejected:
+            raise HTTPException(status_code=409, detail="Proposal could not be rejected")
+
+        if int(opportunity.get("active_proposal_count", 0) or 0) > 0:
+            await self.opportunity_repository.increment_proposal_counters(
+                opportunity_id,
+                active_delta=-1,
+                now=now,
+            )
+
+        actor_name = await get_user_name(current_user["id"])
+        await append_message(
+            entity_type="opportunity_proposal",
+            entity_id=proposal_id,
+            sender_id=current_user["id"],
+            sender_role=UserRole.ORGANIZER.value,
+            sender_name=actor_name,
+            body=reason,
+            message_type="rejection",
+            metadata={"opportunity_id": opportunity_id},
+        )
+
+        refreshed = await self.proposal_repository.get_by_id(proposal_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        return self._serialize_proposal(refreshed)
+
+    async def withdraw_proposal(
+        self,
+        *,
+        opportunity_id: str,
+        proposal_id: str,
+        payload: OpportunityProposalDecisionRequest,
+        current_user: dict,
+    ) -> OpportunityProposalResponse:
+        await require_vendor_profile(current_user)
+
+        proposal = await self.proposal_repository.get_by_id(proposal_id)
+        if not proposal:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        if proposal.get("opportunity_id") != opportunity_id:
+            raise HTTPException(status_code=400, detail="Proposal does not belong to the specified opportunity")
+        if proposal.get("vendor_user_id") != current_user["id"]:
+            raise HTTPException(status_code=403, detail="You can only withdraw your own proposals")
+        if proposal.get("status") not in {
+            OpportunityProposalStatus.SUBMITTED.value,
+            OpportunityProposalStatus.CLIENT_COUNTERED.value,
+            OpportunityProposalStatus.VENDOR_COUNTERED.value,
+        }:
+            raise HTTPException(status_code=400, detail="Only active proposals can be withdrawn")
+
+        opportunity = await self.opportunity_repository.get_by_id(opportunity_id)
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        if opportunity.get("status") == OpportunityStatus.CONTRACTED.value:
+            raise HTTPException(status_code=400, detail="Converted proposals can no longer be withdrawn")
+
+        now = utc_now()
+        reason = payload.reason.strip() if payload.reason else "Proposal withdrawn by the vendor."
+        withdrawn = await self.proposal_repository.transition_status(
+            proposal_id,
+            from_statuses=[
+                OpportunityProposalStatus.SUBMITTED,
+                OpportunityProposalStatus.CLIENT_COUNTERED,
+                OpportunityProposalStatus.VENDOR_COUNTERED,
+            ],
+            to_status=OpportunityProposalStatus.WITHDRAWN,
+            now=now,
+            extra_updates={
+                "withdrawal_reason": reason,
+                "withdrawn_at": now,
+                "awaiting_action_by": MarketplaceActor.NONE.value,
+            },
+        )
+        if not withdrawn:
+            raise HTTPException(status_code=409, detail="Proposal could not be withdrawn")
+
+        if int(opportunity.get("active_proposal_count", 0) or 0) > 0:
+            await self.opportunity_repository.increment_proposal_counters(
+                opportunity_id,
+                active_delta=-1,
+                now=now,
+            )
+
+        actor_name = await get_user_name(current_user["id"])
+        await append_message(
+            entity_type="opportunity_proposal",
+            entity_id=proposal_id,
+            sender_id=current_user["id"],
+            sender_role=UserRole.VENDOR.value,
+            sender_name=actor_name,
+            body=reason,
+            message_type="withdrawal",
+            metadata={"opportunity_id": opportunity_id},
         )
 
         refreshed = await self.proposal_repository.get_by_id(proposal_id)
@@ -753,6 +1231,8 @@ class OpportunityService:
             awarded_at=document.get("awarded_at"),
             cancelled_at=document.get("cancelled_at"),
             expired_at=document.get("expired_at"),
+            closure_note=document.get("closure_note"),
+            cancellation_note=document.get("cancellation_note"),
             created_at=document["created_at"],
             updated_at=document["updated_at"],
             version=int(document.get("version", 1)),

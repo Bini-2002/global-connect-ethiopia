@@ -77,6 +77,7 @@ PROPOSAL_ALLOWED_TRANSITIONS: dict[OpportunityProposalStatus, frozenset[Opportun
     OpportunityProposalStatus.CLIENT_COUNTERED: frozenset(
         {
             OpportunityProposalStatus.VENDOR_COUNTERED,
+            OpportunityProposalStatus.REJECTED,
             OpportunityProposalStatus.WITHDRAWN,
             OpportunityProposalStatus.EXPIRED,
         }
@@ -86,6 +87,7 @@ PROPOSAL_ALLOWED_TRANSITIONS: dict[OpportunityProposalStatus, frozenset[Opportun
             OpportunityProposalStatus.CLIENT_COUNTERED,
             OpportunityProposalStatus.SELECTED,
             OpportunityProposalStatus.REJECTED,
+            OpportunityProposalStatus.WITHDRAWN,
             OpportunityProposalStatus.EXPIRED,
         }
     ),
