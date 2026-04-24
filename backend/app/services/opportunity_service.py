@@ -40,7 +40,8 @@ from app.services.marketplace import (
     require_vendor_profile,
     utc_now,
 )
-from app.services.marketplace_mvp import accept_request_contract, add_request_message, create_request
+from app.services.contract_service import ContractService
+from app.services.marketplace_mvp import add_request_message, create_request
 
 
 class OpportunityService:
@@ -49,9 +50,11 @@ class OpportunityService:
         *,
         opportunity_repository: OpportunityRepository | None = None,
         proposal_repository: OpportunityProposalRepository | None = None,
+        contract_service: ContractService | None = None,
     ) -> None:
         self.opportunity_repository = opportunity_repository or OpportunityRepository()
         self.proposal_repository = proposal_repository or OpportunityProposalRepository()
+        self.contract_service = contract_service or ContractService()
 
     async def create_opportunity(
         self,
@@ -482,6 +485,13 @@ class OpportunityService:
                 status_code=400,
                 detail="Invite-only opportunities must have at least one invited vendor before publishing",
             )
+
+    @staticmethod
+    def _validate_contract_dates(*, payload: OpportunityProposalAcceptRequest) -> None:
+        start_date = OpportunityService._as_utc_aware(payload.contract_start_date)
+        end_date = OpportunityService._as_utc_aware(payload.contract_end_date)
+        if start_date and end_date and end_date < start_date:
+            raise HTTPException(status_code=400, detail="contract_end_date must be on or after contract_start_date")
 
     @staticmethod
     def _normalize_opportunity_updates(raw_updates: dict) -> dict:
@@ -923,6 +933,7 @@ class OpportunityService:
             raise HTTPException(status_code=400, detail="This opportunity is not in a selectable state")
 
         self._validate_accept_permissions(proposal=proposal)
+        self._validate_contract_dates(payload=payload)
 
         selected_proposal_id = opportunity.get("selected_proposal_id")
         if selected_proposal_id and selected_proposal_id != proposal_id:
@@ -982,8 +993,25 @@ class OpportunityService:
         contract_id = proposal.get("contract_id")
         if not contract_id:
             try:
-                contract = await accept_request_contract(compatibility_request_id, current_user)
-                contract_id = contract["id"]
+                contract = await self.contract_service.accept_request_contract(
+                    compatibility_request_id,
+                    current_user,
+                    title=(payload.contract_title or opportunity.get("title")),
+                    scope=(
+                        payload.contract_scope
+                        or proposal.get("scope_summary")
+                        or opportunity.get("requirements")
+                        or opportunity.get("description")
+                    ),
+                    terms=(payload.contract_terms or proposal.get("terms")),
+                    start_date=payload.contract_start_date,
+                    end_date=payload.contract_end_date,
+                    currency=proposal.get("currency", opportunity.get("currency", "ETB")),
+                    opportunity_id=opportunity_id,
+                    proposal_id=proposal_id,
+                    selection_note=payload.selection_note,
+                )
+                contract_id = contract.id
             except HTTPException as exc:
                 if exc.status_code == 400 and "already exists for this request" in str(exc.detail):
                     existing_contract = await contract_collection.find_one(
@@ -1158,8 +1186,14 @@ class OpportunityService:
             f"Category: {opportunity.get('category') or 'unspecified'}",
             f"Scope: {(payload.contract_scope or proposal.get('scope_summary') or opportunity.get('requirements') or 'Not specified').strip()}",
         ]
+        if payload.contract_title:
+            parts.append(f"Contract title: {payload.contract_title.strip()}")
         if payload.contract_terms:
             parts.append(f"Terms: {payload.contract_terms.strip()}")
+        if payload.contract_start_date:
+            parts.append(f"Start date: {payload.contract_start_date.isoformat()}")
+        if payload.contract_end_date:
+            parts.append(f"End date: {payload.contract_end_date.isoformat()}")
         if payload.selection_note:
             parts.append(f"Selection note: {payload.selection_note.strip()}")
         return " | ".join(parts)
