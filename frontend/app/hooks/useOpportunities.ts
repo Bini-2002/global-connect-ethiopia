@@ -1,178 +1,108 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useState } from 'react';
-
+import { useState, useEffect } from 'react';
 import opportunityService from '@/app/services/opportunityService';
+import opportunitiesService from '@/app/services/opportunitiesService';
 import { OpportunityRecord, OpportunityProposalRecord } from '@/app/types/opportunity';
 
-interface ResourceState<T> {
-  data: T;
-  error: string | null;
+export interface ResourceState<T> {
+  data: T | null;
   loading: boolean;
+  error: string | null;
   refresh: () => void;
 }
 
-function createErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
-export function useOpportunities(): ResourceState<OpportunityRecord[]> {
-  const [data, setData] = useState<OpportunityRecord[]>([]);
-  const [error, setError] = useState<string | null>(null);
+function useResource<T>(
+  fetchFn: () => Promise<T>,
+  deps: unknown[] = []
+): ResourceState<T> {
+  const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  useEffect(() => {
-    let active = true;
+  const refresh = () => setReloadKey((k) => k + 1);
 
-    const load = async () => {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
       try {
         setLoading(true);
         setError(null);
-        // Fallback mock logic could be added here if needed, but we rely on the service
-        const response = await opportunityService.listOpportunities();
-        if (active) {
-          setData(response);
+        const result = await fetchFn();
+        if (!cancelled) {
+          setData(result);
         }
-      } catch (nextError) {
-        if (active) {
-          setError(createErrorMessage(nextError, 'Unable to load opportunities.'));
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load data');
         }
       } finally {
-        if (active) {
+        if (!cancelled) {
           setLoading(false);
         }
       }
-    };
-
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [reloadKey]);
-
-  return { data, error, loading, refresh: () => setReloadKey((value) => value + 1) };
-}
-
-export function useOpportunity(opportunityId: string | null): ResourceState<OpportunityRecord | null> {
-  const [data, setData] = useState<OpportunityRecord | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    if (!opportunityId) {
-      setData(null);
-      setLoading(false);
-      return;
     }
 
-    let active = true;
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await opportunityService.getOpportunityById(opportunityId);
-        if (active) {
-          setData(response);
-        }
-      } catch (nextError) {
-        if (active) {
-          setError(createErrorMessage(nextError, 'Unable to load opportunity details.'));
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void load();
+    load();
     return () => {
-      active = false;
+      cancelled = true;
     };
-  }, [opportunityId, reloadKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey, ...deps]);
 
-  return { data, error, loading, refresh: () => setReloadKey((value) => value + 1) };
+  return { data, loading, error, refresh };
 }
 
-export function useVendorProposals(): ResourceState<OpportunityProposalRecord[]> {
-  const [data, setData] = useState<OpportunityProposalRecord[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await opportunityService.listVendorProposals();
-        if (active) {
-          setData(response);
+// Ensure default data falls back to empty array for list hooks
+export function useOpportunities(status?: string) {
+  const state = useResource<OpportunityRecord[]>(
+    () => {
+      const query = status ? \?status=\\ : '';
+      return opportunitiesService.listOpportunities().then((list) => {
+        if (status) {
+          return list.filter((o) => o.status === status);
         }
-      } catch (nextError) {
-        if (active) {
-          setError(createErrorMessage(nextError, 'Unable to load proposals.'));
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
+        return list;
+      });
+    },
+    [status]
+  );
+  return { ...state, data: state.data || [] };
+}
 
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [reloadKey]);
+export function useOpportunity(
+  opportunityId: string | null
+): ResourceState<OpportunityRecord | null> {
+  return useResource<OpportunityRecord | null>(
+    async () => {
+      if (!opportunityId) return null;
+      // Using opportunitiesService as per origin version
+      return opportunitiesService.getOpportunity(opportunityId);
+    },
+    [opportunityId]
+  );
+}
 
-  return { data, error, loading, refresh: () => setReloadKey((value) => value + 1) };
+export function useVendorProposals() {
+  const state = useResource<OpportunityProposalRecord[]>(
+    async () => {
+      // Using opportunityService as per HEAD version
+      return opportunityService.listVendorProposals();
+    },
+    []
+  );
+  return { ...state, data: state.data || [] };
 }
 
 export function useProposal(proposalId: string | null): ResourceState<OpportunityProposalRecord | null> {
-  const [data, setData] = useState<OpportunityProposalRecord | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    if (!proposalId) {
-      setData(null);
-      setLoading(false);
-      return;
-    }
-
-    let active = true;
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await opportunityService.getProposalById(proposalId);
-        if (active) {
-          setData(response);
-        }
-      } catch (nextError) {
-        if (active) {
-          setError(createErrorMessage(nextError, 'Unable to load proposal details.'));
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [proposalId, reloadKey]);
-
-  return { data, error, loading, refresh: () => setReloadKey((value) => value + 1) };
+  return useResource<OpportunityProposalRecord | null>(
+    async () => {
+      if (!proposalId) return null;
+      // Using opportunityService as per HEAD version
+      return opportunityService.getProposalById(proposalId);
+    },
+    [proposalId]
+  );
 }

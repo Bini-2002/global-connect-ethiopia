@@ -2,23 +2,70 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useState, useEffect } from 'react';
 
 import DashboardHeader from '@/components/DashboardHeader';
 import Sidebar from '@/components/Sidebar';
+import { EventListItem } from '@/app/types/event';
 import { useMarketplaceVendor } from '@/app/hooks/useMarketplace';
+import eventsService from '@/app/services/eventsService';
 import marketplaceService from '@/app/services/marketplaceService';
-
+import Image from 'next/image';
 export default function OrganizerVendorDetailPage() {
   const params = useParams();
   const router = useRouter();
   const vendorId = params.id as string;
   const { data: vendor, error, loading } = useMarketplaceVendor(vendorId);
 
-  const [description, setDescription] = useState('');
+  const [events, setEvents] = useState<EventListItem[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
   const [eventId, setEventId] = useState('');
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const handleServiceToggle = (service: string) => {
+    setSelectedServices((prev) =>
+      prev.includes(service)
+        ? prev.filter((s) => s !== service)
+        : [...prev, service]
+    );
+  };
+
+  useEffect(() => {
+    async function fetchEvents() {
+      try {
+        console.log('Fetching events...');
+        const eventList = await eventsService.getEvents();
+        console.log('Events loaded:', eventList);
+        setEvents(eventList);
+      } catch (err) {
+        console.error('Failed to load events:', err);
+        // Try alternative approach - direct API call
+        try {
+          const { api } = await import('@/app/lib/api');
+          const rawEvents = await api.get('/events/');
+          console.log('Raw events:', rawEvents);
+          setEvents(rawEvents.map((e: any) => ({
+            id: e.id,
+            proposal_id: e.proposal_id,
+            title: e.title,
+            event_type: e.category,
+            location: e.location || 'Location pending',
+            date: e.start_date || 'Date pending',
+            status: 'UPCOMING',
+            backend_status: e.status,
+          })));
+        } catch (altErr) {
+          console.error('Alt fetch also failed:', altErr);
+        }
+      } finally {
+        setEventsLoading(false);
+      }
+    }
+    fetchEvents();
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -28,7 +75,8 @@ export default function OrganizerVendorDetailPage() {
       setFormError(null);
       const request = await marketplaceService.createRequest({
         vendor_id: vendorId,
-        event_id: eventId.trim() || undefined,
+        event_id: eventId,
+        services: selectedServices,
         description: description.trim(),
       });
       router.push(`/organizer/requests/${request.id}`);
@@ -41,6 +89,24 @@ export default function OrganizerVendorDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+       <div className="fixed top-6 md:left-60 left-0 -z-10 pointer-events-none">
+                    <Image
+                      src="/Ellipse2.png"
+                      alt=""
+                      width={200}
+                      height={400}
+                      className="opacity-80"
+                    />
+                  </div>
+                  <div className="fixed bottom-6  right-60 -z-10 pointer-events-none">
+                    <Image
+                      src="/Ellipse3.png"
+                      alt=""
+                      width={200}
+                      height={400}
+                      className="opacity-80"
+                    />
+                  </div>
       <Sidebar role="organizer" />
       <DashboardHeader
         searchPlaceholder="Vendor details"
@@ -125,16 +191,49 @@ export default function OrganizerVendorDetailPage() {
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                   <div>
                     <label htmlFor="eventId" className="mb-1 block text-sm font-medium text-slate-700">
-                      Event ID
+                      Event
                     </label>
-                    <input
+                    <select
                       id="eventId"
+                      required
                       value={eventId}
                       onChange={(currentEvent) => setEventId(currentEvent.target.value)}
+                      disabled={eventsLoading}
                       className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
-                      placeholder="Optional event id for this request"
-                    />
+                    >
+                      <option value="">{eventsLoading ? 'Loading events...' : 'Select an event...'}</option>
+                      {!eventsLoading && events.length === 0 && <option value="">No events available</option>}
+                      {events.map((event) => (
+                        <option key={event.id} value={event.id}>
+                          {event.title} ({event.date})
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
+                  {vendor && vendor.services.length > 0 && (
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Services needed
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {vendor.services.map((service) => (
+                          <button
+                            key={service}
+                            type="button"
+                            onClick={() => handleServiceToggle(service)}
+                            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                              selectedServices.includes(service)
+                                ? 'bg-[#062E22] text-white'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                            }`}
+                          >
+                            {service}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label htmlFor="description" className="mb-1 block text-sm font-medium text-slate-700">
@@ -153,7 +252,7 @@ export default function OrganizerVendorDetailPage() {
 
                   <button
                     type="submit"
-                    disabled={submitting || !description.trim()}
+                    disabled={submitting || !description.trim() || !eventId}
                     className="w-full rounded-xl bg-[#062E22] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0a4a37] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {submitting ? 'Sending request...' : 'Send Request'}
