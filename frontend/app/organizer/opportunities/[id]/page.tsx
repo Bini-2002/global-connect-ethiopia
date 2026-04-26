@@ -57,7 +57,7 @@ const SOURCE_MODE_LABELS: Record<OpportunitySourcingMode, string> = {
   hybrid: 'Hybrid',
 };
 
-function formatCurrency(amount: number | undefined, currency: string = 'ETB'): string {
+function formatCurrency(amount: number | null | undefined, currency: string = 'ETB'): string {
   if (!amount) return '-';
   return `${currency} ${amount.toLocaleString()}`;
 }
@@ -468,7 +468,7 @@ export default function OrganizerOpportunityDetailPage() {
                         <div className="mt-4 flex flex-wrap gap-2">
                           {['submitted', 'client_countered', 'vendor_countered'].includes(
                             proposal.status
-                          ) && (
+                          ) ? (
                             <>
                               <button
                                 onClick={() => {
@@ -497,6 +497,15 @@ export default function OrganizerOpportunityDetailPage() {
                                 Reject
                               </button>
                             </>
+                          ) : (
+                            ['converted', 'selected'].includes(proposal.status.toLowerCase()) && proposal.contract_id && (
+                              <Link
+                                href={`/organizer/contracts/${proposal.contract_id}`}
+                                className="inline-flex items-center justify-center rounded-lg bg-[#062E22] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0a4a37]"
+                              >
+                                View Contract
+                              </Link>
+                            )
                           )}
                         </div>
                       </div>
@@ -555,7 +564,7 @@ export default function OrganizerOpportunityDetailPage() {
                             <td className="py-3">
                               {['submitted', 'client_countered', 'vendor_countered'].includes(
                                 proposal.status
-                              ) && (
+                              ) ? (
                                 <div className="flex gap-2">
                                   <button
                                     onClick={() => {
@@ -581,6 +590,15 @@ export default function OrganizerOpportunityDetailPage() {
                                     Reject
                                   </button>
                                 </div>
+                              ) : (
+                                ['converted', 'selected'].includes(proposal.status.toLowerCase()) && proposal.contract_id && (
+                                  <Link
+                                    href={`/organizer/contracts/${proposal.contract_id}`}
+                                    className="inline-block rounded bg-[#062E22] px-3 py-1 text-xs font-semibold text-white hover:bg-[#0a4a37]"
+                                  >
+                                    View Contract
+                                  </Link>
+                                )
                               )}
                             </td>
                           </tr>

@@ -6,9 +6,12 @@ from io import BytesIO
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 
 from app.api.v1.deps import get_current_user
 from app.db.mongodb import (
+    announcement_delivery_collection,
     badge_collection,
     event_announcement_collection,
     event_collection,
@@ -21,10 +24,12 @@ from app.db.mongodb import (
     feedback_response_collection,
     feedback_survey_collection,
     permit_collection,
+    police_notification_collection,
     proposal_collection,
     ticket_purchase_collection,
     user_collection,
     venue_reservation_collection,
+    verification_letter_collection,
 )
 from app.models.event_states import (
     BookingStatus,
@@ -38,6 +43,7 @@ from app.models.roles import UserRole, to_user_role
 from app.models.supported_event_types import normalize_supported_event_type
 from app.schemas.event import (
     AnnouncementCreate,
+    AnnouncementDeliveryResponse,
     AnnouncementResponse,
     BadgeGeneratePayload,
     BadgeResponse,
@@ -60,6 +66,7 @@ from app.schemas.event import (
     EventTeamInvitationResponse,
     EventTeamMemberResponse,
     EventUpdate,
+    ManualAnnouncementRunResponse,
     FeedbackResponseCreate,
     FeedbackResponseRecord,
     FeedbackSendPayload,
@@ -133,6 +140,7 @@ def _event_base_response(document: dict) -> dict:
         "booking_opens_at": document.get("booking_opens_at"),
         "booking_closes_at": document.get("booking_closes_at"),
         "allow_waitlist": bool(document.get("allow_waitlist", False)),
+        "required_attendee_fields": document.get("required_attendee_fields", []),
         "booked_count": booked_count,
         "remaining_slots": remaining_slots,
         "survey_status": document.get("survey_status", SurveyStatus.NOT_SENT),
@@ -250,6 +258,7 @@ def _serialize_booking(document: dict, event: dict | None = None) -> dict:
         "attendee_email": document.get("attendee_email"),
         "slots_requested": int(document.get("slots_requested", 1)),
         "notes": document.get("notes"),
+        "attendee_profile": document.get("attendee_profile", {}),
         "qr_code": document.get("qr_code"),
         "qr_code_image_url": f"/api/v1/events/{event_id}/bookings/{booking_id}/qr-code" if has_qr else None,
         "check_in_pass_image_url": f"/api/v1/events/{event_id}/bookings/{booking_id}/check-in-pass" if has_qr else None,
@@ -288,6 +297,28 @@ def _serialize_announcement(document: dict) -> dict:
         "created_at": document["created_at"],
         "updated_at": document["updated_at"],
         "sent_at": document.get("sent_at"),
+        "recipient_count": int(document.get("recipient_count", 0)),
+        "delivered_count": int(document.get("delivered_count", 0)),
+        "delivery_warning": document.get("delivery_warning"),
+    }
+
+
+def _serialize_announcement_delivery(document: dict) -> dict:
+    return {
+        "id": str(document["_id"]),
+        "announcement_id": document["announcement_id"],
+        "event_id": document["event_id"],
+        "recipient_user_id": document["recipient_user_id"],
+        "recipient_name": document.get("recipient_name"),
+        "recipient_email": document.get("recipient_email"),
+        "booking_id": document.get("booking_id"),
+        "subject": document["subject"],
+        "body": document["body"],
+        "status": document["status"],
+        "delivered_at": document.get("delivered_at"),
+        "read_at": document.get("read_at"),
+        "created_at": document["created_at"],
+        "updated_at": document["updated_at"],
     }
 
 
@@ -429,6 +460,81 @@ def _resolve_booking_status(event: dict, *, now: datetime | None = None) -> Book
     return BookingStatus.OPEN
 
 
+def _normalize_required_attendee_fields(fields: list[str] | None) -> list[str]:
+    normalized: list[str] = []
+    for item in fields or []:
+        value = str(item).strip()
+        if value and value not in normalized:
+            normalized.append(value)
+    return normalized
+
+
+def _validate_attendee_profile(required_fields: list[str], attendee_profile: dict[str, str]) -> None:
+    missing = [field for field in required_fields if not str((attendee_profile or {}).get(field, "")).strip()]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required attendee information fields: {', '.join(missing)}",
+        )
+
+
+async def _execute_announcement_delivery(event: dict, announcement: dict, *, now: datetime | None = None) -> tuple[list[dict], str | None]:
+    delivered_at = now or utc_now()
+    recipients = await ticket_purchase_collection.find(
+        {"event_id": str(event["_id"]), "booking_status": "confirmed"},
+        sort=[("created_at", 1)],
+    ).to_list(length=5000)
+
+    deliveries: list[dict] = []
+    for booking in recipients:
+        delivery_doc = {
+            "announcement_id": str(announcement["_id"]),
+            "event_id": str(event["_id"]),
+            "recipient_user_id": booking["attendee_id"],
+            "recipient_name": booking.get("attendee_name"),
+            "recipient_email": booking.get("attendee_email"),
+            "booking_id": str(booking["_id"]),
+            "subject": announcement["subject"],
+            "body": announcement["body"],
+            "status": "delivered",
+            "delivered_at": delivered_at,
+            "read_at": None,
+            "created_at": delivered_at,
+            "updated_at": delivered_at,
+        }
+        try:
+            result = await announcement_delivery_collection.insert_one(delivery_doc)
+            delivery_doc["_id"] = result.inserted_id
+        except DuplicateKeyError:
+            existing = await announcement_delivery_collection.find_one(
+                {"announcement_id": str(announcement["_id"]), "recipient_user_id": booking["attendee_id"]}
+            )
+            if not existing:
+                continue
+            delivery_doc = existing
+        deliveries.append(delivery_doc)
+
+    warning = None
+    if not recipients:
+        warning = "No confirmed booking recipients were available when this announcement was sent."
+
+    await event_announcement_collection.update_one(
+        {"_id": announcement["_id"]},
+        {
+            "$set": {
+                "channel": "in_app",
+                "status": "sent",
+                "sent_at": delivered_at,
+                "recipient_count": len(recipients),
+                "delivered_count": len(deliveries),
+                "delivery_warning": warning,
+                "updated_at": delivered_at,
+            }
+        },
+    )
+    return deliveries, warning
+
+
 @router.post("/from-proposal/{proposal_id}", response_model=EventCreateFromProposalResponse, status_code=201)
 async def create_event_from_proposal(proposal_id: str, current_user: dict = Depends(get_current_user)):
     _require_role(current_user, UserRole.ORGANIZER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
@@ -475,6 +581,7 @@ async def create_event_from_proposal(proposal_id: str, current_user: dict = Depe
         "booking_opens_at": None,
         "booking_closes_at": None,
         "allow_waitlist": False,
+        "required_attendee_fields": [],
         "booked_count": 0,
         "survey_status": SurveyStatus.NOT_SENT,
         "final_report_status": FinalReportStatus.NOT_STARTED,
@@ -497,6 +604,14 @@ async def create_event_from_proposal(proposal_id: str, current_user: dict = Depe
     )
     if permit:
         await permit_collection.update_one({"_id": permit["_id"]}, {"$set": {"event_id": event_id, "updated_at": now}})
+    await verification_letter_collection.update_one(
+        {"proposal_id": proposal_id},
+        {"$set": {"event_id": event_id, "updated_at": now}},
+    )
+    await police_notification_collection.update_one(
+        {"proposal_id": proposal_id},
+        {"$set": {"event_id": event_id, "updated_at": now}},
+    )
 
     return {
         "event_id": event_id,
@@ -1099,8 +1214,9 @@ async def update_booking_settings(
         "booking_required": payload.booking_required,
         "booking_opens_at": payload.booking_opens_at,
         "booking_closes_at": payload.booking_closes_at,
-        "allow_waitlist": payload.allow_waitlist,
+        "allow_waitlist": False,
     }
+    required_attendee_fields = _normalize_required_attendee_fields(payload.required_attendee_fields)
     next_status = _resolve_booking_status(provisional_event)
     await event_collection.update_one(
         {"_id": event["_id"]},
@@ -1109,7 +1225,8 @@ async def update_booking_settings(
                 "booking_required": payload.booking_required,
                 "booking_opens_at": payload.booking_opens_at,
                 "booking_closes_at": payload.booking_closes_at,
-                "allow_waitlist": payload.allow_waitlist,
+                "allow_waitlist": False,
+                "required_attendee_fields": required_attendee_fields,
                 "booking_status": next_status,
                 "updated_at": utc_now(),
             }
@@ -1154,71 +1271,109 @@ async def create_booking(
     payload: EventBookingCreate,
     current_user: dict = Depends(get_current_user),
 ):
-    _require_role(current_user, UserRole.ATTENDEE, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.VENDOR, UserRole.ORGANIZER)
+    _require_role(current_user, UserRole.ATTENDEE)
     event = await _get_event_or_404(event_id)
-    if event.get("status") not in {EventStatus.PUBLISHED, EventStatus.PRIVATE_PUBLISHED, EventStatus.LIVE}:
-        raise HTTPException(status_code=400, detail="Bookings can only be created for published or live events")
+    if event.get("visibility") != "public":
+        raise HTTPException(status_code=400, detail="Bookings are only available for public events")
+    if event.get("status") not in {EventStatus.PUBLISHED, EventStatus.LIVE}:
+        raise HTTPException(status_code=400, detail="Bookings can only be created for public published or live events")
     if not event.get("booking_required"):
         raise HTTPException(status_code=400, detail="This event does not use advance booking")
     now = utc_now()
     current_booking_status = _resolve_booking_status(event, now=now)
-    if current_booking_status not in {BookingStatus.OPEN, BookingStatus.FULL}:
+    if current_booking_status != BookingStatus.OPEN:
         await event_collection.update_one(
             {"_id": event["_id"]},
             {"$set": {"booking_status": current_booking_status, "updated_at": now}},
         )
-        raise HTTPException(status_code=400, detail="Bookings are not open for this event at the moment")
+        detail = "Bookings are not open for this event at the moment"
+        if current_booking_status == BookingStatus.FULL:
+            detail = "This event is already at full confirmed booking capacity"
+        raise HTTPException(status_code=400, detail=detail)
+
+    attendee_profile = {str(key): str(value).strip() for key, value in (payload.attendee_profile or {}).items()}
+    _validate_attendee_profile(event.get("required_attendee_fields", []), attendee_profile)
 
     existing_booking = await ticket_purchase_collection.find_one(
         {
             "event_id": event_id,
             "attendee_id": current_user["id"],
-            "booking_status": {"$in": ["confirmed", "waitlisted"]},
         }
     )
     if existing_booking:
         raise HTTPException(status_code=400, detail="You already have an active booking for this event")
 
     capacity = int(event.get("capacity") or 0)
+    if capacity <= 0:
+        raise HTTPException(status_code=400, detail="This event is not configured with a valid booking capacity")
     booked_count = int(event.get("booked_count", 0))
     remaining_slots = max(capacity - booked_count, 0)
-    if payload.slots_requested > remaining_slots and not event.get("allow_waitlist", False):
-        raise HTTPException(status_code=400, detail="Not enough remaining booking slots")
+    if payload.slots_requested > remaining_slots:
+        raise HTTPException(status_code=409, detail="Not enough remaining booking slots")
 
-    booking_status = "confirmed"
-    next_booking_status = BookingStatus.OPEN
-    if payload.slots_requested > remaining_slots and event.get("allow_waitlist", False):
-        booking_status = "waitlisted"
-        next_booking_status = BookingStatus.FULL if remaining_slots == 0 else BookingStatus.OPEN
-    else:
-        projected_booked = booked_count + payload.slots_requested
-        next_booking_status = BookingStatus.FULL if capacity and projected_booked >= capacity else BookingStatus.OPEN
-
+    active_booking_key = f"{event_id}:{current_user['id']}"
     doc = {
         "event_id": event_id,
+        "active_booking_key": active_booking_key,
         "booking_reference": _generate_ticket_code("BKG"),
         "attendee_id": current_user["id"],
         "attendee_name": payload.attendee_name or current_user.get("full_name"),
         "attendee_email": payload.attendee_email or current_user.get("email"),
         "slots_requested": payload.slots_requested,
         "notes": payload.notes,
-        "qr_code": _generate_ticket_code("QR") if booking_status == "confirmed" else None,
-        "booking_status": booking_status,
+        "attendee_profile": attendee_profile,
+        "qr_code": None,
+        "booking_status": "pending_confirmation",
         "check_in_status": "pending",
         "checked_in_at": None,
         "created_at": now,
         "updated_at": now,
     }
-    result = await ticket_purchase_collection.insert_one(doc)
+    try:
+        result = await ticket_purchase_collection.insert_one(doc)
+    except DuplicateKeyError as exc:
+        raise HTTPException(status_code=400, detail="You already have an active booking for this event") from exc
     doc["_id"] = result.inserted_id
 
-    increment = payload.slots_requested if booking_status == "confirmed" else 0
-    await event_collection.update_one(
-        {"_id": event["_id"]},
-        {"$set": {"booking_status": next_booking_status, "updated_at": now}, "$inc": {"booked_count": increment}},
+    projected_booked = booked_count + payload.slots_requested
+    next_booking_status = BookingStatus.FULL if projected_booked >= capacity else BookingStatus.OPEN
+    reserved_event = await event_collection.find_one_and_update(
+        {
+            "_id": event["_id"],
+            "booking_required": True,
+            "visibility": "public",
+            "status": {"$in": [EventStatus.PUBLISHED, EventStatus.LIVE]},
+            "booked_count": booked_count,
+        },
+        {"$set": {"booking_status": next_booking_status, "updated_at": now}, "$inc": {"booked_count": payload.slots_requested}},
+        return_document=ReturnDocument.AFTER,
     )
-    updated_event = await event_collection.find_one({"_id": event["_id"]})
-    return _serialize_booking(doc, updated_event or event)
+    if not reserved_event:
+        await ticket_purchase_collection.delete_one({"_id": doc["_id"]})
+        latest_event = await event_collection.find_one({"_id": event["_id"]}) or event
+        latest_status = _resolve_booking_status(latest_event, now=now)
+        await event_collection.update_one(
+            {"_id": event["_id"]},
+            {"$set": {"booking_status": latest_status, "updated_at": now}},
+        )
+        if latest_status == BookingStatus.FULL or int(latest_event.get("booked_count", 0)) >= capacity:
+            raise HTTPException(status_code=409, detail="This event reached full capacity before your booking could be confirmed")
+        raise HTTPException(status_code=409, detail="Booking could not be confirmed because the event state changed")
+
+    qr_code = _generate_ticket_code("QR")
+    await ticket_purchase_collection.update_one(
+        {"_id": doc["_id"]},
+        {
+            "$set": {
+                "booking_status": "confirmed",
+                "qr_code": qr_code,
+                "updated_at": now,
+            }
+        },
+    )
+    doc["booking_status"] = "confirmed"
+    doc["qr_code"] = qr_code
+    return _serialize_booking(doc, reserved_event)
 
 
 @router.get("/{event_id}/bookings/{booking_id}/qr-code")
@@ -1358,23 +1513,86 @@ async def create_announcement(
     await _ensure_team_access(event, current_user)
     now = utc_now()
     send_at = payload.send_at
-    status_value = "scheduled" if send_at and send_at > now else "sent"
-    sent_at = None if status_value == "scheduled" else now
+    audience_segment = payload.audience_segment or "confirmed_bookings"
+    if audience_segment != "confirmed_bookings":
+        raise HTTPException(status_code=400, detail="Phase 1 announcements only support the confirmed_bookings audience")
+    status_value = "scheduled" if send_at and send_at > now else "pending_delivery"
+    sent_at = None
     doc = {
         "event_id": event_id,
-        "audience_segment": payload.audience_segment,
+        "audience_segment": "confirmed_bookings",
         "subject": payload.subject,
         "body": payload.body,
-        "channel": payload.channel,
+        "channel": "in_app",
         "send_at": send_at,
         "status": status_value,
+        "recipient_count": 0,
+        "delivered_count": 0,
+        "delivery_warning": None,
         "created_at": now,
         "updated_at": now,
         "sent_at": sent_at,
     }
     result = await event_announcement_collection.insert_one(doc)
     doc["_id"] = result.inserted_id
+    if status_value == "pending_delivery":
+        deliveries, warning = await _execute_announcement_delivery(event, doc, now=now)
+        doc["status"] = "sent"
+        doc["sent_at"] = now
+        doc["channel"] = "in_app"
+        doc["recipient_count"] = len(deliveries) if deliveries else 0
+        doc["delivered_count"] = len(deliveries)
+        doc["delivery_warning"] = warning
+        stored = await event_announcement_collection.find_one({"_id": doc["_id"]})
+        return _serialize_announcement(stored or doc)
     return _serialize_announcement(doc)
+
+
+@router.post("/{event_id}/announcements/{announcement_id}/run-now", response_model=ManualAnnouncementRunResponse)
+async def run_scheduled_announcement_now(
+    event_id: str,
+    announcement_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    event = await _get_event_or_404(event_id)
+    await _ensure_team_access(event, current_user)
+    announcement = await event_announcement_collection.find_one(
+        {"_id": parse_object_id(announcement_id, field_name="announcement id"), "event_id": event_id}
+    )
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    if announcement.get("status") == "sent":
+        deliveries = await announcement_delivery_collection.find(
+            {"announcement_id": announcement_id},
+            sort=[("created_at", 1)],
+        ).to_list(length=5000)
+        return {
+            "announcement": _serialize_announcement(announcement),
+            "deliveries": [_serialize_announcement_delivery(item) for item in deliveries],
+        }
+
+    deliveries, warning = await _execute_announcement_delivery(event, announcement, now=utc_now())
+    updated = await event_announcement_collection.find_one({"_id": announcement["_id"]}) or announcement
+    updated["delivery_warning"] = warning
+    return {
+        "announcement": _serialize_announcement(updated),
+        "deliveries": [_serialize_announcement_delivery(item) for item in deliveries],
+    }
+
+
+@router.get("/{event_id}/announcements/{announcement_id}/deliveries", response_model=list[AnnouncementDeliveryResponse])
+async def list_announcement_deliveries(
+    event_id: str,
+    announcement_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    event = await _get_event_or_404(event_id)
+    await _ensure_team_access(event, current_user)
+    docs = await announcement_delivery_collection.find(
+        {"event_id": event_id, "announcement_id": announcement_id},
+        sort=[("created_at", 1)],
+    ).to_list(length=5000)
+    return [_serialize_announcement_delivery(item) for item in docs]
 
 
 @router.get("/{event_id}/incidents", response_model=list[IncidentResponse])

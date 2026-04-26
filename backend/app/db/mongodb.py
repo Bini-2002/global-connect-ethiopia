@@ -16,6 +16,8 @@ vendor_collection = db.vendors
 organizer_collection = db.organizers
 document_collection = db.documents
 permit_collection = db.permits
+verification_letter_collection = db.verification_letters
+police_notification_collection = db.police_notifications
 verification_job_collection = db.verification_jobs
 verification_result_collection = db.verification_results
 
@@ -33,6 +35,7 @@ ticket_type_collection = db.ticket_types
 ticket_purchase_collection = db.ticket_purchases
 badge_collection = db.badges
 event_announcement_collection = db.event_announcements
+announcement_delivery_collection = db.announcement_deliveries
 event_incident_collection = db.event_incidents
 feedback_survey_collection = db.feedback_surveys
 feedback_response_collection = db.feedback_responses

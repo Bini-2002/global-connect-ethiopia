@@ -6,6 +6,7 @@ import {
   CounterProposalPayload,
   AcceptProposalPayload,
   RejectProposalPayload,
+  SubmitProposalPayload,
 } from '@/app/types/opportunity';
 
 export const opportunitiesService = {
@@ -36,8 +37,31 @@ export const opportunitiesService = {
     return api.post<OpportunityRecord>(`/opportunities/${opportunityId}/close`);
   },
 
+  // Proposal endpoints
+  submitProposal: async (
+    opportunityId: string,
+    payload: SubmitProposalPayload
+  ): Promise<OpportunityProposalRecord> => {
+    return api.post<OpportunityProposalRecord>(`/opportunities/${opportunityId}/proposals`, payload);
+  },
+
   listProposals: async (opportunityId: string): Promise<OpportunityProposalRecord[]> => {
     return api.get<OpportunityProposalRecord[]>(`/opportunities/${opportunityId}/proposals`);
+  },
+
+  listVendorProposals: async (): Promise<OpportunityProposalRecord[]> => {
+    return api.get<OpportunityProposalRecord[]>('/opportunities/proposals/mine');
+  },
+
+  listActionableProposals: async (): Promise<OpportunityProposalRecord[]> => {
+    return api.get<OpportunityProposalRecord[]>('/opportunities/proposals/actionable');
+  },
+
+  getProposalDetail: async (
+    opportunityId: string,
+    proposalId: string
+  ): Promise<OpportunityProposalRecord> => {
+    return api.get<OpportunityProposalRecord>(`/opportunities/${opportunityId}/proposals/${proposalId}`);
   },
 
   counterProposal: async (
@@ -45,8 +69,8 @@ export const opportunitiesService = {
     proposalId: string,
     payload: CounterProposalPayload
   ): Promise<OpportunityProposalRecord> => {
-    return api.patch<OpportunityProposalRecord>(
-      `/opportunities/${opportunityId}/proposals/${proposalId}`,
+    return api.post<OpportunityProposalRecord>(
+      `/opportunities/${opportunityId}/proposals/${proposalId}/counter`,
       payload
     );
   },
@@ -69,6 +93,17 @@ export const opportunitiesService = {
   ): Promise<OpportunityProposalRecord> => {
     return api.post<OpportunityProposalRecord>(
       `/opportunities/${opportunityId}/proposals/${proposalId}/reject`,
+      payload
+    );
+  },
+
+  withdrawProposal: async (
+    opportunityId: string,
+    proposalId: string,
+    payload: { reason?: string }
+  ): Promise<OpportunityProposalRecord> => {
+    return api.post<OpportunityProposalRecord>(
+      `/opportunities/${opportunityId}/proposals/${proposalId}/withdraw`,
       payload
     );
   },

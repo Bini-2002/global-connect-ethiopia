@@ -45,7 +45,7 @@ export default function OrganizerVendorDetailPage() {
         // Try alternative approach - direct API call
         try {
           const { api } = await import('@/app/lib/api');
-          const rawEvents = await api.get('/events/');
+          const rawEvents = await api.get<EventListItem[]>('/events/');
           console.log('Raw events:', rawEvents);
           setEvents(rawEvents.map((e: any) => ({
             id: e.id,

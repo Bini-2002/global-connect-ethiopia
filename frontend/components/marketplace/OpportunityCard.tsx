@@ -5,6 +5,15 @@ import Link from 'next/link';
 import { OpportunityRecord } from '@/app/types/opportunity';
 import OpportunityStatusBadge from '@/components/marketplace/OpportunityStatusBadge';
 
+function getLocationLabel(location: OpportunityRecord['location']): string {
+  if (!location) return 'Addis Ababa';
+  if (typeof location === 'string') return location;
+  if ('city' in location && typeof location.city === 'string' && location.city.trim()) {
+    return location.city;
+  }
+  return 'Addis Ababa';
+}
+
 interface OpportunityCardProps {
   href: string;
   opportunity: OpportunityRecord;
@@ -40,7 +49,7 @@ export default function OpportunityCard({ href, opportunity }: OpportunityCardPr
 
           <h2 className="mt-4 text-2xl font-bold text-[#062E22]">{opportunity.title}</h2>
           <p className="mt-2 text-sm font-medium text-slate-500">
-            {opportunity.client_name || 'Client'} • {opportunity.location?.city || 'Addis Ababa'}
+            {opportunity.client_name || 'Client'} • {getLocationLabel(opportunity.location)}
           </p>
           <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-slate-600">
             {opportunity.description}
