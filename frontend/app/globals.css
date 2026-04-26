@@ -98,8 +98,22 @@ input[type="radio"] {
 
 .glass-card {
   background: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.pattern-dots {
+  background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0);
+  background-repeat: repeat;
+}
+
+.pattern-dots-lg {
+  background-size: 32px 32px;
+}
+
+.pattern-dots-sm {
+  background-size: 24px 24px;
 }
 
 /* Sidebar transition */

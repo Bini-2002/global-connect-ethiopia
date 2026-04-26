@@ -180,6 +180,7 @@ class BookingSettingsUpdate(BaseModel):
     booking_opens_at: datetime | None = None
     booking_closes_at: datetime | None = None
     allow_waitlist: bool = False
+    required_attendee_fields: list[str] = []
 
 
 class EventBookingCreate(BaseModel):
@@ -187,6 +188,7 @@ class EventBookingCreate(BaseModel):
     attendee_name: str | None = None
     attendee_email: str | None = None
     notes: str | None = None
+    attendee_profile: dict[str, str] = {}
 
 
 class EventBookingResponse(BaseModel):
@@ -202,6 +204,7 @@ class EventBookingResponse(BaseModel):
     attendee_email: str | None = None
     slots_requested: int
     notes: str | None = None
+    attendee_profile: dict[str, str] = {}
     qr_code: str | None = None
     qr_code_image_url: str | None = None
     check_in_pass_image_url: str | None = None
@@ -234,10 +237,10 @@ class BadgeResponse(BaseModel):
 
 
 class AnnouncementCreate(BaseModel):
-    audience_segment: str
+    audience_segment: str = "confirmed_bookings"
     subject: str
     body: str
-    channel: Literal["email", "sms", "in_app", "multi"] = "multi"
+    channel: str = "in_app"
     send_at: datetime | None = None
 
 
@@ -253,6 +256,31 @@ class AnnouncementResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     sent_at: datetime | None = None
+    recipient_count: int = 0
+    delivered_count: int = 0
+    delivery_warning: str | None = None
+
+
+class AnnouncementDeliveryResponse(BaseModel):
+    id: str
+    announcement_id: str
+    event_id: str
+    recipient_user_id: str
+    recipient_name: str | None = None
+    recipient_email: str | None = None
+    booking_id: str | None = None
+    subject: str
+    body: str
+    status: str
+    delivered_at: datetime | None = None
+    read_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ManualAnnouncementRunResponse(BaseModel):
+    announcement: AnnouncementResponse
+    deliveries: list[AnnouncementDeliveryResponse]
 
 
 class IncidentCreate(BaseModel):
@@ -393,6 +421,7 @@ class EventResponse(BaseModel):
     booking_opens_at: datetime | None = None
     booking_closes_at: datetime | None = None
     allow_waitlist: bool = False
+    required_attendee_fields: list[str] = []
     booked_count: int = 0
     remaining_slots: int = 0
     survey_status: SurveyStatus

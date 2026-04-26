@@ -9,8 +9,21 @@ import DashboardHeader from '@/components/DashboardHeader';
 import Sidebar from '@/components/Sidebar';
 import OpportunityStatusBadge from '@/components/marketplace/OpportunityStatusBadge';
 import { useOpportunity, useVendorProposals } from '@/app/hooks/useOpportunities';
-import { opportunityService } from '@/app/services/opportunityService';
+import { opportunitiesService } from '@/app/services/opportunitiesService';
 import { OpportunityProposalRecord } from '@/app/types/opportunity';
+
+function getOpportunityLocationLabel(location: OpportunityProposalRecord['opportunity'] extends infer Opportunity
+  ? Opportunity extends { location?: unknown }
+    ? Opportunity['location']
+    : never
+  : never): string {
+  if (!location) return 'Addis Ababa';
+  if (typeof location === 'string') return location;
+  if (typeof location === 'object' && 'city' in location && typeof location.city === 'string' && location.city.trim()) {
+    return location.city;
+  }
+  return 'Addis Ababa';
+}
 
 export default function OpportunityDetailPage() {
   const params = useParams();
@@ -34,7 +47,7 @@ export default function OpportunityDetailPage() {
     
     setSubmitting(true);
     try {
-      await opportunityService.submitProposal(opportunityId, {
+      await opportunitiesService.submitProposal(opportunityId, {
         proposal_amount: Number(amount),
         cover_letter: coverLetter,
         delivery_timeline_days: timeline ? Number(timeline) : undefined,
@@ -52,7 +65,7 @@ export default function OpportunityDetailPage() {
     if (!existingProposal) return;
     setSubmitting(true);
     try {
-      await opportunityService.acceptCounter(existingProposal.id);
+      await opportunitiesService.acceptProposal(opportunityId, existingProposal.id);
       refreshProposals();
     } catch (err) {
       console.error(err);
@@ -68,7 +81,7 @@ export default function OpportunityDetailPage() {
     
     setSubmitting(true);
     try {
-      await opportunityService.counterProposal(existingProposal.id, {
+      await opportunitiesService.counterProposal(opportunityId, existingProposal.id, {
         amount: Number(amount),
         message: coverLetter,
       });
@@ -135,7 +148,7 @@ export default function OpportunityDetailPage() {
 
               <h1 className="mt-4 text-3xl font-bold text-[#062E22]">{opportunity.title}</h1>
               <p className="mt-2 text-slate-500">
-                {opportunity.client_name || 'Client'} • {opportunity.location?.city || 'Addis Ababa'}
+                {opportunity.client_name || 'Client'} • {getOpportunityLocationLabel(opportunity.location)}
               </p>
 
               <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-3">

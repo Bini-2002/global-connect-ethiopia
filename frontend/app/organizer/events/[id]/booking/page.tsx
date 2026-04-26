@@ -191,6 +191,8 @@ export default function EventBookingPage() {
             <label className="text-sm font-medium text-slate-700">Booking Opens</label>
             <input
               type="datetime-local"
+              aria-label="Booking opens date and time"
+              placeholder="Select booking open date and time"
               value={bookingSettings.booking_opens_at}
               onChange={(eventValue) =>
                 setBookingSettings((current) => ({ ...current, booking_opens_at: eventValue.target.value }))
@@ -202,6 +204,8 @@ export default function EventBookingPage() {
             <label className="text-sm font-medium text-slate-700">Booking Closes</label>
             <input
               type="datetime-local"
+              aria-label="Booking closes date and time"
+              placeholder="Select booking close date and time"
               value={bookingSettings.booking_closes_at}
               onChange={(eventValue) =>
                 setBookingSettings((current) => ({ ...current, booking_closes_at: eventValue.target.value }))
@@ -237,6 +241,8 @@ export default function EventBookingPage() {
           <div>
             <label className="text-sm font-medium text-slate-700">Attendee Name</label>
             <input
+              aria-label="Attendee name"
+              placeholder="Enter attendee name"
               value={bookingForm.attendee_name}
               onChange={(eventValue) =>
                 setBookingForm((current) => ({ ...current, attendee_name: eventValue.target.value }))
@@ -248,6 +254,8 @@ export default function EventBookingPage() {
             <label className="text-sm font-medium text-slate-700">Attendee Email</label>
             <input
               type="email"
+              aria-label="Attendee email"
+              placeholder="Enter attendee email"
               value={bookingForm.attendee_email}
               onChange={(eventValue) =>
                 setBookingForm((current) => ({ ...current, attendee_email: eventValue.target.value }))
@@ -261,6 +269,8 @@ export default function EventBookingPage() {
               type="number"
               min="1"
               max="20"
+              aria-label="Number of booking slots requested"
+              placeholder="1"
               value={bookingForm.slots_requested}
               onChange={(eventValue) =>
                 setBookingForm((current) => ({
@@ -275,6 +285,8 @@ export default function EventBookingPage() {
             <label className="text-sm font-medium text-slate-700">Notes</label>
             <textarea
               rows={3}
+              aria-label="Booking notes"
+              placeholder="Optional notes for the booking"
               value={bookingForm.notes}
               onChange={(eventValue) =>
                 setBookingForm((current) => ({ ...current, notes: eventValue.target.value }))

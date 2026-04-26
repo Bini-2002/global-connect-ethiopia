@@ -1,7 +1,6 @@
 ﻿'use client';
 
 import { useState, useEffect } from 'react';
-import opportunityService from '@/app/services/opportunityService';
 import opportunitiesService from '@/app/services/opportunitiesService';
 import { OpportunityRecord, OpportunityProposalRecord } from '@/app/types/opportunity';
 
@@ -59,7 +58,6 @@ function useResource<T>(
 export function useOpportunities(status?: string) {
   const state = useResource<OpportunityRecord[]>(
     () => {
-      const query = status ? \?status=\\ : '';
       return opportunitiesService.listOpportunities().then((list) => {
         if (status) {
           return list.filter((o) => o.status === status);
@@ -88,21 +86,22 @@ export function useOpportunity(
 export function useVendorProposals() {
   const state = useResource<OpportunityProposalRecord[]>(
     async () => {
-      // Using opportunityService as per HEAD version
-      return opportunityService.listVendorProposals();
+      // Using opportunitiesService for vendor proposals endpoint
+      return opportunitiesService.listVendorProposals();
     },
     []
   );
   return { ...state, data: state.data || [] };
 }
 
-export function useProposal(proposalId: string | null): ResourceState<OpportunityProposalRecord | null> {
+// NOTE: Global getProposalById doesn't exist for vendor proposals,
+// You need BOTH opportunityId and proposalId. So we provide useProposal(oppId, propId)
+export function useProposal(opportunityId: string | null, proposalId: string | null): ResourceState<OpportunityProposalRecord | null> {
   return useResource<OpportunityProposalRecord | null>(
     async () => {
-      if (!proposalId) return null;
-      // Using opportunityService as per HEAD version
-      return opportunityService.getProposalById(proposalId);
+      if (!opportunityId || !proposalId) return null;
+      return opportunitiesService.getProposalDetail(opportunityId, proposalId);
     },
-    [proposalId]
+    [opportunityId, proposalId]
   );
 }

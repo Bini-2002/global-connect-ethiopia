@@ -329,10 +329,7 @@ export default function LandingPage() {
 
       <section className="relative overflow-hidden pt-16">
         <div className="absolute inset-0 bg-gradient-to-r from-[#062E22] via-[#0a4a37] to-[#1a6648]" />
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}
-        />
+        <div className="pattern-dots pattern-dots-lg absolute inset-0 opacity-10" />
 
         <div className="relative mx-auto flex min-h-[520px] max-w-7xl items-center px-4 py-20 sm:px-6 lg:px-8">
           <div className="grid w-full gap-12 md:grid-cols-[1.2fr_0.8fr] md:items-center">
@@ -615,10 +612,7 @@ export default function LandingPage() {
 
       <section className="px-4 py-20">
         <div className="relative mx-auto max-w-4xl overflow-hidden rounded-[32px] bg-[#062E22] px-8 py-16 text-center shadow-2xl">
-          <div
-            className="absolute inset-0 opacity-10"
-            style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}
-          />
+          <div className="pattern-dots pattern-dots-sm absolute inset-0 opacity-10" />
           <div className="relative z-10">
             <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
               {attendeeMode ? 'Ready to secure your seat?' : 'Ready to move your event forward?'}
