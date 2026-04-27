@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.venue_listing import VenueListingSearchResponse
 from app.models.event_states import VenueReservationPaymentStatus, VenueReservationStatus
 
 
@@ -57,7 +58,9 @@ class VenueReservationResponse(BaseModel):
     deposit_amount: float | None = None
     currency: str = "ETB"
     notes: str | None = None
+    provider_action: str | None = None
     provider_response_notes: str | None = None
+    failure_reason: str | None = None
     organizer_confirmation_notes: str | None = None
     cancellation_notes: str | None = None
     proposed_start: datetime | None = None
@@ -70,8 +73,11 @@ class VenueReservationResponse(BaseModel):
     agreed_deposit_amount: float | None = None
     status: VenueReservationStatus
     payment_milestone_status: VenueReservationPaymentStatus = VenueReservationPaymentStatus.NOT_REQUIRED
+    alternative_suggestions: list[VenueListingSearchResponse] = Field(default_factory=list)
+    alternative_suggestions_generated_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    failed_at: datetime | None = None
     provider_responded_at: datetime | None = None
     organizer_confirmed_at: datetime | None = None
     confirmed_at: datetime | None = None
