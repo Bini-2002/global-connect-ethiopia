@@ -10,7 +10,6 @@ from app.models.event_states import (
     EventStatus,
     FinalReportStatus,
     SurveyStatus,
-    VenueReservationStatus,
 )
 from app.schemas.proposal import ProposalOfficeAssignments
 
@@ -66,47 +65,6 @@ class EventAIDraftRequest(BaseModel):
     duration_days: int | None = Field(default=None, ge=1, le=30)
     start_time: str | None = None
     sessions_per_day: int = Field(default=4, ge=1, le=12)
-
-
-class VenueSearchResponse(BaseModel):
-    event_id: str
-    date_from: datetime | None = None
-    date_to: datetime | None = None
-    city: str | None = None
-    venues: list[dict]
-
-
-class VenueReservationCreate(BaseModel):
-    venue_name: str
-    city: str
-    location: str | None = None
-    requested_start: datetime
-    requested_end: datetime
-    estimated_cost: float | None = Field(default=None, ge=0)
-    notes: str | None = None
-
-
-class VenueReservationConfirmPayload(BaseModel):
-    confirmation_notes: str | None = None
-    final_cost: float | None = Field(default=None, ge=0)
-
-
-class VenueReservationResponse(BaseModel):
-    id: str
-    event_id: str
-    venue_name: str
-    city: str
-    location: str | None = None
-    requested_start: datetime
-    requested_end: datetime
-    estimated_cost: float | None = None
-    final_cost: float | None = None
-    notes: str | None = None
-    confirmation_notes: str | None = None
-    status: VenueReservationStatus
-    created_at: datetime
-    updated_at: datetime
-    confirmed_at: datetime | None = None
 
 
 class EventTeamInvitationCreate(BaseModel):
