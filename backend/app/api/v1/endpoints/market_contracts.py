@@ -56,6 +56,33 @@ async def get_contract(
     return await service.get_contract_detail(contract_id, current_user)
 
 
+@router.post("/{contract_id}/sign/organizer", response_model=ContractResponse)
+async def sign_contract_as_organizer(
+    contract_id: str,
+    current_user: dict = Depends(get_current_user),
+    service: ContractService = Depends(get_contract_service),
+):
+    return await service.sign_contract_as_organizer(contract_id, current_user)
+
+
+@router.post("/{contract_id}/sign/vendor", response_model=ContractResponse)
+async def sign_contract_as_vendor(
+    contract_id: str,
+    current_user: dict = Depends(get_current_user),
+    service: ContractService = Depends(get_contract_service),
+):
+    return await service.sign_contract_as_vendor(contract_id, current_user)
+
+
+@router.post("/{contract_id}/cancel", response_model=ContractResponse)
+async def cancel_marketplace_contract(
+    contract_id: str,
+    current_user: dict = Depends(get_current_user),
+    service: ContractService = Depends(get_contract_service),
+):
+    return await service.cancel_contract(contract_id, current_user)
+
+
 @router.post("/{contract_id}/fund", response_model=ContractResponse)
 async def fund_marketplace_contract(
     contract_id: str,
