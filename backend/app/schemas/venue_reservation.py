@@ -38,6 +38,12 @@ class VenueReservationOrganizerConfirmRequest(BaseModel):
     confirmation_notes: str | None = Field(default=None, max_length=3000)
 
 
+class VenueReservationDepositUpdateRequest(BaseModel):
+    payment_milestone_status: VenueReservationPaymentStatus
+    payment_reference_id: str | None = Field(default=None, max_length=120)
+    notes: str | None = Field(default=None, max_length=3000)
+
+
 class VenueReservationCancelRequest(BaseModel):
     cancellation_notes: str | None = Field(default=None, max_length=3000)
 
@@ -73,6 +79,9 @@ class VenueReservationResponse(BaseModel):
     agreed_deposit_amount: float | None = None
     status: VenueReservationStatus
     payment_milestone_status: VenueReservationPaymentStatus = VenueReservationPaymentStatus.NOT_REQUIRED
+    payment_reference_id: str | None = None
+    deposit_funded_at: datetime | None = None
+    deposit_satisfied_at: datetime | None = None
     alternative_suggestions: list[VenueListingSearchResponse] = Field(default_factory=list)
     alternative_suggestions_generated_at: datetime | None = None
     created_at: datetime
