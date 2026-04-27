@@ -12,6 +12,14 @@ from .opportunity import (
     OpportunityResponse,
     OpportunityVendorInvite,
 )
+from .venue_listing import (
+    VenueListingCreateRequest,
+    VenueListingDocument,
+    VenueListingResponse,
+    VenueListingSearchResponse,
+    VenueListingUpdateRequest,
+    VenueListingVendorSummary,
+)
 
 __all__ = [
     "ProposalCreate",
@@ -28,4 +36,10 @@ __all__ = [
     "OpportunityProposalSummary",
     "OpportunityResponse",
     "OpportunityVendorInvite",
+    "VenueListingCreateRequest",
+    "VenueListingDocument",
+    "VenueListingResponse",
+    "VenueListingSearchResponse",
+    "VenueListingUpdateRequest",
+    "VenueListingVendorSummary",
 ]
