@@ -82,6 +82,7 @@ from app.schemas.event import (
     VenueReservationResponse,
     VenueSearchResponse,
 )
+from app.services.venue_listing_service import VenueListingService
 from app.services.marketplace import parse_object_id, utc_now
 from app.services.qr_codes import generate_booking_pass_png_bytes, generate_qr_png_bytes
 
@@ -965,11 +966,12 @@ async def search_venues(
 ):
     event = await _get_owned_event_or_403(event_id, current_user)
     target_city = city or event.get("location") or "Addis Ababa"
-    venues = [
-        {"venue_name": f"{target_city} Convention Center", "city": target_city, "available": True, "estimated_cost": 120000},
-        {"venue_name": f"{target_city} Expo Hall", "city": target_city, "available": True, "estimated_cost": 90000},
-        {"venue_name": f"{target_city} Cultural Hall", "city": target_city, "available": False, "estimated_cost": 60000},
-    ]
+    venue_service = VenueListingService()
+    venues = await venue_service.search_listings(
+        city=target_city,
+        min_capacity=event.get("capacity"),
+        limit=20,
+    )
     return {
         "event_id": event_id,
         "date_from": event.get("start_date"),
