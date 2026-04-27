@@ -69,6 +69,7 @@ from app.schemas.event import (
     IncidentResponse,
     IncidentUpdate,
 )
+from app.schemas.venue_reservation import VenueReservationDepositUpdateRequest
 from app.services.venue_reservation_service import VenueReservationService
 from app.services.marketplace import parse_object_id, utc_now
 from app.services.qr_codes import generate_booking_pass_png_bytes, generate_qr_png_bytes
@@ -887,6 +888,22 @@ async def cancel_venue_reservation(
         event_id=event_id,
         reservation_id=reservation_id,
         cancellation_notes=payload.cancellation_notes,
+        current_user=current_user,
+    )
+
+
+@router.post("/{event_id}/venue-reservations/{reservation_id}/deposit", response_model=VenueReservationResponse)
+async def update_venue_reservation_deposit(
+    event_id: str,
+    reservation_id: str,
+    payload: VenueReservationDepositUpdateRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    reservation_service = VenueReservationService()
+    return await reservation_service.update_deposit_milestone(
+        event_id=event_id,
+        reservation_id=reservation_id,
+        payload=payload,
         current_user=current_user,
     )
 
