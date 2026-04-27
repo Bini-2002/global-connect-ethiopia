@@ -102,6 +102,8 @@ class ContractService:
                 end_date=end_date,
                 created_at=now,
                 updated_at=now,
+                signed_by_organizer=False,
+                signed_by_vendor=False,
             )
         )
 
@@ -129,13 +131,90 @@ class ContractService:
         contract = await self._get_accessible_contract(contract_id, current_user)
         return await self._serialize_contract(contract)
 
+    async def sign_contract_as_organizer(self, contract_id: str, current_user: dict) -> ContractResponse:
+        await get_current_organizer_or_403(current_user)
+        contract = await self._get_contract_or_404(contract_id)
+        if not ids_match(contract["organizer_id"], current_user["id"]):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the organizer can sign this contract.")
+        if contract["status"] in {ContractStatus.CANCELLED.value, ContractStatus.COMPLETED.value}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This contract can no longer be signed.")
+        if contract.get("signed_by_organizer"):
+            return await self._serialize_contract(contract)
+
+        now = utc_now()
+        signed_by_vendor = bool(contract.get("signed_by_vendor"))
+        updated = await self.repository.transition_state(
+            contract_id,
+            from_statuses=[ContractStatus.DRAFT, ContractStatus.PENDING_SIGNATURES, ContractStatus.ACTIVE],
+            now=now,
+            updates={
+                "status": ContractStatus.ACTIVE.value if signed_by_vendor else ContractStatus.PENDING_SIGNATURES.value,
+                "signed_by_organizer": True,
+                "signed_by_organizer_at": now,
+            },
+        )
+        if not updated:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The contract could not be signed.")
+        return await self._serialize_contract(updated)
+
+    async def sign_contract_as_vendor(self, contract_id: str, current_user: dict) -> ContractResponse:
+        await get_current_vendor_or_403(current_user)
+        contract = await self._get_contract_or_404(contract_id)
+        vendor = await get_current_vendor_or_403(current_user)
+        if not ids_match(contract["vendor_id"], vendor["_id"]):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the vendor can sign this contract.")
+        if contract["status"] in {ContractStatus.CANCELLED.value, ContractStatus.COMPLETED.value}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This contract can no longer be signed.")
+        if contract.get("signed_by_vendor"):
+            return await self._serialize_contract(contract)
+
+        now = utc_now()
+        signed_by_organizer = bool(contract.get("signed_by_organizer"))
+        updated = await self.repository.transition_state(
+            contract_id,
+            from_statuses=[ContractStatus.DRAFT, ContractStatus.PENDING_SIGNATURES, ContractStatus.ACTIVE],
+            now=now,
+            updates={
+                "status": ContractStatus.ACTIVE.value if signed_by_organizer else ContractStatus.PENDING_SIGNATURES.value,
+                "signed_by_vendor": True,
+                "signed_by_vendor_at": now,
+            },
+        )
+        if not updated:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The contract could not be signed.")
+        return await self._serialize_contract(updated)
+
+    async def cancel_contract(self, contract_id: str, current_user: dict) -> ContractResponse:
+        await get_current_organizer_or_403(current_user)
+        contract = await self._get_contract_or_404(contract_id)
+        if not ids_match(contract["organizer_id"], current_user["id"]):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the organizer can cancel this contract.")
+        if contract["status"] in {ContractStatus.ACTIVE.value, ContractStatus.COMPLETED.value, ContractStatus.CANCELLED.value}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This contract can no longer be cancelled.")
+        if contract.get("escrow_status") == EscrowStatus.LOCKED.value:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Funded contracts cannot be cancelled.")
+
+        now = utc_now()
+        updated = await self.repository.transition_state(
+            contract_id,
+            from_statuses=[ContractStatus.DRAFT, ContractStatus.PENDING_SIGNATURES],
+            now=now,
+            updates={
+                "status": ContractStatus.CANCELLED.value,
+                "cancelled_at": now,
+            },
+        )
+        if not updated:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The contract could not be cancelled.")
+        return await self._serialize_contract(updated)
+
     async def fund_contract(self, contract_id: str, current_user: dict) -> ContractResponse:
         await get_current_organizer_or_403(current_user)
         contract = await self._get_contract_or_404(contract_id)
         if not ids_match(contract["organizer_id"], current_user["id"]):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the organizer can fund this contract.")
-        if contract["status"] != ContractStatus.AGREED.value or contract["escrow_status"] != EscrowStatus.NONE.value:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only agreed contracts can be funded.")
+        if contract["status"] != ContractStatus.ACTIVE.value or contract["escrow_status"] != EscrowStatus.NONE.value:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only active contracts can be funded.")
 
         amount = self._get_contract_amount(contract)
         wallet = await ensure_wallet(current_user["id"])
@@ -155,11 +234,11 @@ class ContractService:
 
         updated = await self.repository.transition_state(
             contract_id,
-            from_statuses=[ContractStatus.AGREED],
+            from_statuses=[ContractStatus.ACTIVE],
             from_escrow_status=EscrowStatus.NONE,
             now=now,
             updates={
-                "status": ContractStatus.FUNDED.value,
+                "status": ContractStatus.ACTIVE.value,
                 "escrow_status": EscrowStatus.LOCKED.value,
                 "payment_status": PaymentStatus.PENDING.value,
                 "funded_at": now,
@@ -185,13 +264,16 @@ class ContractService:
 
     async def complete_contract(self, contract_id: str, current_user: dict) -> ContractResponse:
         contract = await self._get_accessible_contract(contract_id, current_user)
-        if contract["status"] != ContractStatus.FUNDED.value:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only funded contracts can be marked completed.")
+        if contract["status"] != ContractStatus.ACTIVE.value:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only active contracts can be marked completed.")
+        if contract["escrow_status"] != EscrowStatus.LOCKED.value or contract["payment_status"] != PaymentStatus.PENDING.value:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This contract is not ready to be completed.")
 
         updated = await self.repository.transition_state(
             contract_id,
-            from_statuses=[ContractStatus.FUNDED],
+            from_statuses=[ContractStatus.ACTIVE],
             from_escrow_status=EscrowStatus.LOCKED,
+            from_payment_status=PaymentStatus.PENDING,
             now=utc_now(),
             updates={"status": ContractStatus.COMPLETED.value, "completed_at": utc_now()},
         )
@@ -246,7 +328,7 @@ class ContractService:
             from_payment_status=PaymentStatus.PENDING,
             now=now,
             updates={
-                "status": ContractStatus.PAID.value,
+                "status": ContractStatus.COMPLETED.value,
                 "escrow_status": EscrowStatus.RELEASED.value,
                 "payment_status": PaymentStatus.PAID.value,
                 "paid_at": now,
@@ -282,8 +364,8 @@ class ContractService:
         contract = await self._get_contract_or_404(contract_id)
         if not ids_match(contract["organizer_id"], current_user["id"]):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the organizer can refund this contract.")
-        if contract["status"] != ContractStatus.FUNDED.value:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only funded contracts can be refunded.")
+        if contract["status"] != ContractStatus.ACTIVE.value:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only active contracts can be refunded.")
         if contract["escrow_status"] != EscrowStatus.LOCKED.value or contract["payment_status"] != PaymentStatus.PENDING.value:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This contract does not have refundable escrow funds.")
 
@@ -302,12 +384,12 @@ class ContractService:
 
         updated = await self.repository.transition_state(
             contract_id,
-            from_statuses=[ContractStatus.FUNDED],
+            from_statuses=[ContractStatus.ACTIVE],
             from_escrow_status=EscrowStatus.LOCKED,
             from_payment_status=PaymentStatus.PENDING,
             now=now,
             updates={
-                "status": ContractStatus.AGREED.value,
+                "status": ContractStatus.ACTIVE.value,
                 "escrow_status": EscrowStatus.NONE.value,
             },
         )
@@ -363,6 +445,10 @@ class ContractService:
             status=ContractStatus(contract["status"]),
             escrow_status=EscrowStatus(contract["escrow_status"]),
             payment_status=PaymentStatus(contract["payment_status"]),
+            signed_by_organizer=bool(contract.get("signed_by_organizer", False)),
+            signed_by_vendor=bool(contract.get("signed_by_vendor", False)),
+            signed_by_organizer_at=contract.get("signed_by_organizer_at"),
+            signed_by_vendor_at=contract.get("signed_by_vendor_at"),
             organizer_name=await get_user_display_name(contract["organizer_id"]),
             vendor_business_name=get_vendor_business_name(vendor) if vendor else None,
             created_at=contract["created_at"],
@@ -372,6 +458,7 @@ class ContractService:
             funded_at=contract.get("funded_at"),
             completed_at=contract.get("completed_at"),
             paid_at=contract.get("paid_at"),
+            cancelled_at=contract.get("cancelled_at"),
         )
 
     @staticmethod
