@@ -9,13 +9,19 @@ from app.schemas.venue_listing import (
     VenueListingSearchResponse,
     VenueListingUpdateRequest,
 )
+from app.schemas.venue_reservation import VenueReservationProviderResponseRequest, VenueReservationResponse
 from app.services.venue_listing_service import VenueListingService
+from app.services.venue_reservation_service import VenueReservationService
 
 router = APIRouter()
 
 
 def get_venue_listing_service() -> VenueListingService:
     return VenueListingService()
+
+
+def get_venue_reservation_service() -> VenueReservationService:
+    return VenueReservationService()
 
 
 @router.post("", response_model=VenueListingResponse, status_code=status.HTTP_201_CREATED)
@@ -51,6 +57,28 @@ async def search_venue_listings(
         max_base_price=max_base_price,
         q=q,
         limit=limit,
+    )
+
+
+@router.get("/reservations/me", response_model=list[VenueReservationResponse])
+async def list_my_venue_reservations(
+    current_user: dict = Depends(get_current_user),
+    service: VenueReservationService = Depends(get_venue_reservation_service),
+):
+    return await service.list_provider_reservations(current_user=current_user)
+
+
+@router.post("/reservations/{reservation_id}/respond", response_model=VenueReservationResponse)
+async def respond_to_venue_reservation(
+    reservation_id: str,
+    payload: VenueReservationProviderResponseRequest,
+    current_user: dict = Depends(get_current_user),
+    service: VenueReservationService = Depends(get_venue_reservation_service),
+):
+    return await service.respond_as_provider(
+        reservation_id=reservation_id,
+        payload=payload,
+        current_user=current_user,
     )
 
 
