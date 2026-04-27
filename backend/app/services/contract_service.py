@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from io import BytesIO
 from datetime import datetime, timezone
+from textwrap import wrap
 
 from fastapi import HTTPException, status
+from PIL import Image, ImageDraw, ImageFont
 
 from app.db.mongodb import request_collection, vendor_collection, wallet_collection
 from app.models.marketplace import (
@@ -207,6 +210,12 @@ class ContractService:
         if not updated:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The contract could not be cancelled.")
         return await self._serialize_contract(updated)
+
+    async def download_contract_summary_pdf(self, contract_id: str, current_user: dict) -> tuple[bytes, str]:
+        contract = await self._get_accessible_contract(contract_id, current_user)
+        summary = await self._serialize_contract(contract)
+        filename = f"contract-{contract_id}.pdf"
+        return self._render_contract_summary_pdf(summary), filename
 
     async def fund_contract(self, contract_id: str, current_user: dict) -> ContractResponse:
         await get_current_organizer_or_403(current_user)
@@ -466,3 +475,66 @@ class ContractService:
         if contract.get("amount") is not None:
             return float(contract["amount"])
         return float(contract.get("price", 0.0))
+
+    @staticmethod
+    def _render_contract_summary_pdf(summary: ContractResponse) -> bytes:
+        image = Image.new("RGB", (1240, 1754), "white")
+        draw = ImageDraw.Draw(image)
+
+        title_font = ImageFont.load_default()
+        body_font = ImageFont.load_default()
+
+        x = 80
+        y = 80
+        line_height = 18
+        section_gap = 10
+        max_width = 110
+
+        def draw_wrapped_line(text: str, *, bold: bool = False) -> None:
+            nonlocal y
+            font = title_font if bold else body_font
+            for chunk in wrap(text, width=max_width) or [""]:
+                draw.text((x, y), chunk, fill="black", font=font)
+                y += line_height
+
+        def add_field(label: str, value: object) -> None:
+            formatted = "N/A" if value in (None, "") else str(value)
+            draw_wrapped_line(f"{label}: {formatted}")
+
+        draw_wrapped_line("Global Connect Ethiopia", bold=True)
+        y += section_gap
+        draw_wrapped_line("Contract Summary", bold=True)
+        y += section_gap
+
+        add_field("Contract Reference", summary.id)
+        add_field("Request Reference", summary.request_id)
+        add_field("Opportunity Reference", summary.opportunity_id)
+        add_field("Proposal Reference", summary.proposal_id)
+        add_field("Event Reference", summary.event_id)
+        y += section_gap
+        add_field("Organizer Party", f"{summary.organizer_name or 'Organizer'} ({summary.organizer_id})")
+        add_field("Vendor Party", f"{summary.vendor_business_name or 'Vendor'} ({summary.vendor_id})")
+        y += section_gap
+        add_field("Title", summary.title)
+        add_field("Scope", summary.scope)
+        add_field("Amount", f"{summary.amount:.2f} {summary.currency}")
+        add_field("Terms", summary.terms)
+        add_field("Selection Note", summary.selection_note)
+        y += section_gap
+        add_field("Organizer Signed", "Yes" if summary.signed_by_organizer else "No")
+        add_field("Vendor Signed", "Yes" if summary.signed_by_vendor else "No")
+        add_field("Activation Status", summary.status.value)
+        add_field("Escrow Status", summary.escrow_status.value)
+        add_field("Payment Status", summary.payment_status.value)
+        add_field("Created At", summary.created_at)
+        add_field("Updated At", summary.updated_at)
+        add_field("Signed By Organizer At", summary.signed_by_organizer_at)
+        add_field("Signed By Vendor At", summary.signed_by_vendor_at)
+        add_field("Funded At", summary.funded_at)
+        add_field("Completed At", summary.completed_at)
+        add_field("Paid At", summary.paid_at)
+        add_field("Cancelled At", summary.cancelled_at)
+
+        buffer = BytesIO()
+        image.save(buffer, format="PDF")
+        return buffer.getvalue()
