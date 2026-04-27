@@ -23,14 +23,19 @@ class ContractCreateData(BaseModel):
     selection_note: str | None = Field(default=None, max_length=2000)
     start_date: datetime | None = None
     end_date: datetime | None = None
-    status: ContractStatus = ContractStatus.AGREED
+    status: ContractStatus = ContractStatus.DRAFT
     escrow_status: EscrowStatus = EscrowStatus.NONE
     payment_status: PaymentStatus = PaymentStatus.PENDING
+    signed_by_organizer: bool = False
+    signed_by_vendor: bool = False
+    signed_by_organizer_at: datetime | None = None
+    signed_by_vendor_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     funded_at: datetime | None = None
     completed_at: datetime | None = None
     paid_at: datetime | None = None
+    cancelled_at: datetime | None = None
 
 
 class ContractResponse(BaseModel):
@@ -51,6 +56,10 @@ class ContractResponse(BaseModel):
     status: ContractStatus
     escrow_status: EscrowStatus
     payment_status: PaymentStatus
+    signed_by_organizer: bool = False
+    signed_by_vendor: bool = False
+    signed_by_organizer_at: datetime | None = None
+    signed_by_vendor_at: datetime | None = None
     organizer_name: str | None = None
     vendor_business_name: str | None = None
     created_at: datetime
@@ -60,3 +69,4 @@ class ContractResponse(BaseModel):
     funded_at: datetime | None = None
     completed_at: datetime | None = None
     paid_at: datetime | None = None
+    cancelled_at: datetime | None = None
