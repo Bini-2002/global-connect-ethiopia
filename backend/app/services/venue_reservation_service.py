@@ -11,6 +11,7 @@ from app.repositories import VenueListingRepository, VenueReservationRepository
 from app.schemas.venue_listing import VenueListingSearchResponse
 from app.schemas.venue_reservation import (
     VenueReservationCreateRequest,
+    VenueReservationDepositUpdateRequest,
     VenueReservationOrganizerConfirmRequest,
     VenueReservationProviderResponseRequest,
     VenueReservationResponse,
@@ -125,6 +126,9 @@ class VenueReservationService:
             "agreed_deposit_amount": None,
             "status": VenueReservationStatus.REQUESTED.value,
             "payment_milestone_status": VenueReservationPaymentStatus.NOT_REQUIRED.value,
+            "payment_reference_id": None,
+            "deposit_funded_at": None,
+            "deposit_satisfied_at": None,
             "created_at": now,
             "updated_at": now,
             "failed_at": None,
@@ -337,6 +341,74 @@ class VenueReservationService:
             raise HTTPException(status_code=404, detail="Venue reservation not found")
         return self._serialize_reservation(refreshed)
 
+    async def update_deposit_milestone(
+        self,
+        *,
+        event_id: str,
+        reservation_id: str,
+        payload: VenueReservationDepositUpdateRequest,
+        current_user: dict,
+    ) -> VenueReservationResponse:
+        event = await self._get_owned_event_or_403(event_id, current_user)
+        reservation = await self._get_event_reservation_or_404(event_id, reservation_id)
+        if reservation.get("status") not in {
+            VenueReservationStatus.ORGANIZER_CONFIRMED.value,
+            VenueReservationStatus.CONFIRMED.value,
+        }:
+            raise HTTPException(status_code=400, detail="Only organizer-confirmed reservations can update deposit milestones")
+
+        now = utc_now()
+        milestone = payload.payment_milestone_status
+        updates: dict[str, Any] = {
+            "payment_milestone_status": milestone.value,
+            "payment_reference_id": payload.payment_reference_id.strip() if payload.payment_reference_id else reservation.get("payment_reference_id"),
+            "updated_at": now,
+        }
+        if payload.notes is not None:
+            updates["organizer_confirmation_notes"] = payload.notes.strip() if payload.notes else None
+
+        if milestone == VenueReservationPaymentStatus.PENDING:
+            pass
+        elif milestone == VenueReservationPaymentStatus.FUNDED:
+            updates["deposit_funded_at"] = now
+            updates["status"] = VenueReservationStatus.ORGANIZER_CONFIRMED.value
+        elif milestone == VenueReservationPaymentStatus.SATISFIED:
+            updates["deposit_satisfied_at"] = now
+            updates["status"] = VenueReservationStatus.CONFIRMED.value
+            updates["confirmed_at"] = now
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported payment milestone status")
+
+        updated = await self.repository.update_for_event(
+            reservation_id,
+            event_id=event_id,
+            from_statuses=[
+                VenueReservationStatus.ORGANIZER_CONFIRMED,
+                VenueReservationStatus.CONFIRMED,
+            ],
+            updates=updates,
+        )
+        if not updated:
+            raise HTTPException(status_code=409, detail="Deposit milestone could not be updated")
+
+        if milestone == VenueReservationPaymentStatus.SATISFIED:
+            await self.repository.cancel_others_for_event(
+                event_id,
+                selected_reservation_id=reservation_id,
+                now=now,
+                cancellation_notes="A venue reservation was finalized after deposit completion.",
+            )
+
+        await event_collection.update_one(
+            {"_id": event["_id"]},
+            {"$set": {"venue_status": updates["status"], "updated_at": now}},
+        )
+
+        refreshed = await self.repository.get_by_id(reservation_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Venue reservation not found")
+        return self._serialize_reservation(refreshed)
+
     async def cancel_as_organizer(
         self,
         *,
@@ -462,6 +534,9 @@ class VenueReservationService:
             ),
             status=VenueReservationStatus(document["status"]),
             payment_milestone_status=VenueReservationPaymentStatus(document.get("payment_milestone_status", "not_required")),
+            payment_reference_id=document.get("payment_reference_id"),
+            deposit_funded_at=document.get("deposit_funded_at"),
+            deposit_satisfied_at=document.get("deposit_satisfied_at"),
             alternative_suggestions=[self._serialize_alternative_suggestion(item) for item in document.get("alternative_suggestions", [])],
             alternative_suggestions_generated_at=document.get("alternative_suggestions_generated_at"),
             created_at=document["created_at"],
