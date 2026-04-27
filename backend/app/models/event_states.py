@@ -25,6 +25,7 @@ class VenueReservationStatus(str, Enum):
 class VenueReservationPaymentStatus(str, Enum):
     NOT_REQUIRED = "not_required"
     PENDING = "pending"
+    FUNDED = "funded"
     SATISFIED = "satisfied"
 
 
