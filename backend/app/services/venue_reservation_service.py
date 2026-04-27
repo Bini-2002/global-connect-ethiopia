@@ -108,13 +108,17 @@ class VenueReservationService:
             "deposit_amount": venue_listing.get("deposit_amount"),
             "currency": venue_listing.get("currency", "ETB"),
             "notes": payload.notes.strip() if payload.notes else None,
+            "provider_action": None,
             "provider_response_notes": None,
+            "failure_reason": None,
             "organizer_confirmation_notes": None,
             "cancellation_notes": None,
             "proposed_start": None,
             "proposed_end": None,
             "proposed_cost": None,
             "proposed_deposit_amount": None,
+            "alternative_suggestions": [],
+            "alternative_suggestions_generated_at": None,
             "agreed_start": None,
             "agreed_end": None,
             "agreed_cost": None,
@@ -123,6 +127,7 @@ class VenueReservationService:
             "payment_milestone_status": VenueReservationPaymentStatus.NOT_REQUIRED.value,
             "created_at": now,
             "updated_at": now,
+            "failed_at": None,
             "provider_responded_at": None,
             "organizer_confirmed_at": None,
             "confirmed_at": None,
@@ -173,15 +178,29 @@ class VenueReservationService:
             self._validate_deposit_amount(cost=proposed_cost, deposit_amount=proposed_deposit_amount)
             updates.update(
                 {
+                    "provider_action": payload.action,
                     "status": VenueReservationStatus.PROVIDER_ACCEPTED.value,
                     "proposed_start": proposed_start,
                     "proposed_end": proposed_end,
                     "proposed_cost": proposed_cost,
                     "proposed_deposit_amount": proposed_deposit_amount,
+                    "failure_reason": None,
+                    "failed_at": None,
+                    "alternative_suggestions": [],
+                    "alternative_suggestions_generated_at": None,
                 }
             )
         elif payload.action == "decline":
-            updates["status"] = VenueReservationStatus.DECLINED.value
+            updates.update(
+                {
+                    "provider_action": payload.action,
+                    "status": VenueReservationStatus.DECLINED.value,
+                    "failure_reason": payload.response_notes.strip() if payload.response_notes else "Provider declined the reservation request",
+                    "failed_at": now,
+                    "alternative_suggestions": await self._build_alternative_suggestions(reservation=reservation),
+                    "alternative_suggestions_generated_at": now,
+                }
+            )
         else:
             if payload.proposed_start is None and payload.proposed_end is None and payload.proposed_cost is None and payload.proposed_deposit_amount is None:
                 raise HTTPException(
@@ -201,11 +220,16 @@ class VenueReservationService:
             self._validate_deposit_amount(cost=proposed_cost, deposit_amount=proposed_deposit_amount)
             updates.update(
                 {
+                    "provider_action": payload.action,
                     "status": VenueReservationStatus.OFFERED_ALTERNATIVE.value,
                     "proposed_start": proposed_start,
                     "proposed_end": proposed_end,
                     "proposed_cost": proposed_cost,
                     "proposed_deposit_amount": proposed_deposit_amount,
+                    "failure_reason": None,
+                    "failed_at": None,
+                    "alternative_suggestions": await self._build_alternative_suggestions(reservation=reservation),
+                    "alternative_suggestions_generated_at": now,
                 }
             )
 
@@ -385,6 +409,23 @@ class VenueReservationService:
             raise HTTPException(status_code=404, detail="Venue reservation not found")
         return reservation
 
+    async def _build_alternative_suggestions(self, *, reservation: dict) -> list[dict[str, Any]]:
+        event = await event_collection.find_one({"_id": parse_object_id(reservation["event_id"], field_name="event id")})
+        city = reservation.get("city") or (event.get("location") if event else None)
+        capacity = reservation.get("requested_capacity") or (event.get("capacity") if event else None)
+        suggestions = await self.venue_listing_service.search_listings(
+            city=city,
+            min_capacity=int(capacity) if capacity else None,
+            limit=10,
+        )
+        filtered: list[dict[str, Any]] = []
+        for suggestion in suggestions:
+            suggestion_data = suggestion.model_dump(mode="python")
+            if suggestion_data.get("id") == reservation.get("venue_listing_id"):
+                continue
+            filtered.append(suggestion_data)
+        return filtered
+
     def _serialize_reservation(self, document: dict) -> VenueReservationResponse:
         return VenueReservationResponse(
             id=str(document["_id"]),
@@ -402,7 +443,9 @@ class VenueReservationService:
             deposit_amount=float(document["deposit_amount"]) if document.get("deposit_amount") is not None else None,
             currency=document.get("currency", "ETB"),
             notes=document.get("notes"),
+            provider_action=document.get("provider_action"),
             provider_response_notes=document.get("provider_response_notes"),
+            failure_reason=document.get("failure_reason"),
             organizer_confirmation_notes=document.get("organizer_confirmation_notes"),
             cancellation_notes=document.get("cancellation_notes"),
             proposed_start=document.get("proposed_start"),
@@ -419,13 +462,34 @@ class VenueReservationService:
             ),
             status=VenueReservationStatus(document["status"]),
             payment_milestone_status=VenueReservationPaymentStatus(document.get("payment_milestone_status", "not_required")),
+            alternative_suggestions=[self._serialize_alternative_suggestion(item) for item in document.get("alternative_suggestions", [])],
+            alternative_suggestions_generated_at=document.get("alternative_suggestions_generated_at"),
             created_at=document["created_at"],
             updated_at=document["updated_at"],
+            failed_at=document.get("failed_at"),
             provider_responded_at=document.get("provider_responded_at"),
             organizer_confirmed_at=document.get("organizer_confirmed_at"),
             confirmed_at=document.get("confirmed_at"),
             cancelled_at=document.get("cancelled_at"),
         )
+
+    @staticmethod
+    def _serialize_alternative_suggestion(document: dict) -> dict[str, Any]:
+        return {
+            "id": document.get("id"),
+            "venue_name": document.get("venue_name"),
+            "city": document.get("city"),
+            "location": document.get("location"),
+            "capacity": document.get("capacity"),
+            "estimated_cost": document.get("estimated_cost"),
+            "deposit_amount": document.get("deposit_amount"),
+            "currency": document.get("currency", "ETB"),
+            "available": document.get("available", True),
+            "is_reservable": document.get("is_reservable", True),
+            "description": document.get("description"),
+            "notes": document.get("notes"),
+            "vendor": document.get("vendor"),
+        }
 
     @staticmethod
     def _validate_deposit_amount(*, cost: float | None, deposit_amount: float | None) -> None:
