@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 
 from app.api.v1.deps import get_current_user
 from app.schemas.contract import ContractResponse
@@ -54,6 +55,20 @@ async def get_contract(
     service: ContractService = Depends(get_contract_service),
 ):
     return await service.get_contract_detail(contract_id, current_user)
+
+
+@router.get("/{contract_id}/pdf")
+async def download_contract_summary_pdf(
+    contract_id: str,
+    current_user: dict = Depends(get_current_user),
+    service: ContractService = Depends(get_contract_service),
+):
+    pdf_bytes, filename = await service.download_contract_summary_pdf(contract_id, current_user)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/{contract_id}/sign/organizer", response_model=ContractResponse)
