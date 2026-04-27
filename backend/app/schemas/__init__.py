@@ -20,6 +20,14 @@ from .venue_listing import (
     VenueListingUpdateRequest,
     VenueListingVendorSummary,
 )
+from .venue_reservation import (
+    VenueReservationCancelRequest,
+    VenueReservationCreateRequest,
+    VenueReservationOrganizerConfirmRequest,
+    VenueReservationProviderResponseRequest,
+    VenueReservationResponse,
+    VenueSearchResponse,
+)
 
 __all__ = [
     "ProposalCreate",
@@ -42,4 +50,10 @@ __all__ = [
     "VenueListingSearchResponse",
     "VenueListingUpdateRequest",
     "VenueListingVendorSummary",
+    "VenueReservationCancelRequest",
+    "VenueReservationCreateRequest",
+    "VenueReservationOrganizerConfirmRequest",
+    "VenueReservationProviderResponseRequest",
+    "VenueReservationResponse",
+    "VenueSearchResponse",
 ]

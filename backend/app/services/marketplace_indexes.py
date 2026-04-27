@@ -16,6 +16,7 @@ from app.db.mongodb import (
     transaction_collection,
     verification_letter_collection,
     venue_listing_collection,
+    venue_reservation_collection,
     vendor_collection,
     vendor_service_collection,
     wallet_collection,
@@ -61,6 +62,11 @@ async def ensure_marketplace_indexes() -> None:
     await venue_listing_collection.create_index([("vendor_user_id", ASCENDING), ("created_at", DESCENDING)])
     await venue_listing_collection.create_index([("status", ASCENDING), ("city", ASCENDING), ("capacity", ASCENDING)])
     await venue_listing_collection.create_index([("status", ASCENDING), ("base_price", ASCENDING), ("updated_at", DESCENDING)])
+
+    await venue_reservation_collection.create_index([("event_id", ASCENDING), ("created_at", DESCENDING)])
+    await venue_reservation_collection.create_index([("vendor_user_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)])
+    await venue_reservation_collection.create_index([("venue_listing_id", ASCENDING), ("status", ASCENDING), ("created_at", DESCENDING)])
+    await venue_reservation_collection.create_index([("status", ASCENDING), ("payment_milestone_status", ASCENDING), ("updated_at", DESCENDING)])
 
     await request_collection.create_index([("vendor_user_id", ASCENDING), ("status", ASCENDING), ("created_at", DESCENDING)])
     await request_collection.create_index([("organizer_id", ASCENDING), ("status", ASCENDING), ("created_at", DESCENDING)])
