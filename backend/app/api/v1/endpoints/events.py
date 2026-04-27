@@ -36,7 +36,6 @@ from app.models.event_states import (
     EventStatus,
     FinalReportStatus,
     SurveyStatus,
-    VenueReservationStatus,
 )
 from app.models.proposal_states import ProposalStatus
 from app.models.roles import UserRole, to_user_role
@@ -77,14 +76,17 @@ from app.schemas.event import (
     IncidentCreate,
     IncidentResponse,
     IncidentUpdate,
-    VenueReservationConfirmPayload,
-    VenueReservationCreate,
+)
+from app.services.venue_reservation_service import VenueReservationService
+from app.services.marketplace import parse_object_id, utc_now
+from app.services.qr_codes import generate_booking_pass_png_bytes, generate_qr_png_bytes
+from app.schemas.venue_reservation import (
+    VenueReservationCancelRequest,
+    VenueReservationCreateRequest,
+    VenueReservationOrganizerConfirmRequest,
     VenueReservationResponse,
     VenueSearchResponse,
 )
-from app.services.venue_listing_service import VenueListingService
-from app.services.marketplace import parse_object_id, utc_now
-from app.services.qr_codes import generate_booking_pass_png_bytes, generate_qr_png_bytes
 
 router = APIRouter()
 
@@ -173,28 +175,6 @@ def _serialize_schedule(document: dict) -> dict:
         "created_at": document["created_at"],
         "updated_at": document["updated_at"],
     }
-
-
-def _serialize_venue_reservation(document: dict) -> dict:
-    return {
-        "id": str(document["_id"]),
-        "event_id": document["event_id"],
-        "venue_name": document["venue_name"],
-        "city": document["city"],
-        "location": document.get("location"),
-        "requested_start": document["requested_start"],
-        "requested_end": document["requested_end"],
-        "estimated_cost": document.get("estimated_cost"),
-        "final_cost": document.get("final_cost"),
-        "notes": document.get("notes"),
-        "confirmation_notes": document.get("confirmation_notes"),
-        "status": document["status"],
-        "created_at": document["created_at"],
-        "updated_at": document["updated_at"],
-        "confirmed_at": document.get("confirmed_at"),
-    }
-
-
 def _serialize_invitation(document: dict) -> dict:
     return {
         "id": str(document["_id"]),
@@ -964,86 +944,67 @@ async def search_venues(
     city: str | None = None,
     current_user: dict = Depends(get_current_user),
 ):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    target_city = city or event.get("location") or "Addis Ababa"
-    venue_service = VenueListingService()
-    venues = await venue_service.search_listings(
-        city=target_city,
-        min_capacity=event.get("capacity"),
-        limit=20,
+    reservation_service = VenueReservationService()
+    return await reservation_service.search_venues_for_event(
+        event_id=event_id,
+        current_user=current_user,
+        city=city,
     )
-    return {
-        "event_id": event_id,
-        "date_from": event.get("start_date"),
-        "date_to": event.get("end_date"),
-        "city": target_city,
-        "venues": venues,
-    }
 
 
 @router.get("/{event_id}/venue-reservations", response_model=list[VenueReservationResponse])
 async def list_venue_reservations(event_id: str, current_user: dict = Depends(get_current_user)):
-    await _get_owned_event_or_403(event_id, current_user)
-    docs = await venue_reservation_collection.find({"event_id": event_id}, sort=[("created_at", -1)]).to_list(length=200)
-    return [_serialize_venue_reservation(item) for item in docs]
+    reservation_service = VenueReservationService()
+    return await reservation_service.list_event_reservations(
+        event_id=event_id,
+        current_user=current_user,
+    )
 
 
 @router.post("/{event_id}/venue-reservations", response_model=VenueReservationResponse, status_code=201)
 async def create_venue_reservation(
     event_id: str,
-    payload: VenueReservationCreate,
+    payload: VenueReservationCreateRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    now = utc_now()
-    doc = payload.model_dump()
-    doc.update(
-        {
-            "event_id": event_id,
-            "status": VenueReservationStatus.PENDING,
-            "final_cost": None,
-            "confirmation_notes": None,
-            "created_at": now,
-            "updated_at": now,
-            "confirmed_at": None,
-        }
+    reservation_service = VenueReservationService()
+    return await reservation_service.create_reservation_request(
+        event_id=event_id,
+        payload=payload,
+        current_user=current_user,
     )
-    result = await venue_reservation_collection.insert_one(doc)
-    doc["_id"] = result.inserted_id
-    await event_collection.update_one({"_id": event["_id"]}, {"$set": {"venue_status": "pending", "updated_at": now}})
-    return _serialize_venue_reservation(doc)
 
 
 @router.post("/{event_id}/venue-reservations/{reservation_id}/confirm", response_model=VenueReservationResponse)
 async def confirm_venue_reservation(
     event_id: str,
     reservation_id: str,
-    payload: VenueReservationConfirmPayload,
+    payload: VenueReservationOrganizerConfirmRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    oid = parse_object_id(reservation_id, field_name="reservation id")
-    now = utc_now()
-    await venue_reservation_collection.update_one(
-        {"_id": oid, "event_id": event_id},
-        {
-            "$set": {
-                "status": VenueReservationStatus.CONFIRMED,
-                "confirmation_notes": payload.confirmation_notes,
-                "final_cost": payload.final_cost,
-                "confirmed_at": now,
-                "updated_at": now,
-            }
-        },
+    reservation_service = VenueReservationService()
+    return await reservation_service.confirm_as_organizer(
+        event_id=event_id,
+        reservation_id=reservation_id,
+        payload=payload,
+        current_user=current_user,
     )
-    reservation = await venue_reservation_collection.find_one({"_id": oid, "event_id": event_id})
-    if not reservation:
-        raise HTTPException(status_code=404, detail="Venue reservation not found")
-    await event_collection.update_one(
-        {"_id": event["_id"]},
-        {"$set": {"venue_status": "confirmed", "location": reservation.get("venue_name"), "updated_at": now}},
+
+
+@router.post("/{event_id}/venue-reservations/{reservation_id}/cancel", response_model=VenueReservationResponse)
+async def cancel_venue_reservation(
+    event_id: str,
+    reservation_id: str,
+    payload: VenueReservationCancelRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    reservation_service = VenueReservationService()
+    return await reservation_service.cancel_as_organizer(
+        event_id=event_id,
+        reservation_id=reservation_id,
+        cancellation_notes=payload.cancellation_notes,
+        current_user=current_user,
     )
-    return _serialize_venue_reservation(reservation)
 
 
 @router.get("/{event_id}/team/invitations", response_model=list[EventTeamInvitationResponse])
