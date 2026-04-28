@@ -8,6 +8,13 @@ from fastapi import HTTPException, status
 from PIL import Image, ImageDraw, ImageFont
 
 from app.db.mongodb import request_collection, vendor_collection, wallet_collection
+from app.services import marketplace_mvp as _marketplace_mvp
+
+# Allow tests to monkeypatch collections via the marketplace_mvp module. Prefer
+# those if available, otherwise use the DB collections imported above.
+request_collection = getattr(_marketplace_mvp, "request_collection", request_collection)
+vendor_collection = getattr(_marketplace_mvp, "vendor_collection", vendor_collection)
+wallet_collection = getattr(_marketplace_mvp, "wallet_collection", wallet_collection)
 from app.models.marketplace import (
     ContractStatus,
     EscrowStatus,
@@ -81,7 +88,7 @@ class ContractService:
                 detail="A contract already exists for this request.",
             )
 
-        vendor = await vendor_collection.find_one({"_id": request_doc["vendor_id"]})
+        vendor = await getattr(_marketplace_mvp, "vendor_collection", vendor_collection).find_one({"_id": request_doc["vendor_id"]})
         if not vendor or not vendor.get("user_id"):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor profile not found.")
 
@@ -105,12 +112,14 @@ class ContractService:
                 end_date=end_date,
                 created_at=now,
                 updated_at=now,
-                signed_by_organizer=False,
+                status=ContractStatus.AGREED.value,
+                signed_by_organizer=True,
+                signed_by_organizer_at=now,
                 signed_by_vendor=False,
             )
         )
 
-        await request_collection.update_one(
+        await getattr(_marketplace_mvp, "request_collection", request_collection).update_one(
             {"_id": request_doc["_id"]},
             {"$set": {"status": RequestStatus.ACCEPTED.value, "updated_at": now}},
         )
@@ -222,13 +231,13 @@ class ContractService:
         contract = await self._get_contract_or_404(contract_id)
         if not ids_match(contract["organizer_id"], current_user["id"]):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the organizer can fund this contract.")
-        if contract["status"] != ContractStatus.ACTIVE.value or contract["escrow_status"] != EscrowStatus.NONE.value:
+        if contract["status"] != ContractStatus.AGREED.value or contract["escrow_status"] != EscrowStatus.NONE.value:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only active contracts can be funded.")
 
         amount = self._get_contract_amount(contract)
         wallet = await ensure_wallet(current_user["id"])
         now = utc_now()
-        wallet_result = await wallet_collection.update_one(
+        wallet_result = await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
             {"_id": wallet["_id"], "balance": {"$gte": amount}},
             {
                 "$inc": {"balance": -amount, "locked_balance": amount},
@@ -243,18 +252,18 @@ class ContractService:
 
         updated = await self.repository.transition_state(
             contract_id,
-            from_statuses=[ContractStatus.ACTIVE],
+            from_statuses=[ContractStatus.AGREED],
             from_escrow_status=EscrowStatus.NONE,
             now=now,
             updates={
-                "status": ContractStatus.ACTIVE.value,
+                "status": ContractStatus.FUNDED.value,
                 "escrow_status": EscrowStatus.LOCKED.value,
                 "payment_status": PaymentStatus.PENDING.value,
                 "funded_at": now,
             },
         )
         if not updated:
-            await wallet_collection.update_one(
+            await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
                 {"_id": wallet["_id"]},
                 {
                     "$inc": {"balance": amount, "locked_balance": -amount},
@@ -273,14 +282,14 @@ class ContractService:
 
     async def complete_contract(self, contract_id: str, current_user: dict) -> ContractResponse:
         contract = await self._get_accessible_contract(contract_id, current_user)
-        if contract["status"] != ContractStatus.ACTIVE.value:
+        if contract["status"] != ContractStatus.FUNDED.value:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only active contracts can be marked completed.")
         if contract["escrow_status"] != EscrowStatus.LOCKED.value or contract["payment_status"] != PaymentStatus.PENDING.value:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This contract is not ready to be completed.")
 
         updated = await self.repository.transition_state(
             contract_id,
-            from_statuses=[ContractStatus.ACTIVE],
+            from_statuses=[ContractStatus.FUNDED],
             from_escrow_status=EscrowStatus.LOCKED,
             from_payment_status=PaymentStatus.PENDING,
             now=utc_now(),
@@ -300,7 +309,7 @@ class ContractService:
         if contract["escrow_status"] != EscrowStatus.LOCKED.value or contract["payment_status"] != PaymentStatus.PENDING.value:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This contract does not have releasable escrow funds.")
 
-        vendor = await vendor_collection.find_one({"_id": contract["vendor_id"]})
+        vendor = await getattr(_marketplace_mvp, "vendor_collection", vendor_collection).find_one({"_id": contract["vendor_id"]})
         if not vendor or not vendor.get("user_id"):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor profile not found.")
 
@@ -309,7 +318,7 @@ class ContractService:
         vendor_wallet = await ensure_wallet(vendor["user_id"])
         now = utc_now()
 
-        lock_result = await wallet_collection.update_one(
+        lock_result = await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
             {"_id": organizer_wallet["_id"], "locked_balance": {"$gte": amount}},
             {"$inc": {"locked_balance": -amount}, "$set": {"updated_at": now}},
         )
@@ -319,12 +328,12 @@ class ContractService:
                 detail="Organizer escrow balance is no longer available.",
             )
 
-        credit_result = await wallet_collection.update_one(
+        credit_result = await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
             {"_id": vendor_wallet["_id"]},
             {"$inc": {"balance": amount}, "$set": {"updated_at": now}},
         )
         if credit_result.modified_count != 1:
-            await wallet_collection.update_one(
+            await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
                 {"_id": organizer_wallet["_id"]},
                 {"$inc": {"locked_balance": amount}, "$set": {"updated_at": utc_now()}},
             )
@@ -337,7 +346,7 @@ class ContractService:
             from_payment_status=PaymentStatus.PENDING,
             now=now,
             updates={
-                "status": ContractStatus.COMPLETED.value,
+                "status": ContractStatus.PAID.value,
                 "escrow_status": EscrowStatus.RELEASED.value,
                 "payment_status": PaymentStatus.PAID.value,
                 "paid_at": now,
@@ -348,7 +357,7 @@ class ContractService:
                 {"_id": organizer_wallet["_id"]},
                 {"$inc": {"locked_balance": amount}, "$set": {"updated_at": utc_now()}},
             )
-            await wallet_collection.update_one(
+            await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
                 {"_id": vendor_wallet["_id"]},
                 {"$inc": {"balance": -amount}, "$set": {"updated_at": utc_now()}},
             )
@@ -373,7 +382,7 @@ class ContractService:
         contract = await self._get_contract_or_404(contract_id)
         if not ids_match(contract["organizer_id"], current_user["id"]):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the organizer can refund this contract.")
-        if contract["status"] != ContractStatus.ACTIVE.value:
+        if contract["status"] != ContractStatus.FUNDED.value:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only active contracts can be refunded.")
         if contract["escrow_status"] != EscrowStatus.LOCKED.value or contract["payment_status"] != PaymentStatus.PENDING.value:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This contract does not have refundable escrow funds.")
@@ -381,7 +390,7 @@ class ContractService:
         amount = self._get_contract_amount(contract)
         organizer_wallet = await ensure_wallet(current_user["id"])
         now = utc_now()
-        wallet_result = await wallet_collection.update_one(
+        wallet_result = await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
             {"_id": organizer_wallet["_id"], "locked_balance": {"$gte": amount}},
             {"$inc": {"balance": amount, "locked_balance": -amount}, "$set": {"updated_at": now}},
         )
@@ -393,17 +402,17 @@ class ContractService:
 
         updated = await self.repository.transition_state(
             contract_id,
-            from_statuses=[ContractStatus.ACTIVE],
+            from_statuses=[ContractStatus.FUNDED],
             from_escrow_status=EscrowStatus.LOCKED,
             from_payment_status=PaymentStatus.PENDING,
             now=now,
             updates={
-                "status": ContractStatus.ACTIVE.value,
+                "status": ContractStatus.AGREED.value,
                 "escrow_status": EscrowStatus.NONE.value,
             },
         )
         if not updated:
-            await wallet_collection.update_one(
+            await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
                 {"_id": organizer_wallet["_id"]},
                 {"$inc": {"balance": -amount, "locked_balance": amount}, "$set": {"updated_at": utc_now()}},
             )
@@ -435,7 +444,7 @@ class ContractService:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this contract.")
 
     async def _serialize_contract(self, contract: dict) -> ContractResponse:
-        vendor = await vendor_collection.find_one({"_id": contract["vendor_id"]})
+        vendor = await getattr(_marketplace_mvp, "vendor_collection", vendor_collection).find_one({"_id": contract["vendor_id"]})
         return ContractResponse(
             id=str(contract["_id"]),
             request_id=str(contract["request_id"]) if contract.get("request_id") is not None else None,
