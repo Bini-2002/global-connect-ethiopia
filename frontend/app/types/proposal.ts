@@ -1,3 +1,5 @@
+/* frontend/app/types/proposal.ts */
+
 "use client";
 
 export interface ReviewTargetOption {
@@ -101,6 +103,9 @@ export interface ProposalRecord {
   security_assignment?: ProposalSecurityAssignment | null;
   approval_certificate_id?: string | null;
   approval_certificate_number?: string | null;
+  verification_letter_id?: string | null;
+  verification_letter_reference?: string | null;
+  police_notification_id?: string | null;
   rejection_reason?: string | null;
   change_request_note?: string | null;
   created_at: string;
@@ -163,4 +168,64 @@ export interface PermitRecord {
   issued_by_office_name?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+}
+
+export interface VerificationLetterRecord {
+  id: string;
+  proposal_id: string;
+  event_id?: string | null;
+  organizer_id?: string | null;
+  reference_number: string;
+  proposal_title: string;
+  organizer_name: string;
+  ministry_office_name?: string | null;
+  municipal_office_name?: string | null;
+  reviewer_name?: string | null;
+  approval_timestamp: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PoliceNotificationOffice {
+  user_id?: string | null;
+  office_name?: string | null;
+  office_role?: string | null;
+  city?: string | null;
+  display_label?: string | null;
+}
+
+export interface PoliceNotificationSecurityDocument {
+  document_url?: string | null;
+  document_name?: string | null;
+  document_size?: number | null;
+}
+
+export interface PoliceNotificationOrganizerContact {
+  organizer_id?: string | null;
+  organizer_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  alternative_contact?: string | null;
+}
+
+export interface PoliceNotificationRecord {
+  id: string;
+  proposal_id: string;
+  event_id?: string | null;
+  police_office: PoliceNotificationOffice;
+  event_title: string;
+  location?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  expected_attendees?: number | null;
+  organizer_contact: PoliceNotificationOrganizerContact;
+  security_level?: string | null;
+  personnel_count?: number | null;
+  security_plan_document?: PoliceNotificationSecurityDocument | null;
+  permit_reference?: string | null;
+  approval_reference?: string | null;
+  municipal_office_name?: string | null;
+  notified_at: string;
+  created_at: string;
+  updated_at: string;
 }
