@@ -2,22 +2,54 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Landmark, Search } from 'lucide-react';
+import { Building2, Search, MapPin, Users, DollarSign } from 'lucide-react';
 import { useEventWorkspace } from '@/app/hooks/useEventWorkspace';
 import { eventsService } from '@/app/services/eventsService';
-import { VenueReservationRecord, VenueSearchOption } from '@/app/types/event';
+import {
+  VenueListingSearchResponse,
+  VenueReservationRecord,
+  VenueReservationPaymentStatus,
+} from '@/app/types/event';
 import {
   EventWorkspaceShell,
   formatCurrency,
   formatDateTime,
-  sentenceCase,
   startOfInputDateTime,
 } from '@/components/organizer/events';
 
+// ─── Status helpers ───────────────────────────────────────────────────────────
+
+const RESERVATION_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  requested:           { label: 'Awaiting Provider',     color: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' },
+  provider_accepted:   { label: 'Provider Accepted',     color: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' },
+  offered_alternative: { label: 'Alternative Offered',   color: 'bg-orange-50 text-orange-700 ring-1 ring-orange-200' },
+  organizer_confirmed: { label: 'You Confirmed',         color: 'bg-teal-50 text-teal-700 ring-1 ring-teal-200' },
+  confirmed:           { label: 'Confirmed',             color: 'bg-green-50 text-green-700 ring-1 ring-green-200' },
+  declined:            { label: 'Declined',              color: 'bg-red-50 text-red-700 ring-1 ring-red-200' },
+  cancelled:           { label: 'Cancelled',             color: 'bg-slate-100 text-slate-500' },
+};
+
+const DEPOSIT_CONFIG: Record<VenueReservationPaymentStatus, { label: string; color: string }> = {
+  not_required:   { label: 'No Deposit Required', color: 'bg-slate-100 text-slate-500' },
+  deposit_pending: { label: 'Deposit Pending',    color: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' },
+  deposit_funded: { label: 'Deposit Funded',      color: 'bg-teal-50 text-teal-700 ring-1 ring-teal-200' },
+  satisfied:      { label: 'Deposit Satisfied',   color: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' },
+};
+
+function ReservationStatusBadge({ status }: { status: string }) {
+  const cfg = RESERVATION_STATUS_CONFIG[status] ?? { label: status, color: 'bg-slate-100 text-slate-600' };
+  return (
+    <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${cfg.color}`}>
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 interface ReservationFormState {
-  venue_name: string;
-  city: string;
-  location: string;
+  venue_listing_id: string;
+  venue_name_display: string;
   requested_start: string;
   requested_end: string;
   estimated_cost: string;
@@ -25,34 +57,28 @@ interface ReservationFormState {
 }
 
 function createReservationForm(): ReservationFormState {
-  return {
-    venue_name: '',
-    city: '',
-    location: '',
-    requested_start: '',
-    requested_end: '',
-    estimated_cost: '',
-    notes: '',
-  };
+  return { venue_listing_id: '', venue_name_display: '', requested_start: '', requested_end: '', estimated_cost: '', notes: '' };
 }
 
 export default function EventVenuePage() {
   const params = useParams();
   const eventId = params.id as string;
-  const { event, loading, error, refresh, setError } = useEventWorkspace(eventId);
+  const { event, loading, error, setError } = useEventWorkspace(eventId);
+
   const [reservations, setReservations] = useState<VenueReservationRecord[]>([]);
   const [loadingReservations, setLoadingReservations] = useState(true);
   const [searchCity, setSearchCity] = useState('');
-  const [searchResults, setSearchResults] = useState<VenueSearchOption[]>([]);
+  const [searchResults, setSearchResults] = useState<VenueListingSearchResponse[]>([]);
   const [searching, setSearching] = useState(false);
   const [creating, setCreating] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [depositId, setDepositId] = useState<string | null>(null);
   const [reservationForm, setReservationForm] = useState<ReservationFormState>(createReservationForm());
 
   const loadReservations = async () => {
     try {
       setLoadingReservations(true);
-      setError(null);
       const response = await eventsService.getVenueReservations(eventId);
       setReservations(response);
     } catch (err) {
@@ -62,29 +88,24 @@ export default function EventVenuePage() {
     }
   };
 
-  useEffect(() => {
-    void loadReservations();
-  }, [eventId]);
+  useEffect(() => { void loadReservations(); }, [eventId]);
 
   useEffect(() => {
     if (!event) return;
     const defaultCity = event.office_assignments?.municipal?.city || event.location || '';
     const baseDate = startOfInputDateTime(event.start_date);
-    setSearchCity((current) => current || defaultCity);
+    setSearchCity((c) => c || defaultCity);
     setReservationForm((current) =>
-      current.city || current.requested_start
-        ? current
-        : {
-            ...current,
-            city: defaultCity,
-            requested_start: baseDate,
-            requested_end: startOfInputDateTime(event.end_date) || baseDate,
-          }
+      current.venue_listing_id || current.requested_start ? current : {
+        ...current,
+        requested_start: baseDate,
+        requested_end: startOfInputDateTime(event.end_date) || baseDate,
+      }
     );
   }, [event]);
 
   const confirmedReservation = useMemo(
-    () => reservations.find((reservation) => reservation.status === 'confirmed') || null,
+    () => reservations.find((r) => r.status === 'confirmed' || r.status === 'organizer_confirmed') || null,
     [reservations]
   );
 
@@ -102,51 +123,47 @@ export default function EventVenuePage() {
     }
   };
 
-  const useVenueSuggestion = (venue: VenueSearchOption) => {
-    setReservationForm((current) => ({
-      ...current,
-      venue_name: venue.venue_name,
-      city: venue.city,
-      estimated_cost: venue.estimated_cost ? `${venue.estimated_cost}` : current.estimated_cost,
-      location: current.location || venue.city,
+  const selectVenueListing = (listing: VenueListingSearchResponse) => {
+    setReservationForm((f) => ({
+      ...f,
+      venue_listing_id: listing.id,
+      venue_name_display: listing.venue_name,
+      estimated_cost: listing.estimated_cost ? String(listing.estimated_cost) : f.estimated_cost,
     }));
   };
 
-  const handleCreateReservation = async () => {
-    if (!event) return;
+  const handleCreateReservation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reservationForm.venue_listing_id) {
+      setError('Please select a venue from the search results first.');
+      return;
+    }
     try {
       setCreating(true);
       setError(null);
-      const created = await eventsService.createVenueReservation(event.id, {
-        venue_name: reservationForm.venue_name,
-        city: reservationForm.city,
-        location: reservationForm.location || undefined,
-        requested_start: new Date(reservationForm.requested_start).toISOString(),
-        requested_end: new Date(reservationForm.requested_end).toISOString(),
+      await eventsService.createVenueReservation(eventId, {
+        venue_listing_id: reservationForm.venue_listing_id,
+        requested_start: reservationForm.requested_start,
+        requested_end: reservationForm.requested_end,
         estimated_cost: reservationForm.estimated_cost ? Number(reservationForm.estimated_cost) : undefined,
         notes: reservationForm.notes || undefined,
       });
-      setReservations((current) => [created, ...current]);
-      await refresh();
+      setReservationForm(createReservationForm());
+      setSearchResults([]);
+      await loadReservations();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create venue reservation');
+      setError(err instanceof Error ? err.message : 'Failed to create reservation');
     } finally {
       setCreating(false);
     }
   };
 
   const handleConfirm = async (reservationId: string) => {
-    if (!event) return;
     try {
       setConfirmingId(reservationId);
       setError(null);
-      const updated = await eventsService.confirmVenueReservation(event.id, reservationId, {
-        confirmation_notes: 'Confirmed from organizer workspace',
-      });
-      setReservations((current) =>
-        current.map((reservation) => (reservation.id === reservationId ? updated : reservation))
-      );
-      await refresh();
+      await eventsService.confirmVenueReservation(eventId, reservationId, {});
+      await loadReservations();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to confirm reservation');
     } finally {
@@ -154,229 +171,331 @@ export default function EventVenuePage() {
     }
   };
 
+  const handleCancel = async (reservationId: string) => {
+    if (!confirm('Cancel this reservation request?')) return;
+    try {
+      setCancellingId(reservationId);
+      setError(null);
+      await eventsService.cancelVenueReservation(eventId, reservationId, {});
+      await loadReservations();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel reservation');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const handleDepositUpdate = async (
+    reservationId: string,
+    status: VenueReservationPaymentStatus
+  ) => {
+    try {
+      setDepositId(reservationId);
+      setError(null);
+      await eventsService.updateVenueReservationDeposit(eventId, reservationId, {
+        payment_milestone_status: status,
+      });
+      await loadReservations();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update deposit');
+    } finally {
+      setDepositId(null);
+    }
+  };
+
   return (
-    <EventWorkspaceShell
-      event={event}
-      loading={loading}
-      error={error}
-      activeTab="venue"
-      aside={
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <h2 className="text-lg font-bold text-[#062E22]">Venue Status</h2>
-            <div className="space-y-4 mt-4">
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Current Status</p>
-                <p className="text-lg font-bold text-[#062E22] mt-2">{sentenceCase(event?.venue_status)}</p>
-              </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Confirmed Venue</p>
-                <p className="text-sm font-semibold text-[#062E22] mt-2">
-                  {confirmedReservation?.venue_name || event?.location || 'Not confirmed yet'}
+    <EventWorkspaceShell eventId={eventId} activeTab="venue" event={event} loading={loading} error={error}>
+      <div className="space-y-8">
+
+        {/* ─── Confirmed banner ─── */}
+        {confirmedReservation && (
+          <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
+            <div className="flex items-center gap-3">
+              <Building2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div>
+                <p className="font-semibold text-emerald-800">Venue confirmed: {confirmedReservation.venue_name}</p>
+                <p className="text-sm text-emerald-700 mt-0.5">
+                  {confirmedReservation.city} · {formatDateTime(confirmedReservation.agreed_start ?? confirmedReservation.requested_start)} →{' '}
+                  {formatDateTime(confirmedReservation.agreed_end ?? confirmedReservation.requested_end)}
                 </p>
               </div>
             </div>
           </div>
+        )}
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <h2 className="text-lg font-bold text-[#062E22]">Search Venues</h2>
-            <div className="space-y-4 mt-4">
+        {/* ─── Venue Search ─── */}
+        <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#0a4a37]">Step 1</p>
+          <h2 className="mt-1 text-2xl font-bold text-[#062E22]">Search Available Venues</h2>
+          <p className="mt-2 text-sm text-slate-500">Search real venue listings. Select one to pre-fill the reservation form.</p>
+
+          <div className="mt-5 flex gap-3">
+            <input
+              type="text"
+              value={searchCity}
+              onChange={(e) => setSearchCity(e.target.value)}
+              placeholder="Filter by city (e.g. Addis Ababa)"
+              className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
+            />
+            <button
+              onClick={() => void handleSearch()}
+              disabled={searching}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-60"
+            >
+              <Search className="w-4 h-4" />
+              {searching ? 'Searching…' : 'Search'}
+            </button>
+          </div>
+
+          {searchResults.length > 0 && (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {searchResults.map((listing) => {
+                const isSelected = reservationForm.venue_listing_id === listing.id;
+                return (
+                  <button
+                    key={listing.id}
+                    onClick={() => selectVenueListing(listing)}
+                    className={`text-left rounded-2xl border p-4 transition hover:shadow-sm ${
+                      isSelected
+                        ? 'border-[#062E22] bg-[#F5FBF8] ring-2 ring-[#062E22]/20'
+                        : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-[#062E22]">{listing.venue_name}</p>
+                      {!listing.is_reservable && (
+                        <span className="text-[10px] font-bold uppercase text-red-500 bg-red-50 px-2 py-0.5 rounded-full">Not reservable</span>
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{listing.city}{listing.location ? `, ${listing.location}` : ''}</span>
+                      <span className="flex items-center gap-1"><Users className="w-3 h-3" />Cap: {listing.capacity.toLocaleString()}</span>
+                      {listing.estimated_cost ? (
+                        <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{formatCurrency(listing.estimated_cost)}</span>
+                      ) : null}
+                    </div>
+                    {listing.description ? (
+                      <p className="mt-2 text-xs text-slate-400 line-clamp-2">{listing.description}</p>
+                    ) : null}
+                    {isSelected && (
+                      <p className="mt-2 text-xs font-semibold text-[#0a4a37]">✓ Selected</p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ─── Reservation Form ─── */}
+        <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#0a4a37]">Step 2</p>
+          <h2 className="mt-1 text-2xl font-bold text-[#062E22]">Request Reservation</h2>
+          {reservationForm.venue_name_display ? (
+            <p className="mt-2 text-sm text-emerald-700 font-medium">Selected: {reservationForm.venue_name_display}</p>
+          ) : (
+            <p className="mt-2 text-sm text-slate-400 italic">Select a venue from search results above first.</p>
+          )}
+
+          <form onSubmit={(e) => void handleCreateReservation(e)} className="mt-5 space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="text-sm font-medium text-slate-700">City</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1.5">Start Date & Time</label>
                 <input
-                  value={searchCity}
-                  onChange={(eventValue) => setSearchCity(eventValue.target.value)}
-                  placeholder="Adama"
-                  className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                  type="datetime-local"
+                  required
+                  value={reservationForm.requested_start}
+                  onChange={(e) => setReservationForm((f) => ({ ...f, requested_start: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
                 />
               </div>
-              <button
-                onClick={() => void handleSearch()}
-                disabled={searching}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50"
-              >
-                <Search className="w-4 h-4" />
-                {searching ? 'Searching...' : 'Find Venue Options'}
-              </button>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1.5">End Date & Time</label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={reservationForm.requested_end}
+                  onChange={(e) => setReservationForm((f) => ({ ...f, requested_end: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
+                />
+              </div>
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1.5">Estimated Cost (ETB, optional)</label>
+              <input
+                type="number"
+                min="0"
+                value={reservationForm.estimated_cost}
+                onChange={(e) => setReservationForm((f) => ({ ...f, estimated_cost: e.target.value }))}
+                placeholder="50000"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1.5">Notes (optional)</label>
+              <textarea
+                rows={3}
+                value={reservationForm.notes}
+                onChange={(e) => setReservationForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Any special requirements…"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={creating || !reservationForm.venue_listing_id}
+              className="w-full rounded-xl bg-[#062E22] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0a4a37] transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {creating ? 'Sending request…' : 'Send Reservation Request'}
+            </button>
+          </form>
+        </div>
 
-            {searchResults.length ? (
-              <div className="space-y-3 mt-5">
-                {searchResults.map((venue) => (
-                  <div key={`${venue.city}-${venue.venue_name}`} className="rounded-xl border border-slate-200 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-[#062E22]">{venue.venue_name}</p>
-                        <p className="text-sm text-slate-500 mt-1">{venue.city}</p>
-                        <p className="text-sm text-slate-500 mt-1">
-                          {venue.estimated_cost != null ? formatCurrency(venue.estimated_cost) : 'Cost pending'}
+        {/* ─── Reservations List ─── */}
+        <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#0a4a37]">Step 3</p>
+          <h2 className="mt-1 text-2xl font-bold text-[#062E22]">Reservation Status</h2>
+          <p className="mt-2 text-sm text-slate-500">Track the handshake with each venue provider.</p>
+
+          {loadingReservations ? (
+            <div className="flex justify-center py-10">
+              <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#062E22] border-t-transparent" />
+            </div>
+          ) : reservations.length === 0 ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-slate-200 p-8 text-center">
+              <p className="text-slate-400 text-sm">No reservations yet. Use the form above to request a venue.</p>
+            </div>
+          ) : (
+            <div className="mt-5 space-y-4">
+              {reservations.map((res) => (
+                <div key={res.id} className="rounded-2xl border border-slate-200 p-5 space-y-4">
+                  {/* Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-[#062E22]">{res.venue_name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{res.city}{res.location ? ` · ${res.location}` : ''}</p>
+                    </div>
+                    <ReservationStatusBadge status={res.status} />
+                  </div>
+
+                  {/* Dates */}
+                  <div className="grid gap-3 sm:grid-cols-2 text-sm">
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-[10px] uppercase tracking-widest text-slate-400">Requested</p>
+                      <p className="mt-1 font-medium text-slate-700">
+                        {formatDateTime(res.requested_start)} → {formatDateTime(res.requested_end)}
+                      </p>
+                    </div>
+                    {(res.agreed_start || res.proposed_start) && (
+                      <div className={`rounded-xl p-3 ${res.agreed_start ? 'bg-emerald-50' : 'bg-orange-50'}`}>
+                        <p className="text-[10px] uppercase tracking-widest text-slate-400">
+                          {res.agreed_start ? 'Agreed' : 'Proposed by Provider'}
                         </p>
+                        <p className="mt-1 font-medium text-slate-700">
+                          {formatDateTime(res.agreed_start ?? res.proposed_start)} → {formatDateTime(res.agreed_end ?? res.proposed_end)}
+                        </p>
+                        {(res.agreed_cost ?? res.proposed_cost) ? (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Cost: {formatCurrency(res.agreed_cost ?? res.proposed_cost)}
+                          </p>
+                        ) : null}
                       </div>
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${venue.available ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                        {venue.available ? 'Available' : 'Unavailable'}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => useVenueSuggestion(venue)}
-                      className="mt-4 px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition"
-                    >
-                      Use This Venue
-                    </button>
+                    )}
                   </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      }
-    >
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-[#062E22]/10 text-[#062E22] flex items-center justify-center">
-            <Landmark className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-[#062E22]">Create Venue Reservation</h2>
-            <p className="text-sm text-slate-500">Reserve a venue directly from the event workspace.</p>
-          </div>
-        </div>
 
-        <div className="grid md:grid-cols-2 gap-4 mt-6">
-          <div>
-            <label className="text-sm font-medium text-slate-700">Venue Name</label>
-            <input
-              value={reservationForm.venue_name}
-              onChange={(eventValue) =>
-                setReservationForm((current) => ({ ...current, venue_name: eventValue.target.value }))
-              }
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-slate-700">City</label>
-            <input
-              value={reservationForm.city}
-              onChange={(eventValue) =>
-                setReservationForm((current) => ({ ...current, city: eventValue.target.value }))
-              }
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-slate-700">Location Notes</label>
-            <input
-              value={reservationForm.location}
-              onChange={(eventValue) =>
-                setReservationForm((current) => ({ ...current, location: eventValue.target.value }))
-              }
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-slate-700">Estimated Cost</label>
-            <input
-              type="number"
-              min="0"
-              value={reservationForm.estimated_cost}
-              onChange={(eventValue) =>
-                setReservationForm((current) => ({ ...current, estimated_cost: eventValue.target.value }))
-              }
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-slate-700">Requested Start</label>
-            <input
-              type="datetime-local"
-              value={reservationForm.requested_start}
-              onChange={(eventValue) =>
-                setReservationForm((current) => ({ ...current, requested_start: eventValue.target.value }))
-              }
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-slate-700">Requested End</label>
-            <input
-              type="datetime-local"
-              value={reservationForm.requested_end}
-              onChange={(eventValue) =>
-                setReservationForm((current) => ({ ...current, requested_end: eventValue.target.value }))
-              }
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-sm font-medium text-slate-700">Reservation Notes</label>
-            <textarea
-              rows={3}
-              value={reservationForm.notes}
-              onChange={(eventValue) =>
-                setReservationForm((current) => ({ ...current, notes: eventValue.target.value }))
-              }
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end mt-6">
-          <button
-            onClick={() => void handleCreateReservation()}
-            disabled={creating}
-            className="px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50"
-          >
-            {creating ? 'Creating...' : 'Reserve Venue'}
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h2 className="text-lg font-bold text-[#062E22]">Reservation Timeline</h2>
-        {loadingReservations ? (
-          <div className="flex justify-center py-10">
-            <div className="w-8 h-8 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : reservations.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500 mt-4">
-            No venue reservations yet.
-          </div>
-        ) : (
-          <div className="space-y-4 mt-5">
-            {reservations.map((reservation) => (
-              <div key={reservation.id} className="rounded-2xl border border-slate-200 p-5">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-base font-semibold text-[#062E22]">{reservation.venue_name}</h3>
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${reservation.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {sentenceCase(reservation.status)}
-                      </span>
+                  {/* Provider response notes */}
+                  {res.provider_response_notes && (
+                    <div className="rounded-xl bg-slate-50 p-3 text-sm">
+                      <p className="text-[10px] uppercase tracking-widest text-slate-400">Provider note</p>
+                      <p className="mt-1 text-slate-600">{res.provider_response_notes}</p>
                     </div>
-                    <p className="text-sm text-slate-500 mt-2">{reservation.city}</p>
-                    <p className="text-sm text-slate-500 mt-1">
-                      {formatDateTime(reservation.requested_start)} to {formatDateTime(reservation.requested_end)}
-                    </p>
-                    <p className="text-sm text-slate-500 mt-1">
-                      Estimated {formatCurrency(reservation.estimated_cost)} {reservation.final_cost ? `• Final ${formatCurrency(reservation.final_cost)}` : ''}
-                    </p>
-                    {reservation.notes ? <p className="text-sm text-slate-600 mt-3">{reservation.notes}</p> : null}
-                  </div>
-                  {reservation.status === 'confirmed' ? (
-                    <div className="text-sm text-emerald-700 font-medium">Confirmed</div>
-                  ) : (
-                    <button
-                      onClick={() => void handleConfirm(reservation.id)}
-                      disabled={confirmingId === reservation.id}
-                      className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
-                    >
-                      {confirmingId === reservation.id ? 'Confirming...' : 'Confirm Reservation'}
-                    </button>
                   )}
+
+                  {/* Failure / decline reason */}
+                  {res.failure_reason && (
+                    <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700">
+                      <p className="text-[10px] uppercase tracking-widest text-red-400 mb-1">Decline reason</p>
+                      {res.failure_reason}
+                    </div>
+                  )}
+
+                  {/* Alternative suggestions when declined */}
+                  {res.alternative_suggestions && res.alternative_suggestions.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Alternative venues suggested by provider:</p>
+                      {res.alternative_suggestions.map((alt) => (
+                        <button
+                          key={alt.id}
+                          onClick={() => selectVenueListing(alt)}
+                          className="w-full text-left rounded-xl border border-slate-200 bg-slate-50 p-3 hover:border-[#062E22] hover:bg-[#F5FBF8] transition text-sm"
+                        >
+                          <p className="font-semibold text-[#062E22]">{alt.venue_name}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{alt.city} · Cap: {alt.capacity.toLocaleString()}{alt.estimated_cost ? ` · ${formatCurrency(alt.estimated_cost)}` : ''}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Deposit milestone */}
+                  {(res.status === 'organizer_confirmed' || res.status === 'confirmed') && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-widest text-slate-400">Deposit</p>
+                          <span className={`inline-flex mt-1 items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${DEPOSIT_CONFIG[res.payment_milestone_status]?.color ?? ''}`}>
+                            {DEPOSIT_CONFIG[res.payment_milestone_status]?.label ?? res.payment_milestone_status}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          {res.payment_milestone_status === 'deposit_pending' && (
+                            <button
+                              onClick={() => void handleDepositUpdate(res.id, 'deposit_funded')}
+                              disabled={depositId === res.id}
+                              className="px-4 py-2 bg-teal-600 text-white rounded-lg text-xs font-semibold hover:bg-teal-700 transition disabled:opacity-50"
+                            >
+                              {depositId === res.id ? 'Updating…' : 'Mark Deposit Paid'}
+                            </button>
+                          )}
+                          {res.payment_milestone_status === 'deposit_funded' && (
+                            <button
+                              onClick={() => void handleDepositUpdate(res.id, 'satisfied')}
+                              disabled={depositId === res.id}
+                              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
+                            >
+                              {depositId === res.id ? 'Updating…' : 'Mark Satisfied'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {(res.status === 'provider_accepted' || res.status === 'offered_alternative') && (
+                      <button
+                        onClick={() => void handleConfirm(res.id)}
+                        disabled={confirmingId === res.id}
+                        className="px-5 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50"
+                      >
+                        {confirmingId === res.id ? 'Confirming…' : 'Confirm This Venue'}
+                      </button>
+                    )}
+                    {(res.status === 'requested' || res.status === 'provider_accepted' || res.status === 'offered_alternative') && (
+                      <button
+                        onClick={() => void handleCancel(res.id)}
+                        disabled={cancellingId === res.id}
+                        className="px-5 py-2 border border-red-200 bg-red-50 text-red-700 rounded-xl text-sm font-semibold hover:bg-red-100 transition disabled:opacity-50"
+                      >
+                        {cancellingId === res.id ? 'Cancelling…' : 'Cancel Request'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </EventWorkspaceShell>
   );
