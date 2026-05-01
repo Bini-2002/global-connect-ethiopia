@@ -16,6 +16,7 @@ import {
   SparklesIcon,
   XMarkIcon,
   Bars3Icon,
+  BriefcaseIcon,
 } from "@heroicons/react/24/outline";
 
 interface SidebarItem {
@@ -119,6 +120,7 @@ const navItems: Record<string, SidebarItem[]> = {
   ],
   vendor: [
     { label: 'Dashboard', href: '/vendor/dashboard', icon: icons.dashboard },
+    { label: 'Services', href: '/vendor/services', icon: <BriefcaseIcon className="w-5 h-5" /> },
     { label: 'Requests', href: '/vendor/requests', icon: icons.queue },
     { label: 'Contracts', href: '/vendor/contracts', icon: icons.proposals },
     { label: 'Wallet', href: '/vendor/wallet', icon: icons.vendor },
