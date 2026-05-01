@@ -52,3 +52,11 @@ transaction_collection = db.transactions
 wallet_collection = db.wallets
 withdrawal_collection = db.withdrawals
 message_collection = db.messages
+
+# AI collections
+ai_schedule_draft_collection = db.ai_schedule_drafts
+ai_schedule_draft_item_collection = db.ai_schedule_draft_items
+ai_chat_session_collection = db.ai_chat_sessions
+ai_chat_message_collection = db.ai_chat_messages
+ai_regulatory_rule_collection = db.ai_regulatory_rules
+ai_proposal_form_link_collection = db.ai_proposal_form_links

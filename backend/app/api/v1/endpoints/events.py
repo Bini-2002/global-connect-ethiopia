@@ -77,6 +77,13 @@ from app.schemas.event import (
     IncidentResponse,
     IncidentUpdate,
 )
+from app.schemas.ai import (
+    AiScheduleDraftCreate,
+    AiScheduleDraftResponse,
+    AiScheduleApplyRequest,
+    AiErrorResponse
+)
+from app.services.ai_service import AIService
 from app.schemas.venue_reservation import VenueReservationDepositUpdateRequest
 from app.services.venue_reservation_service import VenueReservationService
 from app.services.marketplace import parse_object_id, utc_now
@@ -1826,3 +1833,62 @@ async def update_final_report(
     if not updated:
         raise HTTPException(status_code=404, detail="Final report not found")
     return _serialize_final_report(updated)
+
+@router.post("/{event_id}/schedule/ai-draft", response_model=AiScheduleDraftResponse)
+async def generate_schedule_ai_draft(
+    event_id: str,
+    payload: AiScheduleDraftCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    event = await _get_owned_event_or_403(event_id, current_user)
+    try:
+        return await AIService.generate_schedule_draft(event_id, current_user["id"], payload)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/{event_id}/schedule/ai-draft", response_model=AiScheduleDraftResponse)
+async def get_schedule_ai_draft(
+    event_id: str,
+    draft_id: str = Query(...),
+    current_user: dict = Depends(get_current_user)
+):
+    event = await _get_owned_event_or_403(event_id, current_user)
+    draft = await AIService.get_schedule_draft(draft_id)
+    if not draft or draft.event_id != event_id:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return draft
+
+@router.put("/{event_id}/schedule/ai-draft/{draft_id}", response_model=AiScheduleDraftResponse)
+async def update_schedule_ai_draft(
+    event_id: str,
+    draft_id: str,
+    payload: AiScheduleDraftResponse,
+    current_user: dict = Depends(get_current_user)
+):
+    event = await _get_owned_event_or_403(event_id, current_user)
+    draft = await AIService.get_schedule_draft(draft_id)
+    if not draft or draft.event_id != event_id:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    if draft.status == "applied":
+        raise HTTPException(status_code=400, detail="Cannot edit an applied draft")
+    
+    # AIService could have an update_draft method, but we can do it inline or add to service
+    await AIService.update_schedule_draft(draft_id, payload.generated_items)
+    
+    updated = await AIService.get_schedule_draft(draft_id)
+    return updated
+
+@router.post("/{event_id}/schedule/apply-ai-draft", response_model=dict)
+async def apply_schedule_ai_draft(
+    event_id: str,
+    payload: AiScheduleApplyRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    event = await _get_owned_event_or_403(event_id, current_user)
+    try:
+        await AIService.apply_schedule_draft(payload.draft_id, event_id, payload.items)
+        return {"status": "success", "message": "Draft applied to schedule successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

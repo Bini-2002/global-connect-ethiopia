@@ -1,0 +1,295 @@
+import json
+import logging
+import uuid
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+import google.generativeai as genai
+from pydantic import BaseModel
+
+from app.core.config import settings
+from app.db.mongodb import (
+    ai_chat_message_collection,
+    ai_chat_session_collection,
+    ai_proposal_form_link_collection,
+    ai_regulatory_rule_collection,
+    ai_schedule_draft_collection,
+    ai_schedule_draft_item_collection,
+    event_schedule_collection
+)
+from app.schemas.ai import (
+    AiScheduleDraftCreate,
+    AiScheduleDraftItem,
+    AiScheduleDraftResponse,
+    ChatbotCitation,
+    ChatbotRequest,
+    ChatbotResponse,
+    ChatSessionRecord,
+    ChatMessageRecord
+)
+from app.services.marketplace import utc_now, parse_object_id
+
+logger = logging.getLogger(__name__)
+
+# Configure Gemini
+if settings.GEMINI_API_KEY:
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+
+
+class AIService:
+    @staticmethod
+    def _is_mock_mode() -> bool:
+        return settings.AI_MOCK_MODE or not settings.GEMINI_API_KEY
+
+    @staticmethod
+    async def generate_schedule_draft(
+        event_id: str,
+        organizer_id: str,
+        constraints: AiScheduleDraftCreate
+    ) -> AiScheduleDraftResponse:
+        now = utc_now()
+        expires_at = now + timedelta(days=3)
+        
+        draft_id = str(uuid.uuid4())
+        
+        if AIService._is_mock_mode():
+            # Deterministic mock response
+            generated_items = [
+                AiScheduleDraftItem(
+                    title=f"Welcome & Registration ({constraints.event_type})",
+                    start_time="09:00",
+                    end_time="10:00",
+                    category="Registration",
+                    description="Arrival and registration of attendees",
+                    order_index=0,
+                    is_ai_suggestion=True
+                ),
+                AiScheduleDraftItem(
+                    title="Opening Keynote",
+                    start_time="10:00",
+                    end_time="11:30",
+                    category="Keynote",
+                    description="Opening remarks and main keynote",
+                    order_index=1,
+                    is_ai_suggestion=True
+                )
+            ]
+        else:
+            try:
+                model = genai.GenerativeModel('gemini-2.5-flash')
+                prompt = (
+                    f"Create an hour-by-hour schedule for an event.\n"
+                    f"Event Type: {constraints.event_type}\n"
+                    f"Duration: {constraints.duration_days} days\n"
+                    f"Start Time: {constraints.start_time}\n"
+                    f"Respond strictly in JSON format with a list of items. Each item must have: "
+                    f"title, start_time (HH:MM format), end_time (HH:MM format), category, and description."
+                )
+                response = model.generate_content(prompt)
+                response_text = response.text.strip()
+                if response_text.startswith("```json"):
+                    response_text = response_text[7:]
+                if response_text.endswith("```"):
+                    response_text = response_text[:-3]
+                
+                try:
+                    data = json.loads(response_text)
+                    generated_items = []
+                    for idx, item in enumerate(data):
+                        generated_items.append(
+                            AiScheduleDraftItem(
+                                title=item.get("title", "Session"),
+                                start_time=item.get("start_time", "00:00"),
+                                end_time=item.get("end_time", "01:00"),
+                                category=item.get("category", ""),
+                                description=item.get("description", ""),
+                                order_index=idx,
+                                is_ai_suggestion=True
+                            )
+                        )
+                except json.JSONDecodeError:
+                    raise Exception("Malformed AI output")
+            except Exception as e:
+                logger.error(f"Gemini API error: {e}")
+                raise e
+
+        # Store draft
+        draft_doc = {
+            "id": draft_id,
+            "event_id": event_id,
+            "organizer_id": organizer_id,
+            "input_constraints": constraints.model_dump(),
+            "provider": "mock" if AIService._is_mock_mode() else "gemini",
+            "status": "pending_review",
+            "created_at": now,
+            "expires_at": expires_at,
+            "can_apply": True
+        }
+        await ai_schedule_draft_collection.insert_one(draft_doc)
+
+        for item in generated_items:
+            item_doc = item.model_dump()
+            item_doc["draft_id"] = draft_id
+            await ai_schedule_draft_item_collection.insert_one(item_doc)
+
+        return AiScheduleDraftResponse(
+            id=draft_id,
+            event_id=event_id,
+            organizer_id=organizer_id,
+            input_constraints=constraints.model_dump(),
+            provider=draft_doc["provider"],
+            status=draft_doc["status"],
+            generated_items=generated_items,
+            created_at=draft_doc["created_at"],
+            expires_at=draft_doc["expires_at"],
+            can_apply=draft_doc["can_apply"]
+        )
+
+    @staticmethod
+    async def get_schedule_draft(draft_id: str) -> Optional[AiScheduleDraftResponse]:
+        draft = await ai_schedule_draft_collection.find_one({"id": draft_id})
+        if not draft:
+            return None
+            
+        items_cursor = ai_schedule_draft_item_collection.find({"draft_id": draft_id}).sort("order_index", 1)
+        items = await items_cursor.to_list(length=100)
+        
+        generated_items = [AiScheduleDraftItem(**item) for item in items]
+        
+        return AiScheduleDraftResponse(
+            id=draft["id"],
+            event_id=draft["event_id"],
+            organizer_id=draft["organizer_id"],
+            input_constraints=draft["input_constraints"],
+            provider=draft["provider"],
+            status=draft["status"],
+            generated_items=generated_items,
+            created_at=draft["created_at"],
+            expires_at=draft["expires_at"],
+            can_apply=draft["can_apply"]
+        )
+
+    @staticmethod
+    async def update_schedule_draft(draft_id: str, items: List[AiScheduleDraftItem]):
+        # Remove old items and insert new ones
+        await ai_schedule_draft_item_collection.delete_many({"draft_id": draft_id})
+        
+        for idx, item in enumerate(items):
+            item_doc = item.model_dump()
+            item_doc["draft_id"] = draft_id
+            item_doc["order_index"] = idx
+            await ai_schedule_draft_item_collection.insert_one(item_doc)
+
+    @staticmethod
+    async def apply_schedule_draft(draft_id: str, event_id: str, items: List[AiScheduleDraftItem]):
+        now = utc_now()
+        draft = await ai_schedule_draft_collection.find_one({"id": draft_id, "event_id": event_id})
+        if not draft:
+            raise ValueError("Draft not found")
+
+        # Insert items to actual event schedule collection
+        schedule_docs = []
+        for item in items:
+            schedule_docs.append({
+                "event_id": event_id,
+                "session_title": item.title,
+                "description": item.description,
+                "start_time": item.start_time,
+                "end_time": item.end_time,
+                "is_ai_suggestion": True,
+                "created_at": now,
+                "updated_at": now
+            })
+        
+        if schedule_docs:
+            await event_schedule_collection.insert_many(schedule_docs)
+
+        # Update draft status
+        await ai_schedule_draft_collection.update_one(
+            {"id": draft_id},
+            {"$set": {"status": "applied", "applied_at": now, "can_apply": False}}
+        )
+
+    @staticmethod
+    async def process_chatbot_query(request: ChatbotRequest, user_id: str) -> ChatbotResponse:
+        now = utc_now()
+        session_id = request.session_id
+        
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            session = ChatSessionRecord(
+                id=session_id,
+                user_id=user_id,
+                role="user",
+                expires_at=now + timedelta(days=3)
+            )
+            await ai_chat_session_collection.insert_one(session.model_dump())
+        
+        # Save user message
+        user_msg = ChatMessageRecord(
+            session_id=session_id,
+            direction="user",
+            text=request.query
+        )
+        await ai_chat_message_collection.insert_one(user_msg.model_dump())
+
+        # Retrieve relevant rules from MongoDB
+        # Simple text search or matching could go here, for now fetch all active
+        rules_cursor = ai_regulatory_rule_collection.find({"active": True})
+        rules = await rules_cursor.to_list(length=100)
+        
+        rule_context = "\n".join([f"Rule: {r['title']}\nText: {r['rule_text']}\nJurisdiction: {r['jurisdiction']}" for r in rules])
+
+        citations = []
+        form_link = None
+        answer = ""
+
+        if AIService._is_mock_mode():
+            answer = "Based on the Ethiopian licensing rules, if you are organizing an event over 500 people, you need a police permit."
+            citations.append(ChatbotCitation(title="Large Event Policy", source_reference="Police Directive 12/2023"))
+            form_link = "https://example.com/police-permit-form"
+        else:
+            try:
+                model = genai.GenerativeModel('gemini-2.5-flash')
+                prompt = (
+                    f"You are an assistant for Global Connect Ethiopia. Answer ONLY about Ethiopian licensing and event-approval guidance. "
+                    f"Do not invent legal details. Use the following regulatory knowledge base:\n{rule_context}\n\n"
+                    f"User question: {request.query}\n\n"
+                    f"If you don't know the answer or the context doesn't have it, reply exactly with: 'I cannot answer this based on my current knowledge base.' "
+                    f"Otherwise, provide the answer."
+                )
+                response = model.generate_content(prompt)
+                answer = response.text.strip()
+                
+                # In a real implementation, we would extract citations and form links from the LLM output 
+                # or match them based on the rules we passed. For demo purposes we can attach a generic citation if we know what rule matched.
+                if rules:
+                    first_rule = rules[0]
+                    citations.append(ChatbotCitation(title=first_rule["title"], source_reference=first_rule["source_reference"]))
+                    form_link = first_rule.get("proposal_form_link")
+            except Exception as e:
+                logger.error(f"Gemini API error: {e}")
+                raise Exception("Service unavailable")
+
+        fallback_action = None
+        if "cannot answer" in answer.lower():
+            fallback_action = "mailto_contact"
+
+        assistant_msg = ChatMessageRecord(
+            session_id=session_id,
+            direction="assistant",
+            text=answer,
+            citations=[c.model_dump() for c in citations],
+            form_link=form_link,
+            provider_name="mock" if AIService._is_mock_mode() else "gemini"
+        )
+        await ai_chat_message_collection.insert_one(assistant_msg.model_dump())
+
+        return ChatbotResponse(
+            session_id=session_id,
+            answer=answer,
+            citations=citations,
+            form_link=form_link,
+            provider="mock" if AIService._is_mock_mode() else "gemini",
+            fallback_action=fallback_action,
+            created_at=now
+        )

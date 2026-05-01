@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     admin_organizers,
     admin_documents,
     admin_vendors,
+    ai,
     auth,
     catalog,
     events,
@@ -54,3 +55,4 @@ api_router.include_router(market_requests.router, prefix="/requests", tags=["Ven
 api_router.include_router(market_contracts.router, prefix="/contracts", tags=["Contracts"])
 api_router.include_router(payments.router, prefix="/payments", tags=["Escrow Payments"])
 api_router.include_router(wallet.router, prefix="/wallet", tags=["Vendor Wallet"])
+api_router.include_router(ai.router, prefix="/ai", tags=["AI"])

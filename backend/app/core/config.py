@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     SESSION_MAX_AGE_MINUTES: int = 30
     SESSION_REMEMBER_ME_DAYS: int = 30
 
+    # AI Config
+    GEMINI_API_KEY: Optional[str] = None
+    AI_MOCK_MODE: bool = False
+
     class Config:
         # case_sensitive = False
         env_file = ".env"
