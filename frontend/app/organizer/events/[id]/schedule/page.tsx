@@ -45,10 +45,18 @@ export default function EventSchedulePage() {
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [sessionForm, setSessionForm] = useState<ScheduleFormState>(buildDefaultSessionForm());
   const [aiDraftSettings, setAiDraftSettings] = useState({
+    event_type: '',
     duration_days: 1,
     start_time: '09:00',
-    sessions_per_day: 4,
   });
+  const [pendingDraftId, setPendingDraftId] = useState<string | null>(null);
+  const [pendingDraftItems, setPendingDraftItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (event && !aiDraftSettings.event_type) {
+      setAiDraftSettings(curr => ({ ...curr, event_type: event.category || 'Tech Conference' }));
+    }
+  }, [event]);
 
   const loadSchedule = async () => {
     try {
@@ -109,13 +117,39 @@ export default function EventSchedulePage() {
     try {
       setDrafting(true);
       setError(null);
-      const response = await eventsService.generateScheduleAIDraft(event.id, aiDraftSettings);
-      setSchedule(response);
+      const response = await eventsService.generateScheduleAIDraft(event.id, {
+        duration_days: aiDraftSettings.duration_days,
+        start_time: aiDraftSettings.start_time,
+        event_type: aiDraftSettings.event_type
+      });
+      setPendingDraftId(response.id);
+      setPendingDraftItems(response.generated_items);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to draft schedule');
     } finally {
       setDrafting(false);
     }
+  };
+
+  const handleApplyDraft = async () => {
+    if (!event || !pendingDraftId) return;
+    try {
+      setSavingSession(true);
+      setError(null);
+      await eventsService.applyScheduleAIDraft(event.id, pendingDraftId, pendingDraftItems);
+      await loadSchedule();
+      setPendingDraftId(null);
+      setPendingDraftItems([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to apply schedule draft');
+    } finally {
+      setSavingSession(false);
+    }
+  };
+
+  const handleDiscardDraft = () => {
+    setPendingDraftId(null);
+    setPendingDraftItems([]);
   };
 
   const markReviewed = async (item: EventScheduleItemRecord) => {
@@ -148,6 +182,21 @@ export default function EventSchedulePage() {
             <h2 className="text-lg font-bold text-[#062E22]">AI Draft Builder</h2>
             <div className="space-y-4 mt-4">
               <div>
+                <label className="text-sm font-medium text-slate-700">Event Type</label>
+                <input
+                  type="text"
+                  value={aiDraftSettings.event_type}
+                  onChange={(eventValue) =>
+                    setAiDraftSettings((current) => ({
+                      ...current,
+                      event_type: eventValue.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="e.g. Tech Conference"
+                />
+              </div>
+              <div>
                 <label className="text-sm font-medium text-slate-700">Duration (days)</label>
                 <input
                   type="number"
@@ -177,25 +226,9 @@ export default function EventSchedulePage() {
                   className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Sessions Per Day</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="12"
-                  value={aiDraftSettings.sessions_per_day}
-                  onChange={(eventValue) =>
-                    setAiDraftSettings((current) => ({
-                      ...current,
-                      sessions_per_day: Number(eventValue.target.value) || 4,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                />
-              </div>
               <button
                 onClick={() => void handleAIDraft()}
-                disabled={drafting}
+                disabled={drafting || pendingDraftId !== null}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50"
               >
                 <Sparkles className="w-4 h-4" />
@@ -296,6 +329,48 @@ export default function EventSchedulePage() {
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <h2 className="text-lg font-bold text-[#062E22]">Schedule Timeline</h2>
+        {pendingDraftId && pendingDraftItems.length > 0 && (
+          <div className="mb-6 p-5 bg-amber-50 border border-amber-200 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-amber-900 flex items-center gap-2">
+                <Sparkles className="w-5 h-5" /> AI Generated Draft Review
+              </h3>
+              <div className="flex gap-2">
+                 <button
+                    onClick={handleDiscardDraft}
+                    className="px-3 py-1.5 text-sm font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 rounded-lg transition"
+                 >
+                    Discard Make New
+                 </button>
+                 <button
+                    onClick={() => void handleApplyDraft()}
+                    disabled={savingSession}
+                    className="px-3 py-1.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition disabled:opacity-50"
+                 >
+                    {savingSession ? 'Applying...' : 'Apply to Calendar'}
+                 </button>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {pendingDraftItems.map((item, idx) => (
+                <div key={idx} className="bg-white/80 p-4 rounded-xl border border-amber-100">
+                   <div className="flex justify-between items-start">
+                     <div>
+                       <h4 className="font-semibold text-amber-900">{item.title}</h4>
+                       <p className="text-xs text-amber-700 mt-1">
+                         {formatDateTime(item.start_time)} to {formatDateTime(item.end_time)}
+                       </p>
+                       {item.description && <p className="text-sm text-slate-700 mt-2">{item.description}</p>}
+                     </div>
+                     <span className="text-xs font-bold px-2 py-1 bg-amber-100 text-amber-800 rounded-full">{item.category || 'Session'}</span>
+                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {loadingSchedule ? (
           <div className="flex justify-center py-10">
             <div className="w-8 h-8 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" />
