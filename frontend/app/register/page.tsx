@@ -12,7 +12,7 @@ export default function RegistrationForm() {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    role: "", 
+    role: "",
     password: "",
   });
 
@@ -43,7 +43,7 @@ export default function RegistrationForm() {
 
   const calculatePasswordStrength = (password: string) => {
     // Simple password strength calculation
-    if (password.length < 6 ) {
+    if (password.length < 6) {
       setPasswordStrength("Weak");
     } else if (password.length < 10) {
       setPasswordStrength("Medium");
@@ -55,7 +55,7 @@ export default function RegistrationForm() {
 
 
   const getPasswordStrengthColor = () => {
-    switch(passwordStrength) {
+    switch (passwordStrength) {
       case "Weak": return "text-red-500";
       case "Medium": return "text-yellow-500";
       case "Strong": return "text-green-500";
@@ -63,13 +63,13 @@ export default function RegistrationForm() {
     }
 
 
-  
+
   };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-  
+
     try {
       const response = await api.post<{ user_id?: string, otp_code?: string | null }>("/auth/register", {
         full_name: formData.fullName,
@@ -77,15 +77,15 @@ export default function RegistrationForm() {
         role: formData.role,
         password: formData.password,
       });
-  
+
       if (response.user_id) {
         localStorage.setItem("user_id", response.user_id);
       }
 
       // Check if verification was skipped (internal roles)
       if (response.otp_code === null || ["ministry_gov", "municipal_gov", "police"].includes(formData.role)) {
-         router.push("/login");
-         return;
+        router.push("/login");
+        return;
       }
 
       // Redirect to verify-email page
@@ -93,7 +93,7 @@ export default function RegistrationForm() {
         role: formData.role,
         email: formData.email,
       }).toString();
-  
+
       router.push(`/verify-email?${params}`);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -106,10 +106,10 @@ export default function RegistrationForm() {
     }
   };
   return (<>
-  <LoginHeader/>
+    <LoginHeader />
     <div className="min-h-screen mt-15 bg-gradient-to-br from-slate-50 to-slate-100  flex items-center justify-center p-4 py-12">
       <div className="max-w-3xl w-full bg-[#8CB98820] rounded-2xl shadow-xl p-8 border border-slate-200">
-       
+
 
 
         {/* Progress Step */}
@@ -142,25 +142,25 @@ export default function RegistrationForm() {
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Email Address */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="name@example.com"
-                className="w-full px-4 py-2 border text-black border-slate-300 rounded-lg focus:ring-2 focus:ring-[#062E22] focus:border-[#062E22] outline-none transition"
-                required
-              />
-            </div>
+              {/* Email Address */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="name@example.com"
+                  className="w-full px-4 py-2 border text-black border-slate-300 rounded-lg focus:ring-2 focus:ring-[#062E22] focus:border-[#062E22] outline-none transition"
+                  required
+                />
+              </div>
 
-            {/* Phone Number */}
-          {/*<div>
+              {/* Phone Number */}
+              {/*<div>
               <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-1">
                 Phone Number
               </label>
@@ -193,7 +193,7 @@ export default function RegistrationForm() {
                 className="w-full px-4 py-2 border text-black border-slate-300 rounded-lg focus:ring-2 focus:ring-[#062E22] focus:border-[#062E22] outline-none transition"
                 required
               />*/}
-            </div> 
+            </div>
           </div>
 
           {/* Professional Role Section */}
@@ -206,11 +206,10 @@ export default function RegistrationForm() {
               {/* Organizer Card */}
               <div
                 onClick={() => handleRoleSelect("organizer")}
-                className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                  formData.role === "organizer"
+                className={`p-4 border rounded-lg cursor-pointer transition-all ${formData.role === "organizer"
                     ? "border-[#062E22] bg-amber-50 ring-2 ring-amber-200"
                     : "border-slate-200 hover:border-amber-300 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 <h4 className="font-bold text-slate-800 mb-1">Organizer</h4>
                 <p className="text-sm text-slate-600">Host events and manage vendors</p>
@@ -219,11 +218,10 @@ export default function RegistrationForm() {
               {/* Vendor Card */}
               <div
                 onClick={() => handleRoleSelect("vendor")}
-                className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                  formData.role === "vendor"
+                className={`p-4 border rounded-lg cursor-pointer transition-all ${formData.role === "vendor"
                     ? "border-[#062E22] bg-amber-50 ring-2 ring-amber-200"
                     : "border-slate-200 hover:border-amber-300 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 <h4 className="font-bold text-slate-800 mb-1">Vendor</h4>
                 <p className="text-sm text-slate-600">Showcase products and services</p>
@@ -232,11 +230,10 @@ export default function RegistrationForm() {
               {/* Attendee Card */}
               <div
                 onClick={() => handleRoleSelect("attendee")}
-                className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                  formData.role === "attendee"
+                className={`p-4 border rounded-lg cursor-pointer transition-all ${formData.role === "attendee"
                     ? "border-[#062E22] bg-amber-50 ring-2 ring-amber-200"
                     : "border-slate-200 hover:border-amber-300 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 <h4 className="font-bold text-slate-800 mb-1">Attendee</h4>
                 <p className="text-sm text-slate-600">Explore and network with others</p>
@@ -285,18 +282,18 @@ export default function RegistrationForm() {
           {/* Continue Button */}
           <div className="pt-4">
             <button
-            disabled={loading}
+              disabled={loading}
               type="submit"
               className="w-full bg-[#062E22] hover:bg-[#325b4f] text-white font-semibold py-3 px-4 rounded-lg transition duration-200 shadow-md hover:shadow-lg"
             >
-             {loading ? "Registering..." : "Continue to Next Step →"}
+              {loading ? "Registering..." : "Continue to Next Step →"}
             </button>
           </div>
           {error && (
-  <p className="text-red-500 text-sm mb-2">
-    {error}
-  </p>
-)}
+            <p className="text-red-500 text-sm mb-2">
+              {error}
+            </p>
+          )}
           {/* Terms Agreement */}
           <p className="text-xs text-center text-slate-500">
             By clicking &quot;Continue&quot;, you agree to Global Connect Ethiopia&apos;s{" "}
