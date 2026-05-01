@@ -1,5 +1,5 @@
-import { api } from "../lib/api";
-import { ProposalRecord } from "../types/proposal";
+import { api } from '../lib/api';
+import { ProposalRecord } from '../types/proposal';
 import {
   ApprovedProposal,
   AnnouncementCreatePayload,
@@ -46,59 +46,47 @@ import {
   VenueReservationOrganizerConfirmPayload,
   VenueReservationRecord,
   VenueSearchResult,
-} from "../types/event";
+  AiScheduleDraftResponse,
+  AiScheduleDraftItem
+} from '../types/event';
 
-function formatEventDate(
-  startDate?: string | null,
-  endDate?: string | null,
-): string {
-  if (!startDate) return "Date pending";
+function formatEventDate(startDate?: string | null, endDate?: string | null): string {
+  if (!startDate) return 'Date pending';
 
   const start = new Date(startDate);
   if (!endDate) {
-    return start.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+    return start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   const end = new Date(endDate);
-  const startLabel = start.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-  const endLabel = end.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const endLabel = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   return `${startLabel} - ${endLabel}`;
 }
 
 function mapBackendStatusToUi(status: string): EventUiStatus {
   switch (status) {
-    case "live":
-      return "LIVE";
-    case "completed":
-      return "COMPLETED";
-    case "archived":
-      return "ARCHIVED";
-    case "cancelled":
-      return "CANCELLED";
-    case "published":
-    case "private_published":
-      return "UPCOMING";
+    case 'live':
+      return 'LIVE';
+    case 'completed':
+      return 'COMPLETED';
+    case 'archived':
+      return 'ARCHIVED';
+    case 'cancelled':
+      return 'CANCELLED';
+    case 'published':
+    case 'private_published':
+      return 'UPCOMING';
     default:
-      return "PENDING";
+      return 'PENDING';
   }
 }
 
-function buildProgress(event: EventRecord): EventListItem["progress"] {
+function buildProgress(event: EventRecord): EventListItem['progress'] {
   return {
     proposal: 100,
     approval: event.permit_number ? 100 : 85,
-    vendors: event.venue_status === "confirmed" ? 55 : 20,
+    vendors: event.venue_status === 'confirmed' ? 55 : 20,
     booking: event.booking_required
       ? event.capacity
         ? Math.min(Math.round((event.booked_count / event.capacity) * 100), 100)
@@ -113,7 +101,7 @@ function mapEventToListItem(event: EventRecord): EventListItem {
     proposal_id: event.proposal_id,
     title: event.title,
     event_type: event.category || undefined,
-    location: event.location || "Location pending",
+    location: event.location || 'Location pending',
     date: formatEventDate(event.start_date, event.end_date),
     start_date: event.start_date || undefined,
     end_date: event.end_date || undefined,
@@ -128,9 +116,7 @@ function mapEventToListItem(event: EventRecord): EventListItem {
   };
 }
 
-function mapProposalToApprovedProposal(
-  proposal: ProposalRecord,
-): ApprovedProposal {
+function mapProposalToApprovedProposal(proposal: ProposalRecord): ApprovedProposal {
   return {
     id: proposal.id,
     event_id: proposal.event_id,
@@ -145,7 +131,7 @@ function mapProposalToApprovedProposal(
 
 export const eventsService = {
   getEvents: async (authToken?: string | null): Promise<EventListItem[]> => {
-    const events = await api.get<EventRecord[]>("/events/", { authToken });
+    const events = await api.get<EventRecord[]>('/events/', { authToken });
     return events.map(mapEventToListItem);
   },
 
@@ -153,23 +139,16 @@ export const eventsService = {
     return api.get<EventRecord>(`/events/${eventId}`);
   },
 
-  updateEvent: async (
-    eventId: string,
-    payload: EventUpdatePayload,
-  ): Promise<EventRecord> => {
+  updateEvent: async (eventId: string, payload: EventUpdatePayload): Promise<EventRecord> => {
     return api.patch<EventRecord>(`/events/${eventId}`, payload);
   },
 
   getDiscoverableEvents: async (): Promise<EventRecord[]> => {
-    return api.get<EventRecord[]>("/events/");
+    return api.get<EventRecord[]>('/events/');
   },
 
-  createEventFromProposal: async (
-    proposalId: string,
-  ): Promise<EventCreateFromProposalResponse> => {
-    return api.post<EventCreateFromProposalResponse>(
-      `/events/from-proposal/${proposalId}`,
-    );
+  createEventFromProposal: async (proposalId: string): Promise<EventCreateFromProposalResponse> => {
+    return api.post<EventCreateFromProposalResponse>(`/events/from-proposal/${proposalId}`);
   },
 
   publishEvent: async (eventId: string): Promise<EventRecord> => {
@@ -188,23 +167,17 @@ export const eventsService = {
     return api.post<EventRecord>(`/events/${eventId}/archive`);
   },
 
-  getApprovedProposals: async (
-    authToken?: string | null,
-  ): Promise<ApprovedProposal[]> => {
-    const proposals = await api.get<ProposalRecord[]>("/proposals/", {
-      authToken,
-    });
+  getApprovedProposals: async (authToken?: string | null): Promise<ApprovedProposal[]> => {
+    const proposals = await api.get<ProposalRecord[]>('/proposals/', { authToken });
     return proposals
-      .filter((proposal) => proposal.status === "approved")
+      .filter((proposal) => proposal.status === 'approved')
       .map(mapProposalToApprovedProposal);
   },
 
   getPastEvents: async (authToken?: string | null): Promise<PastEvent[]> => {
     const events = await eventsService.getEvents(authToken);
     return events
-      .filter(
-        (event) => event.status === "COMPLETED" || event.status === "ARCHIVED",
-      )
+      .filter((event) => event.status === 'COMPLETED' || event.status === 'ARCHIVED')
       .map((event) => ({
         id: event.id,
         title: event.title,
@@ -215,8 +188,8 @@ export const eventsService = {
 
   getEventStats: async (authToken?: string | null): Promise<EventStats> => {
     const [events, proposals] = await Promise.all([
-      api.get<EventRecord[]>("/events/", { authToken }),
-      api.get<ProposalRecord[]>("/proposals/", { authToken }),
+      api.get<EventRecord[]>('/events/', { authToken }),
+      api.get<ProposalRecord[]>('/proposals/', { authToken }),
     ]);
     const now = new Date();
 
@@ -224,13 +197,9 @@ export const eventsService = {
       totalEvents: events.length,
       thisMonth: events.filter((event) => {
         const createdAt = new Date(event.created_at);
-        return (
-          createdAt.getMonth() === now.getMonth() &&
-          createdAt.getFullYear() === now.getFullYear()
-        );
+        return createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear();
       }).length,
-      drafts: proposals.filter((proposal) => proposal.status === "draft")
-        .length,
+      drafts: proposals.filter((proposal) => proposal.status === 'draft').length,
     };
   },
 
@@ -240,97 +209,87 @@ export const eventsService = {
 
   updateEventBudget: async (
     eventId: string,
-    payload: EventBudgetUpdatePayload,
+    payload: EventBudgetUpdatePayload
   ): Promise<EventRecord> => {
     return api.put<EventRecord>(`/events/${eventId}/budget`, payload);
   },
 
-  getScheduleAIDraft: async (
-    eventId: string,
-  ): Promise<EventScheduleItemRecord[]> => {
-    return api.get<EventScheduleItemRecord[]>(
-      `/events/${eventId}/schedule/ai-draft`,
-    );
+  getScheduleAIDraft: async (eventId: string, draftId: string): Promise<AiScheduleDraftResponse> => {
+    return api.get<AiScheduleDraftResponse>(`/events/${eventId}/schedule/ai-draft?draft_id=${draftId}`);
   },
 
   generateScheduleAIDraft: async (
     eventId: string,
-    payload: EventScheduleAiDraftPayload,
-  ): Promise<EventScheduleItemRecord[]> => {
-    return api.post<EventScheduleItemRecord[]>(
-      `/events/${eventId}/schedule/ai-draft`,
-      payload,
-    );
+    payload: EventScheduleAiDraftPayload
+  ): Promise<AiScheduleDraftResponse> => {
+    return api.post<AiScheduleDraftResponse>(`/events/${eventId}/schedule/ai-draft`, payload);
   },
 
-  getEventSchedule: async (
+  updateScheduleAIDraft: async (
     eventId: string,
-  ): Promise<EventScheduleItemRecord[]> => {
+    draftId: string,
+    payload: AiScheduleDraftResponse
+  ): Promise<AiScheduleDraftResponse> => {
+    return api.put<AiScheduleDraftResponse>(`/events/${eventId}/schedule/ai-draft/${draftId}`, payload);
+  },
+
+  applyScheduleAIDraft: async (
+    eventId: string,
+    draftId: string,
+    items: AiScheduleDraftItem[]
+  ): Promise<{ status: string; message: string }> => {
+    return api.post<{ status: string; message: string }>(`/events/${eventId}/schedule/apply-ai-draft`, {
+      draft_id: draftId,
+      items
+    });
+  },
+
+  getEventSchedule: async (eventId: string): Promise<EventScheduleItemRecord[]> => {
     return api.get<EventScheduleItemRecord[]>(`/events/${eventId}/schedule`);
   },
 
   createEventScheduleItem: async (
     eventId: string,
-    payload: EventScheduleCreatePayload,
+    payload: EventScheduleCreatePayload
   ): Promise<EventScheduleItemRecord> => {
-    return api.post<EventScheduleItemRecord>(
-      `/events/${eventId}/schedule`,
-      payload,
-    );
+    return api.post<EventScheduleItemRecord>(`/events/${eventId}/schedule`, payload);
   },
 
   updateEventScheduleItem: async (
     eventId: string,
     scheduleItemId: string,
-    payload: EventScheduleUpdatePayload,
+    payload: EventScheduleUpdatePayload
   ): Promise<EventScheduleItemRecord> => {
-    return api.patch<EventScheduleItemRecord>(
-      `/events/${eventId}/schedule/${scheduleItemId}`,
-      payload,
-    );
+    return api.patch<EventScheduleItemRecord>(`/events/${eventId}/schedule/${scheduleItemId}`, payload);
   },
 
   /** Phase 2: search returns real venue listing records with `id` field */
-  searchEventVenues: async (
-    eventId: string,
-    city?: string,
-  ): Promise<VenueSearchResult> => {
-    const query = city?.trim()
-      ? `?city=${encodeURIComponent(city.trim())}`
-      : "";
-    return api.get<VenueSearchResult>(
-      `/events/${eventId}/venues/search${query}`,
-    );
+  searchEventVenues: async (eventId: string, city?: string): Promise<VenueSearchResult> => {
+    const query = city?.trim() ? `?city=${encodeURIComponent(city.trim())}` : '';
+    return api.get<VenueSearchResult>(`/events/${eventId}/venues/search${query}`);
   },
 
-  getVenueReservations: async (
-    eventId: string,
-  ): Promise<VenueReservationRecord[]> => {
-    return api.get<VenueReservationRecord[]>(
-      `/events/${eventId}/venue-reservations`,
-    );
+  getVenueReservations: async (eventId: string): Promise<VenueReservationRecord[]> => {
+    return api.get<VenueReservationRecord[]>(`/events/${eventId}/venue-reservations`);
   },
 
   /** Phase 2: payload now requires venue_listing_id instead of free-text venue_name/city */
   createVenueReservation: async (
     eventId: string,
-    payload: VenueReservationCreatePayload,
+    payload: VenueReservationCreatePayload
   ): Promise<VenueReservationRecord> => {
-    return api.post<VenueReservationRecord>(
-      `/events/${eventId}/venue-reservations`,
-      payload,
-    );
+    return api.post<VenueReservationRecord>(`/events/${eventId}/venue-reservations`, payload);
   },
 
   /** Phase 2: confirm after provider_accepted or offered_alternative */
   confirmVenueReservation: async (
     eventId: string,
     reservationId: string,
-    payload: VenueReservationOrganizerConfirmPayload,
+    payload: VenueReservationOrganizerConfirmPayload
   ): Promise<VenueReservationRecord> => {
     return api.post<VenueReservationRecord>(
       `/events/${eventId}/venue-reservations/${reservationId}/confirm`,
-      payload,
+      payload
     );
   },
 
@@ -338,11 +297,11 @@ export const eventsService = {
   cancelVenueReservation: async (
     eventId: string,
     reservationId: string,
-    payload: VenueReservationCancelPayload,
+    payload: VenueReservationCancelPayload
   ): Promise<VenueReservationRecord> => {
     return api.post<VenueReservationRecord>(
       `/events/${eventId}/venue-reservations/${reservationId}/cancel`,
-      payload,
+      payload
     );
   },
 
@@ -350,39 +309,30 @@ export const eventsService = {
   updateVenueReservationDeposit: async (
     eventId: string,
     reservationId: string,
-    payload: VenueReservationDepositUpdatePayload,
+    payload: VenueReservationDepositUpdatePayload
   ): Promise<VenueReservationRecord> => {
     return api.post<VenueReservationRecord>(
       `/events/${eventId}/venue-reservations/${reservationId}/deposit`,
-      payload,
+      payload
     );
   },
 
-  getTeamInvitations: async (
-    eventId: string,
-  ): Promise<EventTeamInvitationRecord[]> => {
-    return api.get<EventTeamInvitationRecord[]>(
-      `/events/${eventId}/team/invitations`,
-    );
+  getTeamInvitations: async (eventId: string): Promise<EventTeamInvitationRecord[]> => {
+    return api.get<EventTeamInvitationRecord[]>(`/events/${eventId}/team/invitations`);
   },
 
   createTeamInvitation: async (
     eventId: string,
-    payload: EventTeamInvitationCreatePayload,
+    payload: EventTeamInvitationCreatePayload
   ): Promise<EventTeamInvitationRecord> => {
-    return api.post<EventTeamInvitationRecord>(
-      `/events/${eventId}/team/invitations`,
-      payload,
-    );
+    return api.post<EventTeamInvitationRecord>(`/events/${eventId}/team/invitations`, payload);
   },
 
   acceptTeamInvitation: async (
     eventId: string,
-    invitationId: string,
+    invitationId: string
   ): Promise<EventTeamMemberRecord> => {
-    return api.post<EventTeamMemberRecord>(
-      `/events/${eventId}/team/invitations/${invitationId}/accept`,
-    );
+    return api.post<EventTeamMemberRecord>(`/events/${eventId}/team/invitations/${invitationId}/accept`);
   },
 
   getTeamMembers: async (eventId: string): Promise<EventTeamMemberRecord[]> => {
@@ -395,7 +345,7 @@ export const eventsService = {
 
   createEventTask: async (
     eventId: string,
-    payload: EventTaskCreatePayload,
+    payload: EventTaskCreatePayload
   ): Promise<EventTaskRecord> => {
     return api.post<EventTaskRecord>(`/events/${eventId}/tasks`, payload);
   },
@@ -403,12 +353,9 @@ export const eventsService = {
   updateEventTask: async (
     eventId: string,
     taskId: string,
-    payload: EventTaskUpdatePayload,
+    payload: EventTaskUpdatePayload
   ): Promise<EventTaskRecord> => {
-    return api.patch<EventTaskRecord>(
-      `/events/${eventId}/tasks/${taskId}`,
-      payload,
-    );
+    return api.patch<EventTaskRecord>(`/events/${eventId}/tasks/${taskId}`, payload);
   },
 
   getBookingSettings: async (eventId: string): Promise<EventRecord> => {
@@ -417,7 +364,7 @@ export const eventsService = {
 
   updateBookingSettings: async (
     eventId: string,
-    payload: BookingSettingsUpdatePayload,
+    payload: BookingSettingsUpdatePayload
   ): Promise<EventRecord> => {
     return api.put<EventRecord>(`/events/${eventId}/booking`, payload);
   },
@@ -426,18 +373,13 @@ export const eventsService = {
     return api.get<EventBookingRecord[]>(`/events/${eventId}/bookings`);
   },
 
-  getBookingById: async (
-    eventId: string,
-    bookingId: string,
-  ): Promise<EventBookingRecord> => {
-    return api.get<EventBookingRecord>(
-      `/events/${eventId}/bookings/${bookingId}`,
-    );
+  getBookingById: async (eventId: string, bookingId: string): Promise<EventBookingRecord> => {
+    return api.get<EventBookingRecord>(`/events/${eventId}/bookings/${bookingId}`);
   },
 
   createBooking: async (
     eventId: string,
-    payload: EventBookingCreatePayload,
+    payload: EventBookingCreatePayload
   ): Promise<EventBookingRecord> => {
     return api.post<EventBookingRecord>(`/events/${eventId}/bookings`, payload);
   },
@@ -448,22 +390,16 @@ export const eventsService = {
 
   generateBadges: async (
     eventId: string,
-    payload: BadgeGeneratePayload,
+    payload: BadgeGeneratePayload
   ): Promise<BadgeRecord[]> => {
-    return api.post<BadgeRecord[]>(
-      `/events/${eventId}/badges/generate`,
-      payload,
-    );
+    return api.post<BadgeRecord[]>(`/events/${eventId}/badges/generate`, payload);
   },
 
   scanCheckIn: async (
     eventId: string,
-    payload: CheckInScanPayload,
+    payload: CheckInScanPayload
   ): Promise<EventBookingRecord> => {
-    return api.post<EventBookingRecord>(
-      `/events/${eventId}/check-in/scan`,
-      payload,
-    );
+    return api.post<EventBookingRecord>(`/events/${eventId}/check-in/scan`, payload);
   },
 
   getAnnouncements: async (eventId: string): Promise<AnnouncementRecord[]> => {
@@ -472,29 +408,26 @@ export const eventsService = {
 
   createAnnouncement: async (
     eventId: string,
-    payload: AnnouncementCreatePayload,
+    payload: AnnouncementCreatePayload
   ): Promise<AnnouncementRecord> => {
-    return api.post<AnnouncementRecord>(
-      `/events/${eventId}/announcements`,
-      payload,
-    );
+    return api.post<AnnouncementRecord>(`/events/${eventId}/announcements`, payload);
   },
 
   runScheduledAnnouncementNow: async (
     eventId: string,
-    announcementId: string,
+    announcementId: string
   ): Promise<ManualAnnouncementRunResponse> => {
     return api.post<ManualAnnouncementRunResponse>(
-      `/events/${eventId}/announcements/${announcementId}/run-now`,
+      `/events/${eventId}/announcements/${announcementId}/run-now`
     );
   },
 
   getAnnouncementDeliveries: async (
     eventId: string,
-    announcementId: string,
+    announcementId: string
   ): Promise<AnnouncementDeliveryRecord[]> => {
     return api.get<AnnouncementDeliveryRecord[]>(
-      `/events/${eventId}/announcements/${announcementId}/deliveries`,
+      `/events/${eventId}/announcements/${announcementId}/deliveries`
     );
   },
 
@@ -504,7 +437,7 @@ export const eventsService = {
 
   createIncident: async (
     eventId: string,
-    payload: IncidentCreatePayload,
+    payload: IncidentCreatePayload
   ): Promise<IncidentRecord> => {
     return api.post<IncidentRecord>(`/events/${eventId}/incidents`, payload);
   },
@@ -512,30 +445,20 @@ export const eventsService = {
   updateIncident: async (
     eventId: string,
     incidentId: string,
-    payload: IncidentUpdatePayload,
+    payload: IncidentUpdatePayload
   ): Promise<IncidentRecord> => {
-    return api.patch<IncidentRecord>(
-      `/events/${eventId}/incidents/${incidentId}`,
-      payload,
-    );
+    return api.patch<IncidentRecord>(`/events/${eventId}/incidents/${incidentId}`, payload);
   },
 
   sendFeedbackSurvey: async (
     eventId: string,
-    payload: FeedbackSendPayload,
+    payload: FeedbackSendPayload
   ): Promise<FeedbackSummaryRecord> => {
-    return api.post<FeedbackSummaryRecord>(
-      `/events/${eventId}/feedback/send`,
-      payload,
-    );
+    return api.post<FeedbackSummaryRecord>(`/events/${eventId}/feedback/send`, payload);
   },
 
-  getFeedbackSummary: async (
-    eventId: string,
-  ): Promise<FeedbackSummaryRecord> => {
-    return api.get<FeedbackSummaryRecord>(
-      `/events/${eventId}/feedback/summary`,
-    );
+  getFeedbackSummary: async (eventId: string): Promise<FeedbackSummaryRecord> => {
+    return api.get<FeedbackSummaryRecord>(`/events/${eventId}/feedback/summary`);
   },
 
   getFinalReport: async (eventId: string): Promise<FinalReportRecord> => {
@@ -544,22 +467,16 @@ export const eventsService = {
 
   createFinalReport: async (
     eventId: string,
-    payload: FinalReportCreatePayload,
+    payload: FinalReportCreatePayload
   ): Promise<FinalReportRecord> => {
-    return api.post<FinalReportRecord>(
-      `/events/${eventId}/final-report`,
-      payload,
-    );
+    return api.post<FinalReportRecord>(`/events/${eventId}/final-report`, payload);
   },
 
   updateFinalReport: async (
     eventId: string,
-    payload: FinalReportUpdatePayload,
+    payload: FinalReportUpdatePayload
   ): Promise<FinalReportRecord> => {
-    return api.patch<FinalReportRecord>(
-      `/events/${eventId}/final-report`,
-      payload,
-    );
+    return api.patch<FinalReportRecord>(`/events/${eventId}/final-report`, payload);
   },
 };
 
