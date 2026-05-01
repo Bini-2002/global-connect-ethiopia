@@ -1,24 +1,14 @@
 /* frontend/app/types/event.ts */
 
-import { ProposalOfficeAssignments } from "./proposal";
+import { ProposalOfficeAssignments } from './proposal';
 
-export type EventUiStatus =
-  | "LIVE"
-  | "PENDING"
-  | "COMPLETED"
-  | "UPCOMING"
-  | "CANCELLED"
-  | "ARCHIVED";
-export type EventTaskPriority = "low" | "medium" | "high";
-export type EventTaskStatus = "open" | "in_progress" | "done" | "cancelled";
-export type EventAnnouncementChannel = "in_app";
-export type EventIncidentSeverity = "low" | "medium" | "high" | "critical";
-export type EventIncidentStatus = "open" | "in_review" | "resolved" | "closed";
-export type FinalReportVisibility =
-  | "private"
-  | "sponsors"
-  | "government"
-  | "public";
+export type EventUiStatus = 'LIVE' | 'PENDING' | 'COMPLETED' | 'UPCOMING' | 'CANCELLED' | 'ARCHIVED';
+export type EventTaskPriority = 'low' | 'medium' | 'high';
+export type EventTaskStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
+export type EventAnnouncementChannel = 'in_app';
+export type EventIncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type EventIncidentStatus = 'open' | 'in_review' | 'resolved' | 'closed';
+export type FinalReportVisibility = 'private' | 'sponsors' | 'government' | 'public';
 
 export interface PastEvent {
   id: string;
@@ -147,9 +137,33 @@ export interface EventScheduleItemRecord {
 }
 
 export interface EventScheduleAiDraftPayload {
-  duration_days?: number;
-  start_time?: string;
-  sessions_per_day?: number;
+  event_type: string;
+  duration_days: number;
+  start_time: string;
+}
+
+export interface AiScheduleDraftItem {
+  title: string;
+  start_time: string;
+  end_time: string;
+  category?: string | null;
+  description?: string | null;
+  order_index: number;
+  is_ai_suggestion: boolean;
+  applied: boolean;
+}
+
+export interface AiScheduleDraftResponse {
+  id: string;
+  event_id: string;
+  organizer_id: string;
+  input_constraints: Record<string, any>;
+  provider: string;
+  status: string;
+  generated_items: AiScheduleDraftItem[];
+  created_at: string;
+  expires_at: string;
+  can_apply: boolean;
 }
 
 export interface EventScheduleCreatePayload {
@@ -175,19 +189,19 @@ export interface EventScheduleUpdatePayload {
 // ─── Phase 2: Venue Search & Reservation ─────────────────────────────────────
 
 export type VenueReservationStatus =
-  | "requested"
-  | "provider_accepted"
-  | "offered_alternative"
-  | "organizer_confirmed"
-  | "confirmed"
-  | "declined"
-  | "cancelled";
+  | 'requested'
+  | 'provider_accepted'
+  | 'offered_alternative'
+  | 'organizer_confirmed'
+  | 'confirmed'
+  | 'declined'
+  | 'cancelled';
 
 export type VenueReservationPaymentStatus =
-  | "not_required"
-  | "deposit_pending"
-  | "deposit_funded"
-  | "satisfied";
+  | 'not_required'
+  | 'deposit_pending'
+  | 'deposit_funded'
+  | 'satisfied';
 
 export interface VenueListingSearchResponse {
   id: string;
@@ -410,7 +424,7 @@ export interface CheckInScanPayload {
 }
 
 export interface AnnouncementCreatePayload {
-  audience_segment: "confirmed_bookings";
+  audience_segment: 'confirmed_bookings';
   subject: string;
   body: string;
   channel?: EventAnnouncementChannel;
@@ -539,20 +553,17 @@ export interface FinalReportRecord {
 
 export interface EventUpdatePayload {
   description?: string;
-  visibility?: "public" | "private";
+  visibility?: 'public' | 'private';
   booking_required?: boolean;
   vip_list?: string[];
   program_schedule_summary?: string;
 }
 
-export const EVENT_STATUS_CONFIG: Record<
-  EventUiStatus,
-  { label: string; bgClass: string }
-> = {
-  LIVE: { label: "LIVE", bgClass: "bg-green-500 text-white" },
-  PENDING: { label: "PENDING", bgClass: "bg-amber-500 text-white" },
-  COMPLETED: { label: "COMPLETED", bgClass: "bg-slate-500 text-white" },
-  UPCOMING: { label: "UPCOMING", bgClass: "bg-blue-500 text-white" },
-  CANCELLED: { label: "CANCELLED", bgClass: "bg-red-500 text-white" },
-  ARCHIVED: { label: "ARCHIVED", bgClass: "bg-zinc-700 text-white" },
+export const EVENT_STATUS_CONFIG: Record<EventUiStatus, { label: string; bgClass: string }> = {
+  LIVE: { label: 'LIVE', bgClass: 'bg-green-500 text-white' },
+  PENDING: { label: 'PENDING', bgClass: 'bg-amber-500 text-white' },
+  COMPLETED: { label: 'COMPLETED', bgClass: 'bg-slate-500 text-white' },
+  UPCOMING: { label: 'UPCOMING', bgClass: 'bg-blue-500 text-white' },
+  CANCELLED: { label: 'CANCELLED', bgClass: 'bg-red-500 text-white' },
+  ARCHIVED: { label: 'ARCHIVED', bgClass: 'bg-zinc-700 text-white' },
 };
