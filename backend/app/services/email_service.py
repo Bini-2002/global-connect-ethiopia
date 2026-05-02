@@ -4,6 +4,9 @@ import json
 import logging
 from typing import Optional
 from urllib import error, request
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from app.core.config import settings
 
@@ -81,3 +84,50 @@ class ResendEmailService:
         except (error.URLError, TimeoutError) as exc:
             logger.error("Resend request failed for %s: %s", recipient_email, exc)
             raise EmailDeliveryError(f"Resend request failed: {exc}") from exc
+
+
+class SmtpEmailService:
+    @staticmethod
+    def _is_configured() -> bool:
+        return bool(settings.SMTP_USERNAME and settings.SMTP_PASSWORD)
+
+    @classmethod
+    def send_otp_email(cls, recipient_email: str, otp_code: str, expiry_minutes: int) -> Optional[str]:
+        if not cls._is_configured():
+            raise EmailDeliveryError("SMTP is enabled but SMTP_USERNAME or SMTP_PASSWORD is missing")
+
+        msg = MIMEMultipart()
+        msg['From'] = settings.SMTP_USERNAME
+        msg['To'] = recipient_email
+        msg['Subject'] = settings.RESEND_OTP_SUBJECT
+
+        html = f"""
+        <p>Your verification code is <strong>{otp_code}</strong>.</p>
+        <p>This code expires in {expiry_minutes} minutes.</p>
+        """
+        msg.attach(MIMEText(html, 'html'))
+
+        try:
+            logger.info("Sending OTP email via SMTP to %s", recipient_email)
+            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT)
+            server.starttls()
+            server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD) # type: ignore
+            server.send_message(msg)
+            server.quit()
+            logger.info("SMTP accepted OTP email for %s", recipient_email)
+            return "smtp-sent"
+        except Exception as exc:
+            logger.error("SMTP delivery failed for %s: %s", recipient_email, exc)
+            raise EmailDeliveryError(f"SMTP delivery failed: {exc}") from exc
+
+
+class EmailService:
+    @classmethod
+    def send_otp_email(cls, recipient_email: str, otp_code: str, expiry_minutes: int) -> Optional[str]:
+        if settings.SMTP_ENABLED:
+            return SmtpEmailService.send_otp_email(recipient_email, otp_code, expiry_minutes)
+        elif settings.RESEND_ENABLED:
+            return ResendEmailService.send_otp_email(recipient_email, otp_code, expiry_minutes)
+        else:
+            logger.info("Both SMTP and Resend are disabled. OTP email sending skipped for %s", recipient_email)
+            return None
