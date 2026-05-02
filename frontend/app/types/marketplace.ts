@@ -1,6 +1,6 @@
 export type RequestStatus = 'REQUESTED' | 'QUOTED' | 'NEGOTIATING' | 'ACCEPTED';
 export type NegotiationMessageType = 'QUOTE' | 'COUNTER';
-export type ContractStatus = 'AGREED' | 'FUNDED' | 'COMPLETED' | 'PAID';
+export type ContractStatus = 'draft' | 'pending_signatures' | 'active' | 'completed' | 'cancelled';
 export type EscrowStatus = 'NONE' | 'LOCKED' | 'RELEASED';
 export type PaymentStatus = 'PENDING' | 'PAID';
 export type TransactionType = 'DEPOSIT' | 'ESCROW_LOCK' | 'RELEASE' | 'REFUND' | 'COMMISSION';
@@ -125,22 +125,41 @@ export interface MarketplaceRequestRecord {
   updated_at: string;
 }
 
+/** Phase 2 contract record — uses simplified signing model */
 export interface MarketplaceContractRecord {
   id: string;
-  request_id: string;
+  request_id: string | null;
+  opportunity_id: string | null;
+  proposal_id: string | null;
+  event_id: string | null;
   organizer_id: string;
   vendor_id: string;
-  price: number;
+  vendor_user_id: string;
+  title: string;
+  scope: string;
+  /** amount replaces the old `price` field */
+  amount: number;
+  currency: string;
+  terms: string | null;
+  selection_note: string | null;
   status: ContractStatus;
   escrow_status: EscrowStatus;
   payment_status: PaymentStatus;
-  organizer_name?: string | null;
-  vendor_business_name?: string | null;
+  /** Phase 2 signature flags */
+  signed_by_organizer: boolean;
+  signed_by_vendor: boolean;
+  signed_by_organizer_at: string | null;
+  signed_by_vendor_at: string | null;
+  organizer_name: string | null;
+  vendor_business_name: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  funded_at: string | null;
+  completed_at: string | null;
+  paid_at: string | null;
+  cancelled_at: string | null;
   created_at: string;
   updated_at: string;
-  completed_at?: string | null;
-  funded_at?: string | null;
-  paid_at?: string | null;
 }
 
 export interface WalletRecord {
@@ -164,7 +183,8 @@ export interface WalletTransactionRecord {
 
 export interface CreateMarketplaceRequestPayload {
   vendor_id: string;
-  event_id?: string | null;
+  event_id: string;
+  services?: string[];
   description: string;
 }
 
@@ -175,4 +195,75 @@ export interface NegotiationActionPayload {
 
 export interface WalletDepositPayload {
   amount: number;
+}
+
+// ─── Phase 2: Venue Listing Types ────────────────────────────────────────────
+
+export interface VenueListingVendorSummary {
+  vendor_id: string;
+  vendor_user_id: string;
+  business_name: string | null;
+  vendor_name?: string | null;
+  business_category?: string | null;
+  location?: string | null;
+}
+
+export interface VenueListingRecord {
+  id: string;
+  vendor_id: string;
+  vendor_user_id: string;
+  venue_name: string;
+  city: string;
+  location: string | null;
+  capacity: number;
+  pricing_type: string;
+  base_price: number | null;
+  deposit_amount: number | null;
+  currency: string;
+  is_reservable: boolean;
+  description: string | null;
+  notes: string | null;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+  vendor?: VenueListingVendorSummary | null;
+}
+
+export interface VenueListingSearchResult {
+  id: string;
+  venue_name: string;
+  city: string;
+  location: string | null;
+  capacity: number;
+  estimated_cost: number | null;
+  deposit_amount: number | null;
+  currency: string;
+  available: boolean;
+  is_reservable: boolean;
+  description: string | null;
+  notes: string | null;
+  vendor: VenueListingVendorSummary | null;
+}
+
+export interface VenueListingCreatePayload {
+  venue_name: string;
+  city: string;
+  location?: string;
+  capacity: number;
+  pricing_type?: string;
+  base_price?: number;
+  deposit_amount?: number;
+  currency?: string;
+  is_reservable?: boolean;
+  description?: string;
+  notes?: string;
+}
+
+export interface VenueReservationProviderResponsePayload {
+  action: 'accept' | 'decline' | 'offer_alternative';
+  response_notes?: string;
+  proposed_start?: string;
+  proposed_end?: string;
+  proposed_cost?: number;
+  proposed_deposit_amount?: number;
 }

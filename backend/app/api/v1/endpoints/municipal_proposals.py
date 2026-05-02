@@ -11,7 +11,9 @@ from app.db.mongodb import proposal_collection
 from app.models.proposal_states import ProposalStatus
 from app.schemas.proposal import ProposalResponse
 from app.services.permit_service import ensure_permit_for_proposal
+from app.services.police_notification_service import ensure_police_notification_for_proposal
 from app.services.review_offices import serialize_review_office
+from app.services.verification_letter_service import ensure_verification_letter_for_proposal
 
 router = APIRouter()
 
@@ -131,6 +133,23 @@ async def approve_under_review(
         issued_by_user_id=str(current_user["_id"]),
         issued_by_office_name=office.get("office_name"),
     )
+    ministry_office = _assigned_office(proposal, "ministry")
+    verification_letter = await ensure_verification_letter_for_proposal(
+        proposal=proposal,
+        event_id=proposal.get("event_id"),
+        ministry_office_name=ministry_office.get("office_name") or ministry_office.get("display_label"),
+        municipal_office_name=office.get("office_name"),
+        reviewer_name=current_user.get("full_name"),
+        approval_timestamp=now,
+    )
+    police_notification = await ensure_police_notification_for_proposal(
+        proposal=proposal,
+        event_id=proposal.get("event_id"),
+        police_office=police_office,
+        permit_reference=permit.get("permit_number"),
+        approval_reference=verification_letter.get("reference_number"),
+        municipal_office_name=office.get("office_name"),
+    )
     security_assignment = None
     if police_office.get("user_id"):
         security_assignment = {
@@ -155,6 +174,9 @@ async def approve_under_review(
                 "updated_at": now,
                 "approval_certificate_id": str(permit["_id"]),
                 "approval_certificate_number": permit.get("permit_number"),
+                "verification_letter_id": str(verification_letter["_id"]),
+                "verification_letter_reference": verification_letter.get("reference_number"),
+                "police_notification_id": str(police_notification["_id"]),
                 "security_assignment": security_assignment,
             },
             "$push": {
@@ -174,7 +196,8 @@ async def approve_under_review(
                     "status": ProposalStatus.APPROVED.value,
                     "message": (
                         f"{office.get('display_label') or office.get('office_name')} approved your event. "
-                        f"Approval certificate {permit.get('permit_number')} is now available."
+                        f"Approval certificate {permit.get('permit_number')} and verification letter "
+                        f"{verification_letter.get('reference_number')} are now available."
                     ),
                     "office_id": office.get("user_id"),
                     "office_name": office.get("office_name"),
@@ -182,6 +205,9 @@ async def approve_under_review(
                     "details": {
                         "approval_certificate_id": str(permit["_id"]),
                         "approval_certificate_number": permit.get("permit_number"),
+                        "verification_letter_id": str(verification_letter["_id"]),
+                        "verification_letter_reference": verification_letter.get("reference_number"),
+                        "police_notification_id": str(police_notification["_id"]),
                         "police_office_id": police_office.get("user_id"),
                         "police_office_name": police_office.get("office_name"),
                     },

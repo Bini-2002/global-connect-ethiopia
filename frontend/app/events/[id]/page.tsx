@@ -1,3 +1,5 @@
+/* frontend/app/events/[id]/page.tsx */
+
 'use client';
 
 import Link from 'next/link';
@@ -8,6 +10,7 @@ import { api } from '@/app/lib/api';
 import { getRole, isLoggedIn } from '@/app/lib/auth';
 import { eventsService } from '@/app/services/eventsService';
 import {
+  AnnouncementDeliveryRecord,
   EventBookingRecord,
   EventRecord,
   EventScheduleItemRecord,
@@ -108,6 +111,7 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [schedule, setSchedule] = useState<EventScheduleItemRecord[]>([]);
   const [booking, setBooking] = useState<EventBookingRecord | null>(null);
+  const [inboxAnnouncements, setInboxAnnouncements] = useState<AnnouncementDeliveryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -117,6 +121,7 @@ export default function EventDetailPage() {
     attendee_email: '',
     slots_requested: 1,
     notes: '',
+    attendee_profile: {} as Record<string, string>,
   });
 
   useEffect(() => {
@@ -149,9 +154,13 @@ export default function EventDetailPage() {
         setSchedule(scheduleResponse);
 
         if (getRole() === 'attendee') {
-          const myBookings = await eventsService.getMyBookings(eventId).catch(() => []);
+          const [myBookings, inbox] = await Promise.all([
+            eventsService.getMyBookings(eventId).catch(() => []),
+            api.get<AnnouncementDeliveryRecord[]>('/users/me/in-app-announcements').catch(() => []),
+          ]);
           if (!active) return;
           setBooking(myBookings[0] ?? null);
+          setInboxAnnouncements(inbox.filter((item) => item.event_id === eventId));
         }
       } catch (err) {
         if (!active) return;
@@ -177,7 +186,8 @@ export default function EventDetailPage() {
     if (!event || role !== 'attendee') return false;
     if (!event.booking_required) return false;
     if (booking) return false;
-    return ['published', 'private_published', 'live'].includes(event.status);
+    if (event.visibility !== 'public') return false;
+    return ['published', 'live'].includes(event.status);
   }, [booking, event, role]);
 
   const bookingWindowLabel = useMemo(() => {
@@ -215,6 +225,7 @@ export default function EventDetailPage() {
         attendee_email: form.attendee_email || undefined,
         slots_requested: Number(form.slots_requested) || 1,
         notes: form.notes || undefined,
+        attendee_profile: form.attendee_profile,
       });
       setBooking(created);
       await refreshEventAndBooking();
@@ -224,6 +235,8 @@ export default function EventDetailPage() {
       setSubmitting(false);
     }
   };
+
+  const requiredFields = event?.required_attendee_fields || [];
 
   return (
     <main className="min-h-screen bg-[#F8FBF9] text-slate-900">
@@ -317,6 +330,18 @@ export default function EventDetailPage() {
                     <div className="rounded-2xl border border-slate-200 p-4">
                       <p className="text-[11px] uppercase tracking-wide text-slate-400">Booking window</p>
                       <p className="mt-2 text-sm leading-relaxed text-slate-600">{bookingWindowLabel}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 p-4 md:col-span-2">
+                      <p className="text-[11px] uppercase tracking-wide text-slate-400">Required attendee information</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {requiredFields.length ? requiredFields.map((field) => (
+                          <span key={field} className="rounded-full bg-[#F5FBF8] px-3 py-1 text-xs font-semibold text-[#062E22]">
+                            {field.replace(/_/g, ' ')}
+                          </span>
+                        )) : (
+                          <span className="text-sm text-slate-500">No extra attendee fields configured for this event.</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -513,6 +538,29 @@ export default function EventDetailPage() {
                       />
                     </div>
 
+                    {requiredFields.map((field) => (
+                      <div key={field}>
+                        <label htmlFor={field} className="mb-1 block text-sm font-medium text-slate-700">
+                          {field.replace(/_/g, ' ')}
+                        </label>
+                        <input
+                          id={field}
+                          value={form.attendee_profile[field] || ''}
+                          onChange={(eventForm) =>
+                            setForm((current) => ({
+                              ...current,
+                              attendee_profile: {
+                                ...current.attendee_profile,
+                                [field]: eventForm.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                          placeholder={`Enter ${field.replace(/_/g, ' ')}`}
+                        />
+                      </div>
+                    ))}
+
                     {submitError && (
                       <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                         {submitError}
@@ -551,6 +599,25 @@ export default function EventDetailPage() {
                     <p className="text-[11px] uppercase tracking-wide text-slate-400">Venue status</p>
                     <p className="mt-1 text-sm font-semibold text-[#062E22]">{event.venue_status}</p>
                   </div>
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-sm font-semibold uppercase tracking-wide text-[#0a4a37]">In-app announcements</p>
+                <div className="mt-4 space-y-3">
+                  {inboxAnnouncements.length === 0 ? (
+                    <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                      No in-app announcements have been delivered to your attendee inbox for this event yet.
+                    </div>
+                  ) : (
+                    inboxAnnouncements.map((item) => (
+                      <div key={item.id} className="rounded-2xl border border-slate-200 p-4">
+                        <p className="text-sm font-semibold text-[#062E22]">{item.subject}</p>
+                        <p className="text-xs text-slate-400 mt-1">{formatDateTime(item.delivered_at || item.created_at)}</p>
+                        <p className="text-sm text-slate-600 mt-3">{item.body}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

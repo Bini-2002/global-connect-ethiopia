@@ -3,6 +3,7 @@ import { ProposalRecord } from '../types/proposal';
 import {
   ApprovedProposal,
   AnnouncementCreatePayload,
+  AnnouncementDeliveryRecord,
   AnnouncementRecord,
   BadgeGeneratePayload,
   BadgeRecord,
@@ -36,11 +37,17 @@ import {
   IncidentCreatePayload,
   IncidentRecord,
   IncidentUpdatePayload,
+  ManualAnnouncementRunResponse,
   PastEvent,
-  VenueReservationConfirmPayload,
+  VenueListingSearchResponse,
+  VenueReservationCancelPayload,
   VenueReservationCreatePayload,
+  VenueReservationDepositUpdatePayload,
+  VenueReservationOrganizerConfirmPayload,
   VenueReservationRecord,
   VenueSearchResult,
+  AiScheduleDraftResponse,
+  AiScheduleDraftItem
 } from '../types/event';
 
 function formatEventDate(startDate?: string | null, endDate?: string | null): string {
@@ -207,15 +214,34 @@ export const eventsService = {
     return api.put<EventRecord>(`/events/${eventId}/budget`, payload);
   },
 
-  getScheduleAIDraft: async (eventId: string): Promise<EventScheduleItemRecord[]> => {
-    return api.get<EventScheduleItemRecord[]>(`/events/${eventId}/schedule/ai-draft`);
+  getScheduleAIDraft: async (eventId: string, draftId: string): Promise<AiScheduleDraftResponse> => {
+    return api.get<AiScheduleDraftResponse>(`/events/${eventId}/schedule/ai-draft?draft_id=${draftId}`);
   },
 
   generateScheduleAIDraft: async (
     eventId: string,
     payload: EventScheduleAiDraftPayload
-  ): Promise<EventScheduleItemRecord[]> => {
-    return api.post<EventScheduleItemRecord[]>(`/events/${eventId}/schedule/ai-draft`, payload);
+  ): Promise<AiScheduleDraftResponse> => {
+    return api.post<AiScheduleDraftResponse>(`/events/${eventId}/schedule/ai-draft`, payload);
+  },
+
+  updateScheduleAIDraft: async (
+    eventId: string,
+    draftId: string,
+    payload: AiScheduleDraftResponse
+  ): Promise<AiScheduleDraftResponse> => {
+    return api.put<AiScheduleDraftResponse>(`/events/${eventId}/schedule/ai-draft/${draftId}`, payload);
+  },
+
+  applyScheduleAIDraft: async (
+    eventId: string,
+    draftId: string,
+    items: AiScheduleDraftItem[]
+  ): Promise<{ status: string; message: string }> => {
+    return api.post<{ status: string; message: string }>(`/events/${eventId}/schedule/apply-ai-draft`, {
+      draft_id: draftId,
+      items
+    });
   },
 
   getEventSchedule: async (eventId: string): Promise<EventScheduleItemRecord[]> => {
@@ -237,6 +263,7 @@ export const eventsService = {
     return api.patch<EventScheduleItemRecord>(`/events/${eventId}/schedule/${scheduleItemId}`, payload);
   },
 
+  /** Phase 2: search returns real venue listing records with `id` field */
   searchEventVenues: async (eventId: string, city?: string): Promise<VenueSearchResult> => {
     const query = city?.trim() ? `?city=${encodeURIComponent(city.trim())}` : '';
     return api.get<VenueSearchResult>(`/events/${eventId}/venues/search${query}`);
@@ -246,6 +273,7 @@ export const eventsService = {
     return api.get<VenueReservationRecord[]>(`/events/${eventId}/venue-reservations`);
   },
 
+  /** Phase 2: payload now requires venue_listing_id instead of free-text venue_name/city */
   createVenueReservation: async (
     eventId: string,
     payload: VenueReservationCreatePayload
@@ -253,13 +281,38 @@ export const eventsService = {
     return api.post<VenueReservationRecord>(`/events/${eventId}/venue-reservations`, payload);
   },
 
+  /** Phase 2: confirm after provider_accepted or offered_alternative */
   confirmVenueReservation: async (
     eventId: string,
     reservationId: string,
-    payload: VenueReservationConfirmPayload
+    payload: VenueReservationOrganizerConfirmPayload
   ): Promise<VenueReservationRecord> => {
     return api.post<VenueReservationRecord>(
       `/events/${eventId}/venue-reservations/${reservationId}/confirm`,
+      payload
+    );
+  },
+
+  /** Phase 2: cancel a reservation */
+  cancelVenueReservation: async (
+    eventId: string,
+    reservationId: string,
+    payload: VenueReservationCancelPayload
+  ): Promise<VenueReservationRecord> => {
+    return api.post<VenueReservationRecord>(
+      `/events/${eventId}/venue-reservations/${reservationId}/cancel`,
+      payload
+    );
+  },
+
+  /** Phase 2: update deposit milestone status */
+  updateVenueReservationDeposit: async (
+    eventId: string,
+    reservationId: string,
+    payload: VenueReservationDepositUpdatePayload
+  ): Promise<VenueReservationRecord> => {
+    return api.post<VenueReservationRecord>(
+      `/events/${eventId}/venue-reservations/${reservationId}/deposit`,
       payload
     );
   },
@@ -358,6 +411,24 @@ export const eventsService = {
     payload: AnnouncementCreatePayload
   ): Promise<AnnouncementRecord> => {
     return api.post<AnnouncementRecord>(`/events/${eventId}/announcements`, payload);
+  },
+
+  runScheduledAnnouncementNow: async (
+    eventId: string,
+    announcementId: string
+  ): Promise<ManualAnnouncementRunResponse> => {
+    return api.post<ManualAnnouncementRunResponse>(
+      `/events/${eventId}/announcements/${announcementId}/run-now`
+    );
+  },
+
+  getAnnouncementDeliveries: async (
+    eventId: string,
+    announcementId: string
+  ): Promise<AnnouncementDeliveryRecord[]> => {
+    return api.get<AnnouncementDeliveryRecord[]>(
+      `/events/${eventId}/announcements/${announcementId}/deliveries`
+    );
   },
 
   getIncidents: async (eventId: string): Promise<IncidentRecord[]> => {

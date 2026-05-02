@@ -107,6 +107,9 @@ class ProposalResponse(BaseModel):
     security_assignment: ProposalSecurityAssignment | None = None
     approval_certificate_id: str | None = None
     approval_certificate_number: str | None = None
+    verification_letter_id: str | None = None
+    verification_letter_reference: str | None = None
+    police_notification_id: str | None = None
     rejection_reason: str | None = None
     change_request_note: str | None = None
     created_at: datetime
