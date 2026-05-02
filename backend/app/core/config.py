@@ -36,13 +36,20 @@ class Settings(BaseSettings):
     OTP_ATTEMPT_LIMIT: int = 3
     AUTO_APPROVE_SCORE: int = 75
     MANUAL_REVIEW_MIN_SCORE: int = 50
-    ENABLE_DEBUG_OTP_RESPONSE: bool = True
+    ENABLE_DEBUG_OTP_RESPONSE: bool = False
 
     # Resend email delivery (OTP)
     RESEND_ENABLED: bool = False
     RESEND_API_KEY: Optional[str] = None
     RESEND_FROM_EMAIL: Optional[str] = None
     RESEND_OTP_SUBJECT: str = "Your Global Connect Ethiopia verification code"
+
+    # SMTP email delivery (fallback / alternative to Resend)
+    SMTP_ENABLED: bool = False
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
 
     # Session cookie auth
     SESSION_COOKIE_NAME: str = "gce_sid"
