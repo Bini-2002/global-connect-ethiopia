@@ -27,6 +27,7 @@ proposal_collection = db.proposals
 # post-approval event lifecycle collections
 event_collection = db.events
 event_schedule_collection = db.event_schedules
+venue_listing_collection = db.venue_listings
 venue_reservation_collection = db.venue_reservations
 event_team_invitation_collection = db.event_team_invitations
 event_team_member_collection = db.event_team_members
@@ -51,3 +52,11 @@ transaction_collection = db.transactions
 wallet_collection = db.wallets
 withdrawal_collection = db.withdrawals
 message_collection = db.messages
+
+# AI collections
+ai_schedule_draft_collection = db.ai_schedule_drafts
+ai_schedule_draft_item_collection = db.ai_schedule_draft_items
+ai_chat_session_collection = db.ai_chat_sessions
+ai_chat_message_collection = db.ai_chat_messages
+ai_regulatory_rule_collection = db.ai_regulatory_rules
+ai_proposal_form_link_collection = db.ai_proposal_form_links
