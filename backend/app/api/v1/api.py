@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     admin_organizers,
     admin_documents,
     admin_vendors,
+    ai,
     auth,
     catalog,
     events,
@@ -20,6 +21,7 @@ from app.api.v1.endpoints import (
     police_proposals,
     proposals,
     users,
+    venue_listings,
     vendors_services,
     vendors,
     verification_letters,
@@ -45,6 +47,7 @@ api_router.include_router(verification_letters.router, prefix="/verification-let
 api_router.include_router(organizers.router, prefix="/organizers", tags=["Organizer Registration"])
 api_router.include_router(admin_documents.router, prefix="/admin", tags=["Admin Documents"])
 api_router.include_router(vendors_services.router, prefix="/vendors/services", tags=["Vendor Services"])
+api_router.include_router(venue_listings.router, prefix="/venues", tags=["Venue Listings"])
 api_router.include_router(catalog.router, prefix="/catalog", tags=["Marketplace Catalog"])
 api_router.include_router(events.router, prefix="/events", tags=["Events"])
 api_router.include_router(opportunities.router, prefix="/opportunities", tags=["Marketplace Opportunities"])
@@ -52,3 +55,4 @@ api_router.include_router(market_requests.router, prefix="/requests", tags=["Ven
 api_router.include_router(market_contracts.router, prefix="/contracts", tags=["Contracts"])
 api_router.include_router(payments.router, prefix="/payments", tags=["Escrow Payments"])
 api_router.include_router(wallet.router, prefix="/wallet", tags=["Vendor Wallet"])
+api_router.include_router(ai.router, prefix="/ai", tags=["AI"])
