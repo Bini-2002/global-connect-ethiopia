@@ -1,9 +1,11 @@
+/* frontend/app/types/event.ts */
+
 import { ProposalOfficeAssignments } from './proposal';
 
 export type EventUiStatus = 'LIVE' | 'PENDING' | 'COMPLETED' | 'UPCOMING' | 'CANCELLED' | 'ARCHIVED';
 export type EventTaskPriority = 'low' | 'medium' | 'high';
 export type EventTaskStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
-export type EventAnnouncementChannel = 'email' | 'sms' | 'in_app' | 'multi';
+export type EventAnnouncementChannel = 'in_app';
 export type EventIncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type EventIncidentStatus = 'open' | 'in_review' | 'resolved' | 'closed';
 export type FinalReportVisibility = 'private' | 'sponsors' | 'government' | 'public';
@@ -91,6 +93,7 @@ export interface EventRecord {
   booking_opens_at?: string | null;
   booking_closes_at?: string | null;
   allow_waitlist: boolean;
+  required_attendee_fields: string[];
   booked_count: number;
   remaining_slots: number;
   survey_status: string;
@@ -134,9 +137,33 @@ export interface EventScheduleItemRecord {
 }
 
 export interface EventScheduleAiDraftPayload {
-  duration_days?: number;
-  start_time?: string;
-  sessions_per_day?: number;
+  event_type: string;
+  duration_days: number;
+  start_time: string;
+}
+
+export interface AiScheduleDraftItem {
+  title: string;
+  start_time: string;
+  end_time: string;
+  category?: string | null;
+  description?: string | null;
+  order_index: number;
+  is_ai_suggestion: boolean;
+  applied: boolean;
+}
+
+export interface AiScheduleDraftResponse {
+  id: string;
+  event_id: string;
+  organizer_id: string;
+  input_constraints: Record<string, any>;
+  provider: string;
+  status: string;
+  generated_items: AiScheduleDraftItem[];
+  created_at: string;
+  expires_at: string;
+  can_apply: boolean;
 }
 
 export interface EventScheduleCreatePayload {
@@ -159,11 +186,37 @@ export interface EventScheduleUpdatePayload {
   is_ai_suggestion?: boolean;
 }
 
-export interface VenueSearchOption {
+// ─── Phase 2: Venue Search & Reservation ─────────────────────────────────────
+
+export type VenueReservationStatus =
+  | 'requested'
+  | 'provider_accepted'
+  | 'offered_alternative'
+  | 'organizer_confirmed'
+  | 'confirmed'
+  | 'declined'
+  | 'cancelled';
+
+export type VenueReservationPaymentStatus =
+  | 'not_required'
+  | 'deposit_pending'
+  | 'deposit_funded'
+  | 'satisfied';
+
+export interface VenueListingSearchResponse {
+  id: string;
   venue_name: string;
   city: string;
+  location: string | null;
+  capacity: number;
+  estimated_cost: number | null;
+  deposit_amount: number | null;
+  currency: string;
   available: boolean;
-  estimated_cost?: number | null;
+  is_reservable: boolean;
+  description: string | null;
+  notes: string | null;
+  vendor: { vendor_id: string; business_name: string | null } | null;
 }
 
 export interface VenueSearchResult {
@@ -171,40 +224,76 @@ export interface VenueSearchResult {
   date_from?: string | null;
   date_to?: string | null;
   city?: string | null;
-  venues: VenueSearchOption[];
+  venues: VenueListingSearchResponse[];
 }
 
+/** Phase 2: creation now uses venue_listing_id instead of free-text */
 export interface VenueReservationCreatePayload {
-  venue_name: string;
-  city: string;
-  location?: string;
+  venue_listing_id: string;
   requested_start: string;
   requested_end: string;
-  estimated_cost?: number | null;
+  estimated_cost?: number;
   notes?: string;
 }
 
-export interface VenueReservationConfirmPayload {
+export interface VenueReservationOrganizerConfirmPayload {
   confirmation_notes?: string;
-  final_cost?: number | null;
 }
 
+export interface VenueReservationCancelPayload {
+  cancellation_notes?: string;
+}
+
+export interface VenueReservationDepositUpdatePayload {
+  payment_milestone_status: VenueReservationPaymentStatus;
+  payment_reference_id?: string;
+  notes?: string;
+}
+
+/** Phase 2 full handshake reservation record */
 export interface VenueReservationRecord {
   id: string;
   event_id: string;
+  venue_listing_id: string;
+  vendor_id: string;
+  vendor_user_id: string;
   venue_name: string;
   city: string;
-  location?: string | null;
+  location: string | null;
   requested_start: string;
   requested_end: string;
-  estimated_cost?: number | null;
-  final_cost?: number | null;
-  notes?: string | null;
-  confirmation_notes?: string | null;
-  status: string;
+  requested_capacity: number | null;
+  estimated_cost: number | null;
+  deposit_amount: number | null;
+  currency: string;
+  notes: string | null;
+  provider_action: string | null;
+  provider_response_notes: string | null;
+  failure_reason: string | null;
+  organizer_confirmation_notes: string | null;
+  cancellation_notes: string | null;
+  proposed_start: string | null;
+  proposed_end: string | null;
+  proposed_cost: number | null;
+  proposed_deposit_amount: number | null;
+  agreed_start: string | null;
+  agreed_end: string | null;
+  agreed_cost: number | null;
+  agreed_deposit_amount: number | null;
+  status: VenueReservationStatus;
+  payment_milestone_status: VenueReservationPaymentStatus;
+  payment_reference_id: string | null;
+  deposit_funded_at: string | null;
+  deposit_satisfied_at: string | null;
+  alternative_suggestions: VenueListingSearchResponse[];
+  alternative_suggestions_generated_at: string | null;
   created_at: string;
   updated_at: string;
-  confirmed_at?: string | null;
+  failed_at: string | null;
+  provider_responded_at: string | null;
+  organizer_confirmed_at: string | null;
+  confirmed_at: string | null;
+  cancelled_at: string | null;
 }
 
 export interface EventTeamInvitationCreatePayload {
@@ -278,6 +367,7 @@ export interface BookingSettingsUpdatePayload {
   booking_opens_at?: string | null;
   booking_closes_at?: string | null;
   allow_waitlist: boolean;
+  required_attendee_fields: string[];
 }
 
 export interface EventBookingCreatePayload {
@@ -285,6 +375,7 @@ export interface EventBookingCreatePayload {
   attendee_name?: string;
   attendee_email?: string;
   notes?: string;
+  attendee_profile?: Record<string, string>;
 }
 
 export interface EventBookingRecord {
@@ -300,6 +391,7 @@ export interface EventBookingRecord {
   attendee_email?: string | null;
   slots_requested: number;
   notes?: string | null;
+  attendee_profile: Record<string, string>;
   qr_code?: string | null;
   qr_code_image_url?: string | null;
   check_in_pass_image_url?: string | null;
@@ -332,7 +424,7 @@ export interface CheckInScanPayload {
 }
 
 export interface AnnouncementCreatePayload {
-  audience_segment: string;
+  audience_segment: 'confirmed_bookings';
   subject: string;
   body: string;
   channel?: EventAnnouncementChannel;
@@ -351,6 +443,31 @@ export interface AnnouncementRecord {
   created_at: string;
   updated_at: string;
   sent_at?: string | null;
+  recipient_count: number;
+  delivered_count: number;
+  delivery_warning?: string | null;
+}
+
+export interface AnnouncementDeliveryRecord {
+  id: string;
+  announcement_id: string;
+  event_id: string;
+  recipient_user_id: string;
+  recipient_name?: string | null;
+  recipient_email?: string | null;
+  booking_id?: string | null;
+  subject: string;
+  body: string;
+  status: string;
+  delivered_at?: string | null;
+  read_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ManualAnnouncementRunResponse {
+  announcement: AnnouncementRecord;
+  deliveries: AnnouncementDeliveryRecord[];
 }
 
 export interface IncidentCreatePayload {

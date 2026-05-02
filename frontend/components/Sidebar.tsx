@@ -121,9 +121,12 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Dashboard', href: '/vendor/dashboard', icon: icons.dashboard },
     { label: 'Requests', href: '/vendor/requests', icon: icons.queue },
     { label: 'Contracts', href: '/vendor/contracts', icon: icons.proposals },
+    { label: 'Venue Listings', href: '/vendor/venue-listings', icon: icons.events },
+    { label: 'Reservations', href: '/vendor/venue-listings/reservations', icon: icons.check },
     { label: 'Wallet', href: '/vendor/wallet', icon: icons.vendor },
     { label: 'Verification', href: '/vendor/verification', icon: icons.shield },
   ],
+
 };
 
 const portalNames: Record<string, string> = {

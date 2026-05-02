@@ -71,12 +71,14 @@ export function humanizeRequestStatus(status: RequestStatus): string {
 }
 
 export function humanizeContractStatus(status: ContractStatus): string {
-  return {
-    AGREED: 'Agreed',
-    FUNDED: 'Funded',
-    COMPLETED: 'Completed',
-    PAID: 'Paid',
-  }[status];
+  const map: Record<ContractStatus, string> = {
+    draft: 'Draft',
+    pending_signatures: 'Pending Signatures',
+    active: 'Active',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+  };
+  return map[status] ?? status;
 }
 
 export function humanizeNegotiationType(type: NegotiationMessageType): string {
@@ -108,18 +110,27 @@ export function canAcceptRequest(request: MarketplaceRequestRecord): boolean {
   return request.status === 'QUOTED' || request.status === 'NEGOTIATING';
 }
 
+/** Phase 2: can fund only when active + escrow not yet locked */
 export function canFundContract(contract: MarketplaceContractRecord): boolean {
-  return contract.status === 'AGREED';
+  return contract.status === 'active' && contract.escrow_status === 'NONE';
 }
 
+/** Phase 2: vendor marks work done when active + escrow locked */
 export function canMarkContractCompleted(contract: MarketplaceContractRecord): boolean {
-  return contract.status === 'FUNDED';
+  return contract.status === 'active' && contract.escrow_status === 'LOCKED';
 }
 
+/** Phase 2: organizer releases when active + escrow locked */
 export function canReleaseContract(contract: MarketplaceContractRecord): boolean {
-  return contract.status === 'COMPLETED';
+  return contract.status === 'active' && contract.escrow_status === 'LOCKED';
 }
 
+/** Phase 2: refund when active + escrow locked */
 export function canRefundContract(contract: MarketplaceContractRecord): boolean {
-  return contract.status === 'FUNDED';
+  return contract.status === 'active' && contract.escrow_status === 'LOCKED';
+}
+
+/** Phase 2: contract is fully signed when both parties have signed */
+export function isContractFullySigned(contract: MarketplaceContractRecord): boolean {
+  return contract.signed_by_organizer && contract.signed_by_vendor;
 }

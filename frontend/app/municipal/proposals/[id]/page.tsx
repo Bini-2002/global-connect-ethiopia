@@ -27,6 +27,8 @@ export default function MunicipalProposalDetailPage() {
   const [success, setSuccess] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [approveNote, setApproveNote] = useState('');
+  const [showApproveModal, setShowApproveModal] = useState(false);
 
   useEffect(() => {
     api.get<ProposalRecord>(`/municipal/proposals/${id}`).then(setProposal).catch(() => setError('Not found')).finally(() => setLoading(false));
@@ -36,7 +38,11 @@ export default function MunicipalProposalDetailPage() {
     setActionLoading(action); setError(''); setSuccess('');
     try {
       if (action === 'start_review') await api.post(`/municipal/proposals/${id}/start-review`);
-      else if (action === 'approve') await api.post(`/municipal/proposals/${id}/approve`);
+      else if (action === 'approve') {
+        const approveForm = new FormData();
+        approveForm.append('notes', body?.notes || '');
+        await api.post(`/municipal/proposals/${id}/approve`, approveForm);
+      }
       else if (action === 'reject') {
         const formData = new FormData();
         formData.append('notes', body?.reason || '');
@@ -47,7 +53,7 @@ export default function MunicipalProposalDetailPage() {
       setProposal(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');
-    } finally { setActionLoading(''); setShowRejectModal(false); }
+    } finally { setActionLoading(''); setShowRejectModal(false); setShowApproveModal(false); }
   };
 
   const currentStepIndex = TIMELINE_STEPS.findIndex(s => s.key === proposal?.status);
@@ -82,10 +88,10 @@ export default function MunicipalProposalDetailPage() {
                   </button>
                 )}
                 <button onClick={() => setShowRejectModal(true)} className="px-4 py-2 border border-red-300 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50 transition">Reject</button>
-                <button onClick={() => doAction('approve')} disabled={actionLoading === 'approve'}
+                <button onClick={() => setShowApproveModal(true)} disabled={actionLoading === 'approve'}
                   className="px-4 py-2 bg-[#062E22] text-white text-sm font-semibold rounded-lg hover:bg-[#0a4a37] transition disabled:opacity-50 flex items-center gap-2">
                   {actionLoading === 'approve' && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                  Accept
+                  Approve
                 </button>
               </div>
             </div>
@@ -144,8 +150,20 @@ export default function MunicipalProposalDetailPage() {
                     </div>
                     {proposal.approval_certificate_number && (
                       <div>
-                        <p className="text-slate-400 text-[10px] uppercase tracking-widest">Approval Certificate</p>
+                        <p className="text-slate-400 text-[10px] uppercase tracking-widest">Permit</p>
                         <p className="font-semibold text-green-700">{proposal.approval_certificate_number}</p>
+                      </div>
+                    )}
+                    {proposal.verification_letter_reference && (
+                      <div>
+                        <p className="text-slate-400 text-[10px] uppercase tracking-widest">Verification Letter</p>
+                        <p className="font-semibold text-[#062E22]">{proposal.verification_letter_reference}</p>
+                      </div>
+                    )}
+                    {proposal.police_notification_id && (
+                      <div>
+                        <p className="text-slate-400 text-[10px] uppercase tracking-widest">Police Notification</p>
+                        <p className="font-semibold text-[#062E22]">{proposal.police_notification_id.slice(0, 8).toUpperCase()}</p>
                       </div>
                     )}
                   </div>
@@ -188,6 +206,20 @@ export default function MunicipalProposalDetailPage() {
               <button onClick={() => setShowRejectModal(false)} className="flex-1 py-2 border border-slate-200 text-slate-700 text-sm rounded-lg hover:bg-slate-50 transition">Cancel</button>
               <button onClick={() => doAction('reject', { reason: rejectReason })} disabled={!rejectReason}
                 className="flex-1 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition disabled:opacity-50">Confirm Reject</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showApproveModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-scale-in">
+            <h3 className="font-bold text-[#062E22] mb-4">Approve Proposal</h3>
+            <textarea placeholder="Add review notes or stipulations (optional)..." value={approveNote} onChange={e => setApproveNote(e.target.value)} rows={3}
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#062E22] resize-none mb-4 text-slate-800" />
+            <div className="flex gap-3">
+              <button onClick={() => setShowApproveModal(false)} className="flex-1 py-2 border border-slate-200 text-slate-700 text-sm rounded-lg hover:bg-slate-50 transition">Cancel</button>
+              <button onClick={() => doAction('approve', { notes: approveNote })}
+                className="flex-1 py-2 bg-[#062E22] text-white text-sm font-semibold rounded-lg hover:bg-[#0a4a37] transition">Confirm Approval</button>
             </div>
           </div>
         </div>

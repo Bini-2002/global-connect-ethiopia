@@ -3,10 +3,15 @@ from __future__ import annotations
 from pymongo import ASCENDING, DESCENDING, TEXT
 
 from app.db.mongodb import (
+    announcement_delivery_collection,
     contract_collection,
+    event_announcement_collection,
+    permit_collection,
+    police_notification_collection,
     message_collection,
     marketplace_opportunity_collection,
     opportunity_proposal_collection,
+    ticket_purchase_collection,
     request_collection,
     transaction_collection,
     venue_listing_collection,
@@ -19,6 +24,14 @@ from app.db.mongodb import (
 
 
 async def ensure_marketplace_indexes() -> None:
+    await permit_collection.create_index([("proposal_id", ASCENDING)], unique=True)
+    await verification_letter_collection.create_index([("proposal_id", ASCENDING)], unique=True)
+    await verification_letter_collection.create_index([("event_id", ASCENDING)], sparse=True)
+    await police_notification_collection.create_index([("proposal_id", ASCENDING)], unique=True)
+    await police_notification_collection.create_index([("event_id", ASCENDING)], sparse=True)
+    await police_notification_collection.create_index([("police_office.user_id", ASCENDING), ("created_at", DESCENDING)])
+    await police_notification_collection.create_index([("police_office.city", ASCENDING), ("created_at", DESCENDING)])
+
     await vendor_collection.create_index([("verification_status", ASCENDING), ("created_at", DESCENDING)])
     await vendor_collection.create_index([("is_verified", ASCENDING), ("created_at", DESCENDING)])
 
@@ -59,6 +72,20 @@ async def ensure_marketplace_indexes() -> None:
     await request_collection.create_index([("service_id", ASCENDING), ("proposal_id", ASCENDING)])
     await request_collection.create_index([("vendor_id", ASCENDING), ("status", ASCENDING), ("created_at", DESCENDING)])
     await request_collection.create_index([("event_id", ASCENDING), ("created_at", DESCENDING)])
+
+    await ticket_purchase_collection.create_index(
+        [("active_booking_key", ASCENDING)],
+        unique=True,
+        sparse=True,
+        name="unique_active_booking_per_attendee_event",
+    )
+    await event_announcement_collection.create_index([("event_id", ASCENDING), ("created_at", DESCENDING)])
+    await announcement_delivery_collection.create_index([("recipient_user_id", ASCENDING), ("created_at", DESCENDING)])
+    await announcement_delivery_collection.create_index(
+        [("announcement_id", ASCENDING), ("recipient_user_id", ASCENDING)],
+        unique=True,
+        name="unique_announcement_delivery_per_recipient",
+    )
 
     await marketplace_opportunity_collection.create_index([("client_user_id", ASCENDING), ("status", ASCENDING), ("created_at", DESCENDING)])
     await marketplace_opportunity_collection.create_index([("status", ASCENDING), ("submission_deadline", ASCENDING)])

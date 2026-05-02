@@ -63,8 +63,14 @@ const workspaceCards = [
     icon: Tickets,
   },
   {
+    title: 'Announcements',
+    description: 'Send immediate notices, store scheduled records, and run them manually.',
+    href: (eventId: string) => `/organizer/events/${eventId}/announcements`,
+    icon: ClipboardCheck,
+  },
+  {
     title: 'Operations Center',
-    description: 'Run announcements, incidents, badges, and check-in.',
+    description: 'Handle badges, check-in, and incidents during live execution.',
     href: (eventId: string) => `/organizer/events/${eventId}/operations`,
     icon: ShieldAlert,
   },
