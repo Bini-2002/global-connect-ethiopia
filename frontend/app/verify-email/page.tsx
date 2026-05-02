@@ -31,14 +31,11 @@ function VerifyEmailPageContent() {
   const [resendMsg, setResendMsg] = useState('');
   const [success, setSuccess] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const [debugOtp, setDebugOtp] = useState('');
 
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Auto-send OTP on mount
-  useEffect(() => {
-    if (email) sendOtp();
-  }, [email]);
+  // Removed Auto-send OTP on mount to prevent overwriting the registration OTP
+
 
   const sendOtp = async () => {
     try {
@@ -56,12 +53,6 @@ function VerifyEmailPageContent() {
         setError(detail);
         console.error(detail);
         return;
-      }
-
-      if (data?.otp_code) {
-        setDebugOtp(String(data.otp_code));
-      } else {
-        setDebugOtp('');
       }
 
       setError('');
@@ -191,12 +182,6 @@ function VerifyEmailPageContent() {
 
           {resendMsg && (
             <p className="text-green-600 text-sm text-center mb-3 bg-green-50 py-2 rounded-lg">{resendMsg}</p>
-          )}
-
-          {debugOtp && (
-            <p className="text-amber-700 text-sm text-center mb-3 bg-amber-50 py-2 rounded-lg">
-              Dev OTP: <span className="font-semibold tracking-widest">{debugOtp}</span>
-            </p>
           )}
 
           <div className="flex items-center justify-center gap-3 mb-5">
