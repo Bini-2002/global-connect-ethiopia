@@ -28,8 +28,6 @@ from app.db.mongodb import (
     proposal_collection,
     ticket_purchase_collection,
     user_collection,
-    venue_reservation_collection,
-    verification_letter_collection,
 )
 from app.models.event_states import (
     BookingStatus,
@@ -77,13 +75,6 @@ from app.schemas.event import (
     IncidentResponse,
     IncidentUpdate,
 )
-from app.schemas.ai import (
-    AiScheduleDraftCreate,
-    AiScheduleDraftResponse,
-    AiScheduleApplyRequest,
-    AiErrorResponse
-)
-from app.services.ai_service import AIService
 from app.schemas.venue_reservation import VenueReservationDepositUpdateRequest
 from app.services.venue_reservation_service import VenueReservationService
 from app.services.marketplace import parse_object_id, utc_now
