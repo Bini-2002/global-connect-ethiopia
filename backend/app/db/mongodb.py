@@ -27,6 +27,7 @@ proposal_collection = db.proposals
 # post-approval event lifecycle collections
 event_collection = db.events
 event_schedule_collection = db.event_schedules
+venue_listing_collection = db.venue_listings
 venue_reservation_collection = db.venue_reservations
 event_team_invitation_collection = db.event_team_invitations
 event_team_member_collection = db.event_team_members

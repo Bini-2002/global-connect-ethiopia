@@ -5,6 +5,7 @@ from app.models.opportunity_states import (
     OpportunityStatus,
     ProposalSubmissionMode,
 )
+from app.models.venue_listing_states import VenueListingStatus
 
 __all__ = [
     "MarketplaceActor",
@@ -12,4 +13,5 @@ __all__ = [
     "ProposalSubmissionMode",
     "OpportunityStatus",
     "OpportunityProposalStatus",
+    "VenueListingStatus",
 ]
