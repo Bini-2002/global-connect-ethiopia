@@ -37,6 +37,7 @@ export interface VendorServiceRecord {
   location?: string | null;
   images: ServiceImageAsset[];
   availability?: unknown;
+  service_details?: unknown;
   tags: string[];
   is_active: boolean;
   created_at: string;
@@ -91,6 +92,7 @@ export interface VendorServiceCreatePayload {
   image_urls?: string[];
   image_files?: File[];
   availability?: string;
+  service_details?: string;
 }
 
 export interface MarketplaceVendorRecord {
