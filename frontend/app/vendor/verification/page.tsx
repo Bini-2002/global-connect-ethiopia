@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
-import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
 
 export default function VendorVerificationPage() {
@@ -65,11 +63,9 @@ export default function VendorVerificationPage() {
   const CATEGORIES = ['Catering', 'Audio/Visual', 'Photography', 'Security', 'Decoration', 'Transportation', 'Technology', 'Other'];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Sidebar role="vendor" />
-      <DashboardHeader />
-      <main className="ml-60 pt-16 p-8">
-        <div className="max-w-2xl mx-auto animate-fade-in">
+    <div className="min-h-screen bg-slate-50 flex justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <main className="w-full max-w-3xl animate-fade-in">
+        <div>
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-[#062E22]">Vendor Verification</h1>
             <p className="text-slate-500 text-sm mt-1">Complete your business verification to start offering services.</p>

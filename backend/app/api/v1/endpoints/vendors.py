@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from app.api.v1.deps import get_current_user
 from app.core.config import settings
 from app.core.queue import get_verification_queue
+from starlette.concurrency import run_in_threadpool
 from app.db.mongodb import contract_collection, request_collection, vendor_collection, vendor_service_collection, verification_job_collection
 from app.models.roles import UserRole
 from app.schemas.marketplace_mvp import VendorMarketplaceResponse
@@ -80,7 +81,8 @@ async def _store_upload_file(file: UploadFile, folder: str, allowed_extensions: 
         )
 
     storage = ObjectStorageService()
-    stored = storage.upload_verification_document(
+    stored = await run_in_threadpool(
+        storage.upload_verification_document,
         content=content,
         filename=file.filename or "document",
         folder=folder,
