@@ -131,29 +131,17 @@ export const marketplaceService = {
     if (params?.q) query.set('q', params.q);
     if (params?.limit) query.set('limit', String(params.limit));
     const qs = query.toString();
-<<<<<<< HEAD
-    return api.get<VenueListingSearchResult[]>(`/venues/search${qs ? '?' + qs : ''}`);
-=======
     return api.get<VenueListingSearchResult[]>(`/venue-listings/search${qs ? '?' + qs : ''}`);
->>>>>>> origin/venue-listing-backend
   },
 
   /** Vendor: list their own venue listings */
   listMyVenueListings: async (): Promise<VenueListingRecord[]> => {
-<<<<<<< HEAD
-    return api.get<VenueListingRecord[]>('/venues/me');
-=======
     return api.get<VenueListingRecord[]>('/venue-listings/me');
->>>>>>> origin/venue-listing-backend
   },
 
   /** Vendor: create a new venue listing */
   createVenueListing: async (payload: VenueListingCreatePayload): Promise<VenueListingRecord> => {
-<<<<<<< HEAD
-    return api.post<VenueListingRecord>('/venues', payload);
-=======
     return api.post<VenueListingRecord>('/venue-listings', payload);
->>>>>>> origin/venue-listing-backend
   },
 
   /** Vendor: update a venue listing */
@@ -161,20 +149,12 @@ export const marketplaceService = {
     id: string,
     payload: Partial<VenueListingCreatePayload>
   ): Promise<VenueListingRecord> => {
-<<<<<<< HEAD
-    return api.put<VenueListingRecord>(`/venues/${id}`, payload);
-=======
     return api.put<VenueListingRecord>(`/venue-listings/${id}`, payload);
->>>>>>> origin/venue-listing-backend
   },
 
   /** Vendor: view incoming reservation requests against their listings */
   listProviderReservations: async (): Promise<VenueReservationRecord[]> => {
-<<<<<<< HEAD
-    return api.get<VenueReservationRecord[]>('/venues/reservations/me');
-=======
     return api.get<VenueReservationRecord[]>('/venue-listings/reservations/me');
->>>>>>> origin/venue-listing-backend
   },
 
   /** Vendor: respond to a reservation (accept / decline / offer_alternative) */
@@ -183,19 +163,10 @@ export const marketplaceService = {
     payload: VenueReservationProviderResponsePayload
   ): Promise<VenueReservationRecord> => {
     return api.post<VenueReservationRecord>(
-<<<<<<< HEAD
-      `/venues/reservations/${reservationId}/respond`,
-=======
       `/venue-listings/reservations/${reservationId}/respond`,
->>>>>>> origin/venue-listing-backend
       payload
     );
   },
 };
-
-export default marketplaceService;
-
-
-
 
 export default marketplaceService;
