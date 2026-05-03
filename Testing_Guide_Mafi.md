@@ -1,8 +1,8 @@
 # Global Connect Ethiopia - Testing Guide (Mafi's Phase)
 
-> **Important Note:** This is the final evaluation phase of the Global Connect (GC) project. It is crucial to take this seriously, ensure all edge cases are tested, and report any UI/UX or functional bugs before Monday. 
-> 
-> **Your Deadline:** Sunday Night. You will be building upon the live data and events that Samri created in Phase 1.
+> **Important Note:** This is the final evaluation phase of the Global Connect (GC) project. It is crucial to take this seriously, ensure all edge cases are tested, and report any UI/UX or functional bugs before Monday.
+>
+> **Your Deadline:** Sunday Night. You will be building upon the live data and events that Samri created in Phase 1, and your goal is to prove that the full end-to-end flow is ready for presentation.
 
 ## Your Credentials Strategy
 You will need your own Vendor account, plus access to Samri's Organizer account.
@@ -11,6 +11,15 @@ You will need your own Vendor account, plus access to Samri's Organizer account.
 - **Organizer Login:** Ask Samri for the exact email and password she used for the Organizer account.
 
 ## Your Tasks: Phase 2
+
+### What Must Already Be True From Samri's Phase 1
+Before you start, confirm these Phase 1 outputs still exist and are usable:
+- The organizer account can log in successfully.
+- The proposal is approved by ministry and municipal reviewers.
+- The permit and verification letter are available.
+- The event workspace opens from the approved proposal.
+- The police notification view exists after municipal approval.
+- Budget, announcements, team, and booking-related workspace tabs load without breaking the event.
 
 ### The Core Logic (Real-Life Example)
 Now that Samri got the event legally approved, it's time to do the actual heavy lifting.
@@ -23,6 +32,9 @@ Now that Samri got the event legally approved, it's time to do the actual heavy 
 - **Contract State Validation:** The contract flow now uses `draft` -> `pending_signatures` -> `active` -> `completed` -> `cancelled`. Verify organizer and vendor signature flags are visible, and confirm the PDF download button appears once the contract is no longer a draft.
 - **AI Integration Stability:** The AI should take parameters (Duration, Type) and return structured sessions. The chatbot should return answers with actual **citations** (references to Ethiopian law/rules).
 - **AI Fallbacks:** If the AI is down or doesn't know the answer, it should gracefully offer a link to the `/faq` page.
+- **Phase 1 Regression Safety:** Samri's approved proposal, permit, verification letter, and public event workspace must still be intact after you complete your phase.
+- **Venue/Booking Safety:** Venue listings must come from vendor-managed inventory, not free-text venue names, and booking status must remain consistent after refresh or role switch.
+- **Post-Event Tools:** Announcements, incidents, badges, survey summaries, and wrap-up information must all still be accessible from the organizer workspace.
 
 ### Step-by-Step Follow Up
 - [ ] **Step 1:** Go to `/register`. Register a **Vendor** account using your real email.
@@ -38,10 +50,29 @@ Now that Samri got the event legally approved, it's time to do the actual heavy 
 - [ ] **Step 11 (Chatbot):** Open the floating Chatbot in the corner. Ask: *"Do I need a police permit for an event with 500 people?"*. Verify it answers with citations.
 - [ ] **Step 12:** Click a fallback link in the chatbot or navigate to `/faq` directly to ensure the static fallback page works perfectly.
 
+### Extra Verification Checklist Before Presentation
+- [ ] Re-open the organizer proposal pages and confirm the approved proposal still shows the correct permit and verification letter links.
+- [ ] Re-open the police notifications page and confirm the approval-triggered notification is still visible.
+- [ ] Re-open `/organizer/events/{event_id}/page` and confirm the event workspace still links to venue, budget, announcements, operations, and wrap-up tabs.
+- [ ] Re-open `/organizer/events/{event_id}/venue` and confirm the selected reservation remains linked to the event after refresh.
+- [ ] Re-open `/vendor/venue-listings/reservations` and confirm the reservation inbox still shows the correct state after the organizer confirms.
+- [ ] Re-open `/organizer/contracts` and `/vendor/contracts` and confirm the contract remains visible with the right status and signature flags.
+- [ ] Re-open the AI schedule page and confirm the draft is still persisted after leaving and returning to the page.
+- [ ] Re-open the chatbot and confirm the last answer remains in history when available.
+- [ ] Re-open `/organizer/events/{event_id}/operations` and confirm badges, incidents, and announcements are still reachable from the live event workspace.
+- [ ] Re-open `/organizer/events/{event_id}/wrap-up` and confirm survey summary metrics are visible or safely empty if no survey has been sent yet.
+
+### Presentation-Readiness Pass/Fail Rules
+- Pass only if all Phase 1 artifacts still exist and all Phase 2 flows complete without blocking errors.
+- Pass only if the venue reservation, contract, AI schedule, chatbot, announcements, incidents, badges, and wrap-up screens can all be shown live.
+- Pass only if fallback behavior is graceful when AI or optional data is unavailable.
+- Fail if any flow depends on hardcoded demo text, missing state, broken status transitions, or a page that cannot be reopened after refresh.
+
 ### Final Checkpoints
 - Venue listings must come from vendor-managed inventory, not free-text venue names.
 - Reservation status should be visible on both vendor and organizer screens after every action.
 - Contract screens should show `draft`, `pending_signatures`, `active`, and `completed` states, plus organizer/vendor signature flags.
 - AI schedule and chatbot responses should degrade gracefully to the fallback route if the AI cannot answer.
+- The project is presentation-ready only if you can demo the Samri handoff and the Mafi phase back-to-back without manual recovery.
 
 > **Handover:** Report all findings, UI glitches, or broken logic to the group chat by Sunday night so the final fixes can begin on Monday!
