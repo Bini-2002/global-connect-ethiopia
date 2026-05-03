@@ -67,7 +67,11 @@ export default function EventVenuePage() {
 
   const [reservations, setReservations] = useState<VenueReservationRecord[]>([]);
   const [loadingReservations, setLoadingReservations] = useState(true);
+<<<<<<< HEAD
   const [searchQuery, setSearchQuery] = useState('');
+=======
+  const [searchCity, setSearchCity] = useState('');
+>>>>>>> origin/venue-listing-backend
   const [searchResults, setSearchResults] = useState<VenueListingSearchResponse[]>([]);
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -95,7 +99,11 @@ export default function EventVenuePage() {
     if (!event) return;
     const defaultCity = event.office_assignments?.municipal?.city || event.location || '';
     const baseDate = startOfInputDateTime(event.start_date);
+<<<<<<< HEAD
     setSearchQuery((c) => c || defaultCity);
+=======
+    setSearchCity((c) => c || defaultCity);
+>>>>>>> origin/venue-listing-backend
     setReservationForm((current) =>
       current.venue_listing_id || current.requested_start ? current : {
         ...current,
@@ -238,10 +246,16 @@ export default function EventVenuePage() {
           <div className="mt-5 flex gap-3">
             <input
               type="text"
+<<<<<<< HEAD
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
               placeholder="Search by venue name or city (e.g. Addis Ababa, Millennium Hall)"
+=======
+              value={searchCity}
+              onChange={(e) => setSearchCity(e.target.value)}
+              placeholder="Filter by city (e.g. Addis Ababa)"
+>>>>>>> origin/venue-listing-backend
               className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
             />
             <button
@@ -292,12 +306,15 @@ export default function EventVenuePage() {
               })}
             </div>
           )}
+<<<<<<< HEAD
 
           {searchResults.length === 0 && !searching && hasSearched && (
             <div className="mt-5 rounded-2xl border border-dashed border-slate-200 p-8 text-center">
               <p className="text-slate-500 text-sm">No venues found for &quot;{searchQuery}&quot;. Try a different search term.</p>
             </div>
           )}
+=======
+>>>>>>> origin/venue-listing-backend
         </div>
 
         {/* ─── Reservation Form ─── */}
@@ -317,7 +334,10 @@ export default function EventVenuePage() {
                 <input
                   type="datetime-local"
                   required
+<<<<<<< HEAD
                   title="Start date and time"
+=======
+>>>>>>> origin/venue-listing-backend
                   value={reservationForm.requested_start}
                   onChange={(e) => setReservationForm((f) => ({ ...f, requested_start: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
@@ -328,7 +348,10 @@ export default function EventVenuePage() {
                 <input
                   type="datetime-local"
                   required
+<<<<<<< HEAD
                   title="End date and time"
+=======
+>>>>>>> origin/venue-listing-backend
                   value={reservationForm.requested_end}
                   onChange={(e) => setReservationForm((f) => ({ ...f, requested_end: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"

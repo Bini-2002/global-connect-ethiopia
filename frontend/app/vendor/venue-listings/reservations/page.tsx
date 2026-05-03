@@ -45,10 +45,15 @@ export default function VendorReservationInboxPage() {
     try {
       setLoading(true);
       const data = await marketplaceService.listProviderReservations();
+<<<<<<< HEAD
       console.log('[Vendor Reservations] API response:', data);
       setReservations(data);
     } catch (err) {
       console.error('[Vendor Reservations] Error:', err);
+=======
+      setReservations(data);
+    } catch (err) {
+>>>>>>> origin/venue-listing-backend
       setError(err instanceof Error ? err.message : 'Failed to load reservations');
     } finally {
       setLoading(false);
@@ -230,7 +235,10 @@ export default function VendorReservationInboxPage() {
                                     <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Proposed Start</label>
                                     <input
                                       type="datetime-local"
+<<<<<<< HEAD
                                       title="Proposed start"
+=======
+>>>>>>> origin/venue-listing-backend
                                       value={form.proposed_start}
                                       onChange={(e) => updateForm(res.id, { proposed_start: e.target.value })}
                                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
@@ -240,7 +248,10 @@ export default function VendorReservationInboxPage() {
                                     <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Proposed End</label>
                                     <input
                                       type="datetime-local"
+<<<<<<< HEAD
                                       title="Proposed end"
+=======
+>>>>>>> origin/venue-listing-backend
                                       value={form.proposed_end}
                                       onChange={(e) => updateForm(res.id, { proposed_end: e.target.value })}
                                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
@@ -249,7 +260,11 @@ export default function VendorReservationInboxPage() {
                                   <div>
                                     <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Proposed Cost (ETB)</label>
                                     <input
+<<<<<<< HEAD
                                       type="number" min={0} title="Proposed cost"
+=======
+                                      type="number" min={0}
+>>>>>>> origin/venue-listing-backend
                                       value={form.proposed_cost}
                                       onChange={(e) => updateForm(res.id, { proposed_cost: e.target.value })}
                                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
@@ -258,7 +273,11 @@ export default function VendorReservationInboxPage() {
                                   <div>
                                     <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Proposed Deposit (ETB)</label>
                                     <input
+<<<<<<< HEAD
                                       type="number" min={0} title="Proposed deposit amount"
+=======
+                                      type="number" min={0}
+>>>>>>> origin/venue-listing-backend
                                       value={form.proposed_deposit_amount}
                                       onChange={(e) => updateForm(res.id, { proposed_deposit_amount: e.target.value })}
                                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"

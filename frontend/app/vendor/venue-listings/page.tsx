@@ -141,27 +141,47 @@ export default function VendorVenueListingsPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Venue Name *</label>
+<<<<<<< HEAD
                     <input required title="Venue name" placeholder="e.g. Skylight Hall" value={form.venue_name} onChange={(e) => setForm((f) => ({ ...f, venue_name: e.target.value }))}
+=======
+                    <input required value={form.venue_name} onChange={(e) => setForm((f) => ({ ...f, venue_name: e.target.value }))}
+>>>>>>> origin/venue-listing-backend
                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">City *</label>
+<<<<<<< HEAD
                     <input required title="City" placeholder="e.g. Addis Ababa" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+=======
+                    <input required value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+>>>>>>> origin/venue-listing-backend
                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Location / Street</label>
+<<<<<<< HEAD
                     <input title="Location" placeholder="Street address or landmark" value={form.location ?? ''} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+=======
+                    <input value={form.location ?? ''} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+>>>>>>> origin/venue-listing-backend
                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Capacity *</label>
+<<<<<<< HEAD
                     <input required title="Capacity" placeholder="500" type="number" min={1} value={form.capacity || ''} onChange={(e) => setForm((f) => ({ ...f, capacity: Number(e.target.value) }))}
+=======
+                    <input required type="number" min={1} value={form.capacity || ''} onChange={(e) => setForm((f) => ({ ...f, capacity: Number(e.target.value) }))}
+>>>>>>> origin/venue-listing-backend
                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Pricing Type</label>
+<<<<<<< HEAD
                     <select title="Pricing type" value={form.pricing_type} onChange={(e) => setForm((f) => ({ ...f, pricing_type: e.target.value }))}
+=======
+                    <select value={form.pricing_type} onChange={(e) => setForm((f) => ({ ...f, pricing_type: e.target.value }))}
+>>>>>>> origin/venue-listing-backend
                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20">
                       <option value="negotiable">Negotiable</option>
                       <option value="fixed">Fixed</option>
@@ -169,12 +189,20 @@ export default function VendorVenueListingsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Base Price (ETB)</label>
+<<<<<<< HEAD
                     <input type="number" title="Base price" placeholder="25000" min={0} value={form.base_price ?? ''} onChange={(e) => setForm((f) => ({ ...f, base_price: e.target.value ? Number(e.target.value) : undefined }))}
+=======
+                    <input type="number" min={0} value={form.base_price ?? ''} onChange={(e) => setForm((f) => ({ ...f, base_price: e.target.value ? Number(e.target.value) : undefined }))}
+>>>>>>> origin/venue-listing-backend
                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Deposit Amount (ETB)</label>
+<<<<<<< HEAD
                     <input type="number" title="Deposit amount" placeholder="5000" min={0} value={form.deposit_amount ?? ''} onChange={(e) => setForm((f) => ({ ...f, deposit_amount: e.target.value ? Number(e.target.value) : undefined }))}
+=======
+                    <input type="number" min={0} value={form.deposit_amount ?? ''} onChange={(e) => setForm((f) => ({ ...f, deposit_amount: e.target.value ? Number(e.target.value) : undefined }))}
+>>>>>>> origin/venue-listing-backend
                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
                   </div>
                   <div className="flex items-center gap-3 pt-4">
@@ -188,12 +216,20 @@ export default function VendorVenueListingsPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Description</label>
+<<<<<<< HEAD
                   <textarea rows={3} title="Description" placeholder="Describe the venue and amenities" value={form.description ?? ''} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+=======
+                  <textarea rows={3} value={form.description ?? ''} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+>>>>>>> origin/venue-listing-backend
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Internal Notes</label>
+<<<<<<< HEAD
                   <textarea rows={2} title="Internal notes" placeholder="Private notes for your team" value={form.notes ?? ''} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+=======
+                  <textarea rows={2} value={form.notes ?? ''} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+>>>>>>> origin/venue-listing-backend
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
                 </div>
                 <div className="flex gap-3 pt-2">
