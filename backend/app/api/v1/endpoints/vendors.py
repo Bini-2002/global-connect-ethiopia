@@ -112,6 +112,7 @@ async def create_or_update_vendor_business_details(
     registration_number: str | None = Form(None),
     years_of_operation: int = Form(...),
     website_url: str | None = Form(None),
+    category_metadata: str | None = Form(None),
     business_license_or_registration_certificate: UploadFile = File(...),
     government_issued_id: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
@@ -141,6 +142,14 @@ async def create_or_update_vendor_business_details(
         allowed_extensions=ID_DOCUMENT_EXTENSIONS,
     )
 
+    import json
+    metadata_dict = {}
+    if category_metadata:
+        try:
+            metadata_dict = json.loads(category_metadata)
+        except Exception:
+            pass
+
     now = datetime.now(timezone.utc)
     step_2_payload = {
         "business_details": {
@@ -150,6 +159,7 @@ async def create_or_update_vendor_business_details(
             "registration_number": registration_number,
             "years_of_operation": years_of_operation,
             "website_url": website_url,
+            "category_metadata": metadata_dict,
         },
         "required_documents": {
             "business_license_or_registration_certificate": business_doc_metadata,
