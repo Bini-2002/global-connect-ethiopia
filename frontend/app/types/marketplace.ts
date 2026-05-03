@@ -100,6 +100,7 @@ export interface MarketplaceVendorRecord {
   user_id: string;
   business_name: string;
   services: string[];
+  service_records?: VendorServiceRecord[];
   is_verified: boolean;
   rating: number;
   created_at: string;
