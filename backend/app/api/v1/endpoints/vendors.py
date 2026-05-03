@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.api.v1.deps import get_current_user
+from app.api.v1.deps import get_current_user, get_current_user_allow_inactive
 from app.core.config import settings
 from app.core.queue import get_verification_queue
 from starlette.concurrency import run_in_threadpool
@@ -115,7 +115,7 @@ async def create_or_update_vendor_business_details(
     category_metadata: str | None = Form(None),
     business_license_or_registration_certificate: UploadFile = File(...),
     government_issued_id: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     _require_vendor(current_user)
 
@@ -216,7 +216,7 @@ async def create_or_update_vendor_business_details(
 
 
 @router.get("/verification/review-summary", response_model=VendorReviewSummaryResponse)
-async def get_vendor_review_summary(current_user: dict = Depends(get_current_user)):
+async def get_vendor_review_summary(current_user: dict = Depends(get_current_user_allow_inactive)):
     _require_vendor(current_user)
 
     vendor = await vendor_collection.find_one({"user_id": ObjectId(current_user["id"])})
@@ -243,7 +243,7 @@ async def get_vendor_review_summary(current_user: dict = Depends(get_current_use
 async def submit_vendor_for_verification(
     confirm_information_is_accurate: bool = Form(...),
     agree_terms_and_privacy: bool = Form(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     _require_vendor(current_user)
 
@@ -351,7 +351,7 @@ async def submit_vendor_for_verification(
 
 
 @router.get("/verification/status", response_model=VendorStatusResponse)
-async def get_vendor_verification_status(current_user: dict = Depends(get_current_user)):
+async def get_vendor_verification_status(current_user: dict = Depends(get_current_user_allow_inactive)):
     _require_vendor(current_user)
 
     vendor = await vendor_collection.find_one({"user_id": ObjectId(current_user["id"])})

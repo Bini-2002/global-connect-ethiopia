@@ -108,6 +108,52 @@ async def get_vendor_services(vendor: dict) -> list[str]:
             services.append(text)
     return services
 
+def _normalize_images(images: list[dict]) -> list[dict]:
+    normalized: list[dict] = []
+    for image in images:
+        if not image.get("url"):
+            continue
+        normalized.append(
+            {
+                "url": image["url"],
+                "storage_key": image.get("storage_key"),
+                "storage_provider": image.get("storage_provider"),
+                "content_type": image.get("content_type"),
+                "size_bytes": image.get("size_bytes"),
+                "uploaded_at": image.get("uploaded_at"),
+            }
+        )
+    return normalized
+
+async def get_vendor_service_records(vendor: dict) -> list[dict]:
+    vendor_services = await vendor_service_collection.find(
+        {"vendor_id": str(vendor["_id"]), "is_active": True},
+        sort=[("created_at", -1)],
+    ).to_list(length=20)
+    
+    records = []
+    for service in vendor_services:
+        records.append({
+            "id": str(service["_id"]),
+            "vendor_id": service.get("vendor_id"),
+            "vendor_user_id": service.get("vendor_user_id"),
+            "title": service.get("title"),
+            "description": service.get("description"),
+            "category": service.get("category"),
+            "price_min": float(service.get("price_min", 0)),
+            "price_max": float(service.get("price_max", 0)),
+            "pricing_type": service.get("pricing_type"),
+            "location": service.get("location"),
+            "images": _normalize_images(service.get("images", [])),
+            "availability": service.get("availability"),
+            "service_details": service.get("service_details"),
+            "tags": service.get("tags", []),
+            "is_active": bool(service.get("is_active", True)),
+            "created_at": service.get("created_at"),
+            "updated_at": service.get("updated_at"),
+        })
+    return records
+
 
 def vendor_is_verified(vendor: dict) -> bool:
     return bool(vendor.get("is_verified") or vendor.get("verification_status") == "approved")
@@ -119,6 +165,7 @@ async def serialize_vendor(vendor: dict) -> dict:
         "user_id": stringify_id(vendor.get("user_id")) or "",
         "business_name": get_vendor_business_name(vendor),
         "services": await get_vendor_services(vendor),
+        "service_records": await get_vendor_service_records(vendor),
         "is_verified": vendor_is_verified(vendor),
         "rating": float(vendor.get("rating", 0.0) or 0.0),
         "created_at": vendor.get("created_at") or utc_now(),
