@@ -89,6 +89,7 @@ export interface VendorServiceCreatePayload {
   location: string;
   tags?: string[];
   image_urls?: string[];
+  image_files?: File[];
   availability?: string;
 }
 

@@ -44,7 +44,7 @@ const initialFormState = {
   pricing_type: 'negotiable' as 'fixed' | 'negotiable',
   location: 'Addis Ababa',
   tags: '',
-  image_urls: '',
+  image_files: [] as File[],
   availability: '',
 };
 
@@ -108,10 +108,7 @@ export default function VendorDashboardPage() {
           .split(',')
           .map((item) => item.trim())
           .filter(Boolean),
-        image_urls: form.image_urls
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean),
+        image_files: form.image_files,
         availability: form.availability.trim() || undefined,
       };
 
@@ -428,13 +425,18 @@ export default function VendorDashboardPage() {
                     </div>
 
                     <div>
-                      <label htmlFor="image_urls" className="mb-1 block text-sm font-medium text-slate-700">Image URLs</label>
+                      <label htmlFor="image_files" className="mb-1 block text-sm font-medium text-slate-700">Images</label>
                       <input
-                        id="image_urls"
-                        value={form.image_urls}
-                        onChange={(event) => setForm((current) => ({ ...current, image_urls: event.target.value }))}
-                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
-                        placeholder="https://example.com/photo-1.jpg, https://example.com/photo-2.jpg"
+                        id="image_files"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(event) => {
+                          if (event.target.files) {
+                            setForm((current) => ({ ...current, image_files: Array.from(event.target.files as FileList) }));
+                          }
+                        }}
+                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#062E22]/10 file:text-[#062E22] hover:file:bg-[#062E22]/20"
                       />
                     </div>
 
