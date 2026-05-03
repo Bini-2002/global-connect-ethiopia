@@ -86,6 +86,8 @@ from app.schemas.venue_reservation import (
     VenueReservationResponse,
     VenueSearchResponse,
 )
+from app.schemas.ai import AiScheduleDraftCreate, AiScheduleDraftResponse, AiScheduleApplyRequest
+from app.services.ai_service import AIService
 
 router = APIRouter()
 

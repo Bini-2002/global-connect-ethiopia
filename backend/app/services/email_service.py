@@ -78,28 +78,30 @@ class ResendEmailService:
 
     @classmethod
     def send_otp_email(cls, recipient_email: str, otp_code: str, expiry_minutes: int) -> Optional[str]:
-        # --- Resend path ---
-        if settings.RESEND_ENABLED:
-            if not cls._is_configured():
-                logger.warning("Resend enabled but not configured. Falling back.")
-            else:
-                payload = {
-                    "from": settings.RESEND_FROM_EMAIL,
-                    "to": [recipient_email],
-                    "subject": settings.RESEND_OTP_SUBJECT,
-                    "text": f"Your verification code is {otp_code}. It expires in {expiry_minutes} minutes.",
-                    "html": f"<p>Your verification code is <strong>{otp_code}</strong>.</p><p>Expires in {expiry_minutes} minutes.</p>",
-                }
+        if not cls._is_configured():
+            logger.warning("Resend enabled but not configured. Falling back.")
+            return None
 
-                req = request.Request(
-                    cls.API_URL,
-                    data=json.dumps(payload).encode("utf-8"),
-                    headers={
-                        "Authorization": f"Bearer {settings.RESEND_API_KEY}",
-                        "Content-Type": "application/json",
-                    },
-                    method="POST",
-                )
+        payload = {
+            "from": settings.RESEND_FROM_EMAIL,
+            "to": [recipient_email],
+            "subject": settings.RESEND_OTP_SUBJECT,
+            "text": f"Your verification code is {otp_code}. It expires in {expiry_minutes} minutes.",
+            "html": f"<p>Your verification code is <strong>{otp_code}</strong>.</p><p>Expires in {expiry_minutes} minutes.</p>",
+        }
+
+        req = request.Request(
+            cls.API_URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with request.urlopen(req, timeout=10) as response:
+                response_json = json.loads(response.read().decode("utf-8"))
                 return response_json.get("id")
         except error.HTTPError as exc:
             details = exc.read().decode("utf-8", errors="replace")
