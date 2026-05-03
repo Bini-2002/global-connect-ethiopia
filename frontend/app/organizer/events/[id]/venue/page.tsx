@@ -304,6 +304,7 @@ export default function EventVenuePage() {
                 <input
                   type="datetime-local"
                   required
+                  title="Start date and time"
                   value={reservationForm.requested_start}
                   onChange={(e) => setReservationForm((f) => ({ ...f, requested_start: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
@@ -314,6 +315,7 @@ export default function EventVenuePage() {
                 <input
                   type="datetime-local"
                   required
+                  title="End date and time"
                   value={reservationForm.requested_end}
                   onChange={(e) => setReservationForm((f) => ({ ...f, requested_end: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
