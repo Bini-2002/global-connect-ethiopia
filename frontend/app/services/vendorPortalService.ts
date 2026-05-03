@@ -33,6 +33,10 @@ function buildServiceFormData(payload: VendorServiceCreatePayload): FormData {
     formData.append('availability', payload.availability.trim());
   }
 
+  if (payload.service_details?.trim()) {
+    formData.append('service_details', payload.service_details.trim());
+  }
+
   return formData;
 }
 
