@@ -131,17 +131,17 @@ export const marketplaceService = {
     if (params?.q) query.set('q', params.q);
     if (params?.limit) query.set('limit', String(params.limit));
     const qs = query.toString();
-    return api.get<VenueListingSearchResult[]>(`/venue-listings/search${qs ? '?' + qs : ''}`);
+    return api.get<VenueListingSearchResult[]>(`/venues/search${qs ? '?' + qs : ''}`);
   },
 
   /** Vendor: list their own venue listings */
   listMyVenueListings: async (): Promise<VenueListingRecord[]> => {
-    return api.get<VenueListingRecord[]>('/venue-listings/me');
+    return api.get<VenueListingRecord[]>('/venues/me');
   },
 
   /** Vendor: create a new venue listing */
   createVenueListing: async (payload: VenueListingCreatePayload): Promise<VenueListingRecord> => {
-    return api.post<VenueListingRecord>('/venue-listings', payload);
+    return api.post<VenueListingRecord>('/venues', payload);
   },
 
   /** Vendor: update a venue listing */
@@ -149,12 +149,12 @@ export const marketplaceService = {
     id: string,
     payload: Partial<VenueListingCreatePayload>
   ): Promise<VenueListingRecord> => {
-    return api.put<VenueListingRecord>(`/venue-listings/${id}`, payload);
+    return api.put<VenueListingRecord>(`/venues/${id}`, payload);
   },
 
   /** Vendor: view incoming reservation requests against their listings */
   listProviderReservations: async (): Promise<VenueReservationRecord[]> => {
-    return api.get<VenueReservationRecord[]>('/venue-listings/reservations/me');
+    return api.get<VenueReservationRecord[]>('/venues/reservations/me');
   },
 
   /** Vendor: respond to a reservation (accept / decline / offer_alternative) */
@@ -163,11 +163,10 @@ export const marketplaceService = {
     payload: VenueReservationProviderResponsePayload
   ): Promise<VenueReservationRecord> => {
     return api.post<VenueReservationRecord>(
-      `/venue-listings/reservations/${reservationId}/respond`,
+      `/venues/reservations/${reservationId}/respond`,
       payload
     );
   },
 };
 
-export default marketplaceService;
 export default marketplaceService;

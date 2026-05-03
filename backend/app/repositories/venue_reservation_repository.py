@@ -59,8 +59,11 @@ class VenueReservationRepository:
         query: dict[str, Any] = {"vendor_user_id": vendor_user_id}
         if statuses:
             query["status"] = {"$in": [status.value for status in statuses]}
+        print(f"[DEBUG] Querying reservations with: {query}")
         cursor = self.collection.find(query, sort=[("created_at", -1)])
-        return await cursor.to_list(length=limit)
+        results = await cursor.to_list(length=limit)
+        print(f"[DEBUG] Found {len(results)} reservations for vendor_user_id: {vendor_user_id}")
+        return results
 
     async def update_for_provider(
         self,

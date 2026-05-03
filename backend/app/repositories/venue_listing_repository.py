@@ -64,7 +64,19 @@ class VenueListingRepository:
                 {"base_price": {"$lte": float(max_base_price)}},
             ]
         if text_query:
-            query["$text"] = {"$search": text_query.strip()}
+            text_query_regex = {"$regex": text_query.strip(), "$options": "i"}
+            text_or_conditions = [
+                {"venue_name": text_query_regex},
+                {"city": text_query_regex},
+                {"location": text_query_regex},
+            ]
+            if "$or" in query:
+                query["$and"] = [
+                    {"$or": query.pop("$or")},
+                    {"$or": text_or_conditions},
+                ]
+            else:
+                query["$or"] = text_or_conditions
 
         cursor = self.collection.find(query, sort=[("updated_at", -1), ("created_at", -1)])
         return await cursor.to_list(length=limit)

@@ -39,12 +39,26 @@ class VenueReservationService:
         event_id: str,
         current_user: dict,
         city: str | None = None,
+        q: str | None = None,
     ) -> VenueSearchResponse:
         event = await self._get_owned_event_or_403(event_id, current_user)
-        target_city = city or event.get("location") or "Addis Ababa"
+
+        # Determine city filter
+        if city is not None:
+            # User explicitly provided a city filter
+            target_city = city
+        elif q is None:
+            # No text search - apply default city from event location or Addis Ababa
+            target_city = event.get("location") or "Addis Ababa"
+        else:
+            # User is doing a text search - don't force city filter
+            # The text search already covers city matching
+            target_city = None
+
         venues = await self.venue_listing_service.search_listings(
             city=target_city,
             min_capacity=event.get("capacity"),
+            q=q,
             limit=20,
         )
         return VenueSearchResponse(

@@ -941,6 +941,7 @@ async def update_schedule_item(
 async def search_venues(
     event_id: str,
     city: str | None = None,
+    q: str | None = None,
     current_user: dict = Depends(get_current_user),
 ):
     reservation_service = VenueReservationService()
@@ -948,6 +949,7 @@ async def search_venues(
         event_id=event_id,
         current_user=current_user,
         city=city,
+        q=q,
     )
 
 

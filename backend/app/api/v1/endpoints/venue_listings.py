@@ -68,6 +68,82 @@ async def list_my_venue_reservations(
     return await service.list_provider_reservations(current_user=current_user)
 
 
+@router.get("/debug/vendor-status")
+async def debug_vendor_status(current_user: dict = Depends(get_current_user)):
+    """Debug endpoint to check vendor status"""
+    from app.services.marketplace import require_vendor_profile
+
+    try:
+        vendor = await require_vendor_profile(current_user, approved_only=False)
+        return {
+            "user_id": current_user["id"],
+            "user_role": current_user.get("role"),
+            "vendor_found": True,
+            "vendor_id": str(vendor["_id"]),
+            "vendor_user_id": str(vendor["user_id"]),
+            "verification_status": vendor.get("verification_status"),
+        }
+    except Exception as e:
+        return {
+            "user_id": current_user["id"],
+            "user_role": current_user.get("role"),
+            "vendor_found": False,
+            "error": str(e),
+        }
+
+
+@router.get("/debug/vendor-reservations")
+async def debug_vendor_reservations(current_user: dict = Depends(get_current_user)):
+    """Debug endpoint to check vendor reservations"""
+    from app.services.marketplace import require_vendor_profile
+    from app.db.mongodb import venue_listing_collection, venue_reservation_collection
+
+    try:
+        vendor = await require_vendor_profile(current_user, approved_only=False)
+
+        # Get vendor's listings
+        listings = await venue_listing_collection.find(
+            {"vendor_user_id": current_user["id"]}
+        ).to_list(length=100)
+
+        # Get reservations for this vendor
+        reservations = await venue_reservation_collection.find(
+            {"vendor_user_id": current_user["id"]}
+        ).to_list(length=100)
+
+        return {
+            "user_id": current_user["id"],
+            "vendor_id": str(vendor["_id"]),
+            "verification_status": vendor.get("verification_status"),
+            "listings_count": len(listings),
+            "listings": [
+                {
+                    "id": str(l["_id"]),
+                    "venue_name": l.get("venue_name"),
+                    "vendor_user_id": l.get("vendor_user_id"),
+                    "status": l.get("status"),
+                }
+                for l in listings
+            ],
+            "reservations_count": len(reservations),
+            "reservations": [
+                {
+                    "id": str(r["_id"]),
+                    "venue_listing_id": r.get("venue_listing_id"),
+                    "vendor_user_id": r.get("vendor_user_id"),
+                    "status": r.get("status"),
+                    "event_id": r.get("event_id"),
+                }
+                for r in reservations
+            ],
+        }
+    except Exception as e:
+        return {
+            "user_id": current_user["id"],
+            "error": str(e),
+        }
+
+
 @router.post("/reservations/{reservation_id}/respond", response_model=VenueReservationResponse)
 async def respond_to_venue_reservation(
     reservation_id: str,

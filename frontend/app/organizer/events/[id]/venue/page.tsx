@@ -67,9 +67,10 @@ export default function EventVenuePage() {
 
   const [reservations, setReservations] = useState<VenueReservationRecord[]>([]);
   const [loadingReservations, setLoadingReservations] = useState(true);
-  const [searchCity, setSearchCity] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<VenueListingSearchResponse[]>([]);
   const [searching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [creating, setCreating] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -94,7 +95,7 @@ export default function EventVenuePage() {
     if (!event) return;
     const defaultCity = event.office_assignments?.municipal?.city || event.location || '';
     const baseDate = startOfInputDateTime(event.start_date);
-    setSearchCity((c) => c || defaultCity);
+    setSearchQuery((c) => c || defaultCity);
     setReservationForm((current) =>
       current.venue_listing_id || current.requested_start ? current : {
         ...current,
@@ -102,6 +103,7 @@ export default function EventVenuePage() {
         requested_end: startOfInputDateTime(event.end_date) || baseDate,
       }
     );
+    // Auto-search disabled - user must click Search button manually
   }, [event]);
 
   const confirmedReservation = useMemo(
@@ -114,9 +116,13 @@ export default function EventVenuePage() {
     try {
       setSearching(true);
       setError(null);
-      const response = await eventsService.searchEventVenues(event.id, searchCity);
-      setSearchResults(response.venues);
+      setHasSearched(true);
+      console.log('[Venue Search] Searching for:', searchQuery);
+      const response = await eventsService.searchEventVenues(event.id, undefined, searchQuery);
+      console.log('[Venue Search] Response:', response);
+      setSearchResults(response.venues || []);
     } catch (err) {
+      console.error('[Venue Search] Error:', err);
       setError(err instanceof Error ? err.message : 'Failed to search venues');
     } finally {
       setSearching(false);
@@ -232,9 +238,10 @@ export default function EventVenuePage() {
           <div className="mt-5 flex gap-3">
             <input
               type="text"
-              value={searchCity}
-              onChange={(e) => setSearchCity(e.target.value)}
-              placeholder="Filter by city (e.g. Addis Ababa)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+              placeholder="Search by venue name or city (e.g. Addis Ababa, Millennium Hall)"
               className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
             />
             <button
@@ -283,6 +290,12 @@ export default function EventVenuePage() {
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {searchResults.length === 0 && !searching && hasSearched && (
+            <div className="mt-5 rounded-2xl border border-dashed border-slate-200 p-8 text-center">
+              <p className="text-slate-500 text-sm">No venues found for &quot;{searchQuery}&quot;. Try a different search term.</p>
             </div>
           )}
         </div>

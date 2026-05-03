@@ -45,8 +45,10 @@ export default function VendorReservationInboxPage() {
     try {
       setLoading(true);
       const data = await marketplaceService.listProviderReservations();
+      console.log('[Vendor Reservations] API response:', data);
       setReservations(data);
     } catch (err) {
+      console.error('[Vendor Reservations] Error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load reservations');
     } finally {
       setLoading(false);
