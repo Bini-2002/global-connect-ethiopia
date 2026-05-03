@@ -36,7 +36,7 @@ export default function VendorContractsPage() {
         <div className="mx-auto max-w-7xl space-y-6">
           <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#0a4a37]">Vendor contracts</p>
-            <h1 className="mt-2 text-3xl font-bold text-[#062E22]">Track when work is funded, completed, and paid.</h1>
+            <h1 className="mt-2 text-3xl font-bold text-[#062E22]">Track when work is signed, funded, completed, and paid.</h1>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-500">
               Once an organizer accepts the negotiation, the contract appears here. Mark the contract completed after delivery so the organizer can release escrow.
             </p>

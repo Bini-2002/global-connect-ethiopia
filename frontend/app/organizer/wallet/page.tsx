@@ -86,7 +86,7 @@ export default function OrganizerWalletPage() {
               transactions={transactions}
               action={action}
               title="Organizer wallet"
-              subtitle="Use mock deposits to fund escrow, then monitor funds as contracts move from agreed to paid."
+              subtitle="Use mock deposits to fund escrow, then monitor funds as contracts move from signed to paid."
             />
           )}
         </div>
