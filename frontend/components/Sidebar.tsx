@@ -16,6 +16,7 @@ import {
   SparklesIcon,
   XMarkIcon,
   Bars3Icon,
+  BriefcaseIcon,
 } from "@heroicons/react/24/outline";
 
 interface SidebarItem {
@@ -87,6 +88,7 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Dashboard', href: '/organizer/dashboard', icon: <HomeIcon className="w-5 h-5" /> },
     { label: 'My Events', href: '/organizer/events', icon: <CalendarIcon className="w-5 h-5" /> },
     { label: 'Vendors', href: '/organizer/vendors', icon: <BuildingOfficeIcon className="w-5 h-5" /> },
+    { label: 'Opportunities', href: '/organizer/opportunities', icon: <BriefcaseIcon className="w-5 h-5" /> },
     { label: 'Requests', href: '/organizer/requests', icon: icons.queue },
     { label: 'Contracts', href: '/organizer/contracts', icon: icons.proposals },
     { label: 'Wallet', href: '/organizer/wallet', icon: icons.vendor },
@@ -119,6 +121,7 @@ const navItems: Record<string, SidebarItem[]> = {
   ],
   vendor: [
     { label: 'Dashboard', href: '/vendor/dashboard', icon: icons.dashboard },
+    { label: 'Opportunities', href: '/vendor/opportunities', icon: <BriefcaseIcon className="w-5 h-5" /> },
     { label: 'Requests', href: '/vendor/requests', icon: icons.queue },
     { label: 'Contracts', href: '/vendor/contracts', icon: icons.proposals },
     { label: 'Venue Listings', href: '/vendor/venue-listings', icon: icons.events },
