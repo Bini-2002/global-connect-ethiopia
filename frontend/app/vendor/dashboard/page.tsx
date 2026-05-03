@@ -13,12 +13,9 @@ import {
 } from '@/app/types/marketplace';
 
 const CATEGORY_OPTIONS = [
-  'Venue Provider',
-  'Catering Provider',
-  'Decor',
-  'Audio / Visual',
-  'Security',
-  'Photography',
+  'Hotel', 'Catering', 'Decoring', 'Security', 'Audio Visual',
+  'Social Media Promoting', 'Marketing and Advertisment',
+  'Modeling and Hosts', 'Volunteer facilitator', 'Graphics Design'
 ];
 
 function formatCurrency(value?: number | null) {
@@ -38,7 +35,7 @@ function formatDate(value?: string | null) {
 const initialFormState = {
   title: '',
   description: '',
-  category: 'Venue Provider',
+  category: 'Hotel',
   price_min: '50000',
   price_max: '120000',
   pricing_type: 'negotiable' as 'fixed' | 'negotiable',
@@ -46,6 +43,7 @@ const initialFormState = {
   tags: '',
   image_files: [] as File[],
   availability: '',
+  service_details: '',
 };
 
 export default function VendorDashboardPage() {
@@ -110,6 +108,7 @@ export default function VendorDashboardPage() {
           .filter(Boolean),
         image_files: form.image_files,
         availability: form.availability.trim() || undefined,
+        service_details: form.service_details.trim() || undefined,
       };
 
       await vendorPortalService.createService(payload);
@@ -444,12 +443,117 @@ export default function VendorDashboardPage() {
                       <label htmlFor="availability" className="mb-1 block text-sm font-medium text-slate-700">Availability notes or JSON</label>
                       <textarea
                         id="availability"
-                        rows={4}
+                        rows={2}
                         value={form.availability}
                         onChange={(event) => setForm((current) => ({ ...current, availability: event.target.value }))}
                         className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
                         placeholder='{"days":["Mon","Tue"],"lead_time":"14 days"}'
                       />
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-4">
+                      <h3 className="font-semibold text-slate-800 mb-3">{form.category} Details</h3>
+                      {form.category === 'Hotel' && (
+                        <textarea
+                          id="service_details"
+                          rows={2}
+                          value={form.service_details}
+                          onChange={(event) => setForm((current) => ({ ...current, service_details: event.target.value }))}
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                          placeholder='{"room_types": ["Single", "Suite"], "bed_capacity": 2, "meals_included": ["Breakfast"]}'
+                        />
+                      )}
+                      {form.category === 'Catering' && (
+                        <textarea
+                          id="service_details"
+                          rows={2}
+                          value={form.service_details}
+                          onChange={(event) => setForm((current) => ({ ...current, service_details: event.target.value }))}
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                          placeholder='{"menu_type": "Buffet", "dietary_options": ["Vegan", "Halal"], "staff_included": ["Waiters"]}'
+                        />
+                      )}
+                      {form.category === 'Decoring' && (
+                        <textarea
+                          id="service_details"
+                          rows={2}
+                          value={form.service_details}
+                          onChange={(event) => setForm((current) => ({ ...current, service_details: event.target.value }))}
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                          placeholder='{"event_type": "Wedding", "included_items": ["Flowers", "Lighting"], "setup_hours": 4}'
+                        />
+                      )}
+                      {form.category === 'Security' && (
+                        <textarea
+                          id="service_details"
+                          rows={2}
+                          value={form.service_details}
+                          onChange={(event) => setForm((current) => ({ ...current, service_details: event.target.value }))}
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                          placeholder='{"personnel_type": "Bouncers", "armed": false, "shift_length_hours": 8}'
+                        />
+                      )}
+                      {form.category === 'Audio Visual' && (
+                        <textarea
+                          id="service_details"
+                          rows={2}
+                          value={form.service_details}
+                          onChange={(event) => setForm((current) => ({ ...current, service_details: event.target.value }))}
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                          placeholder='{"equipment": ["Mics", "Cameras"], "crew_size": 3, "post_production": true}'
+                        />
+                      )}
+                      {form.category === 'Social Media Promoting' && (
+                        <textarea
+                          id="service_details"
+                          rows={2}
+                          value={form.service_details}
+                          onChange={(event) => setForm((current) => ({ ...current, service_details: event.target.value }))}
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                          placeholder='{"promotion_type": "Influencer shoutout", "engagement_rate": "5%", "campaign_duration_days": 7}'
+                        />
+                      )}
+                      {form.category === 'Marketing and Advertisment' && (
+                        <textarea
+                          id="service_details"
+                          rows={2}
+                          value={form.service_details}
+                          onChange={(event) => setForm((current) => ({ ...current, service_details: event.target.value }))}
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                          placeholder='{"campaign_scale": "National", "target_demographics": ["18-35"], "estimated_reach": 50000}'
+                        />
+                      )}
+                      {form.category === 'Modeling and Hosts' && (
+                        <textarea
+                          id="service_details"
+                          rows={2}
+                          value={form.service_details}
+                          onChange={(event) => setForm((current) => ({ ...current, service_details: event.target.value }))}
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                          placeholder='{"talent_types": ["Runway", "Ushers"], "languages": ["Amharic", "English"], "wardrobe_provided": true}'
+                        />
+                      )}
+                      {form.category === 'Volunteer facilitator' && (
+                        <textarea
+                          id="service_details"
+                          rows={2}
+                          value={form.service_details}
+                          onChange={(event) => setForm((current) => ({ ...current, service_details: event.target.value }))}
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                          placeholder='{"volunteer_roles": ["Registration", "Crowd control"], "training_included": true, "uniform_provided": false}'
+                        />
+                      )}
+                      {form.category === 'Graphics Design' && (
+                        <textarea
+                          id="service_details"
+                          rows={2}
+                          value={form.service_details}
+                          onChange={(event) => setForm((current) => ({ ...current, service_details: event.target.value }))}
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                          placeholder='{"design_types": ["Poster", "Banner", "Logo"], "revisions_included": 3, "turnaround_days": 2}'
+                        />
+                      )}
+                      <p className="text-xs text-slate-500 mt-1">Provide specific details in JSON format (optional).</p>
                     </div>
 
                     <button
