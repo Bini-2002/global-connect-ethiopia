@@ -448,7 +448,7 @@ async def get_vendor_portal_summary(current_user: dict = Depends(get_current_use
         "recent_requests": [
             {
                 "id": str(item["_id"]),
-                "event_id": item.get("event_id"),
+                "event_id": str(item["event_id"]) if item.get("event_id") else None,
                 "service_title": item.get("service_title"),
                 "status": item.get("status"),
                 "proposed_amount": item.get("proposed_amount") or item.get("current_amount"),
@@ -459,7 +459,7 @@ async def get_vendor_portal_summary(current_user: dict = Depends(get_current_use
         "recent_contracts": [
             {
                 "id": str(item["_id"]),
-                "event_id": item.get("event_id"),
+                "event_id": str(item["event_id"]) if item.get("event_id") else None,
                 "title": item.get("title"),
                 "status": item.get("status"),
                 "amount": float(item.get("amount", item.get("price", 0.0))),

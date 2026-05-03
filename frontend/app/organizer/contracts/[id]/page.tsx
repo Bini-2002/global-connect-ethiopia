@@ -232,7 +232,7 @@ export default function OrganizerContractDetailPage() {
                       label="Organizer Signature"
                       signed={contract.signed_by_organizer}
                       signedAt={contract.signed_by_organizer_at}
-                      canSign={!contract.signed_by_organizer && (contract.status === 'draft' || contract.status === 'pending_signatures')}
+                      canSign={!contract.signed_by_organizer}
                       onSign={() => void handleSignAsOrganizer()}
                       loading={actionState === 'sign'}
                     />
