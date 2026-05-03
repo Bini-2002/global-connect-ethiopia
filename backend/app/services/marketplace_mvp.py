@@ -260,6 +260,7 @@ async def ensure_wallet(user_id: Any) -> dict:
     now = utc_now()
     payload = {
         "user_id": normalized_user_id,
+        "vendor_user_id": normalized_user_id,
         "balance": 0.0,
         "locked_balance": 0.0,
         "created_at": now,
