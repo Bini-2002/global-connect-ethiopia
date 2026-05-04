@@ -118,7 +118,7 @@ def _event_base_response(document: dict) -> dict:
     booking_status = _resolve_booking_status(document)
     return {
         "id": str(document["_id"]),
-        "organizer_id": document["organizer_id"],
+        "organizer_id": str(document["organizer_id"]),
         "proposal_id": document["proposal_id"],
         "permit_id": document.get("permit_id"),
         "permit_number": document.get("permit_number"),
@@ -380,7 +380,7 @@ async def _get_event_or_404(event_id: str) -> dict:
 async def _get_owned_event_or_403(event_id: str, current_user: dict) -> dict:
     event = await _get_event_or_404(event_id)
     role = to_user_role(current_user.get("role"))
-    if role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN} and event.get("organizer_id") != current_user["id"]:
+    if role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN} and str(event.get("organizer_id")) != str(current_user["id"]):
         raise HTTPException(status_code=403, detail="You do not own this event")
     return event
 
@@ -398,9 +398,9 @@ async def _ensure_booking_access(event: dict, booking: dict, current_user: dict)
     role = to_user_role(current_user.get("role"))
     if role in {UserRole.ADMIN, UserRole.SUPER_ADMIN}:
         return
-    if event.get("organizer_id") == current_user["id"]:
+    if str(event.get("organizer_id")) == str(current_user["id"]):
         return
-    if booking.get("attendee_id") == current_user["id"]:
+    if str(booking.get("attendee_id")) == str(current_user["id"]):
         return
     await _ensure_team_access(event, current_user)
 
@@ -409,7 +409,7 @@ async def _ensure_team_access(event: dict, current_user: dict) -> None:
     role = to_user_role(current_user.get("role"))
     if role in {UserRole.ADMIN, UserRole.SUPER_ADMIN}:
         return
-    if event.get("organizer_id") == current_user["id"]:
+    if str(event.get("organizer_id")) == str(current_user["id"]):
         return
     member = await event_team_member_collection.find_one(
         {
@@ -655,7 +655,7 @@ async def get_event(event_id: str, current_user: dict = Depends(get_current_user
     role = to_user_role(current_user.get("role"))
     if role in {UserRole.ADMIN, UserRole.SUPER_ADMIN}:
         return _event_base_response(event)
-    if event.get("organizer_id") == current_user["id"]:
+    if str(event.get("organizer_id")) == str(current_user["id"]):
         return _event_base_response(event)
     if role == UserRole.ATTENDEE and event.get("status") in {
         EventStatus.PUBLISHED,
@@ -1269,7 +1269,7 @@ async def update_booking_settings(
 async def list_event_bookings(event_id: str, current_user: dict = Depends(get_current_user)):
     event = await _get_event_or_404(event_id)
     role = to_user_role(current_user.get("role"))
-    if role in {UserRole.ADMIN, UserRole.SUPER_ADMIN} or event.get("organizer_id") == current_user["id"]:
+    if role in {UserRole.ADMIN, UserRole.SUPER_ADMIN} or str(event.get("organizer_id")) == str(current_user["id"]):
         query = {"event_id": event_id}
     elif role == UserRole.ATTENDEE:
         query = {"event_id": event_id, "attendee_id": current_user["id"]}
