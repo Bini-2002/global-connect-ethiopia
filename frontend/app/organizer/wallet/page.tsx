@@ -27,19 +27,36 @@ export default function OrganizerWalletPage() {
     try {
       setDepositing(true);
       setDepositError(null);
-      await marketplaceService.depositWallet({ amount: Number(amount) });
-      refresh();
-      refreshTransactions();
+      
+      const returnUrl = window.location.origin + '/organizer/wallet/verify';
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch('/api/v1/wallet/top-up/initialize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ amount: Number(amount), return_url: returnUrl }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(errorData.detail || 'Payment initialization failed');
+      }
+
+      const data = await response.json();
+      window.location.href = data.checkout_url;
+      
     } catch (nextError) {
-      setDepositError(nextError instanceof Error ? nextError.message : 'Unable to deposit wallet funds.');
-    } finally {
+      setDepositError(nextError instanceof Error ? nextError.message : 'Unable to initiate payment.');
       setDepositing(false);
     }
   };
 
   const action = (
     <form onSubmit={handleDeposit} className="rounded-[24px] bg-slate-50 p-4">
-      <label htmlFor="deposit" className="mb-1 block text-sm font-medium text-slate-700">Mock deposit amount</label>
+      <label htmlFor="deposit" className="mb-1 block text-sm font-medium text-slate-700">Chapa test deposit amount</label>
       <input
         id="deposit"
         type="number"
@@ -51,9 +68,14 @@ export default function OrganizerWalletPage() {
       <button
         type="submit"
         disabled={depositing || !amount}
-        className="mt-3 w-full rounded-xl bg-[#062E22] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0a4a37] disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-3 w-full flex justify-center items-center gap-2 rounded-xl bg-[#062E22] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0a4a37] disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {depositing ? 'Depositing...' : 'Deposit Funds'}
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 16.0002L18.828 13.1722C19.578 12.4222 19.578 11.2052 18.828 10.4552C18.078 9.70523 16.861 9.70523 16.111 10.4552L13.889 12.6772" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M7 7.00024L4.172 9.82824C3.422 10.5782 3.422 11.7952 4.172 12.5452C4.922 13.2952 6.139 13.2952 6.889 12.5452L9.111 10.3232" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        {depositing ? 'Redirecting to Chapa...' : 'Top Up via Chapa'}
       </button>
       {depositError ? <p className="mt-3 text-sm text-red-600">{depositError}</p> : null}
     </form>
@@ -86,7 +108,7 @@ export default function OrganizerWalletPage() {
               transactions={transactions}
               action={action}
               title="Organizer wallet"
-              subtitle="Use mock deposits to fund escrow, then monitor funds as contracts move from signed to paid."
+              subtitle="Top up your wallet using Chapa's payment gateway, then use these funds to securely escrow marketplace contracts."
             />
           )}
         </div>
