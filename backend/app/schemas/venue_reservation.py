@@ -18,7 +18,7 @@ class VenueSearchResponse(BaseModel):
 
 
 class VenueReservationCreateRequest(BaseModel):
-    venue_listing_id: str
+    vendor_id: str  # Changed from venue_listing_id - now references vendor directly
     requested_start: datetime
     requested_end: datetime
     notes: str | None = Field(default=None, max_length=3000)
@@ -51,7 +51,6 @@ class VenueReservationCancelRequest(BaseModel):
 class VenueReservationResponse(BaseModel):
     id: str
     event_id: str
-    venue_listing_id: str
     vendor_id: str
     vendor_user_id: str
     venue_name: str
@@ -82,7 +81,8 @@ class VenueReservationResponse(BaseModel):
     payment_reference_id: str | None = None
     deposit_funded_at: datetime | None = None
     deposit_satisfied_at: datetime | None = None
-    alternative_suggestions: list[VenueListingSearchResponse] = Field(default_factory=list)
+    alternative_suggestions: list[VenueListingSearchResponse] = Field(
+        default_factory=list)
     alternative_suggestions_generated_at: datetime | None = None
     created_at: datetime
     updated_at: datetime

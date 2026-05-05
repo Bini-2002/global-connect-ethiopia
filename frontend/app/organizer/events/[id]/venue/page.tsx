@@ -48,7 +48,7 @@ function ReservationStatusBadge({ status }: { status: string }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface ReservationFormState {
-  venue_listing_id: string;
+  vendor_id: string;
   venue_name_display: string;
   requested_start: string;
   requested_end: string;
@@ -57,7 +57,7 @@ interface ReservationFormState {
 }
 
 function createReservationForm(): ReservationFormState {
-  return { venue_listing_id: '', venue_name_display: '', requested_start: '', requested_end: '', estimated_cost: '', notes: '' };
+  return { vendor_id: '', venue_name_display: '', requested_start: '', requested_end: '', estimated_cost: '', notes: '' };
 }
 
 export default function EventVenuePage() {
@@ -67,11 +67,11 @@ export default function EventVenuePage() {
 
   const [reservations, setReservations] = useState<VenueReservationRecord[]>([]);
   const [loadingReservations, setLoadingReservations] = useState(true);
-<<<<<<< HEAD
+
   const [searchQuery, setSearchQuery] = useState('');
-=======
+
   const [searchCity, setSearchCity] = useState('');
->>>>>>> origin/venue-listing-backend
+
   const [searchResults, setSearchResults] = useState<VenueListingSearchResponse[]>([]);
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -99,13 +99,11 @@ export default function EventVenuePage() {
     if (!event) return;
     const defaultCity = event.office_assignments?.municipal?.city || event.location || '';
     const baseDate = startOfInputDateTime(event.start_date);
-<<<<<<< HEAD
-    setSearchQuery((c) => c || defaultCity);
-=======
+
     setSearchCity((c) => c || defaultCity);
->>>>>>> origin/venue-listing-backend
+
     setReservationForm((current) =>
-      current.venue_listing_id || current.requested_start ? current : {
+      current.vendor_id || current.requested_start ? current : {
         ...current,
         requested_start: baseDate,
         requested_end: startOfInputDateTime(event.end_date) || baseDate,
@@ -125,8 +123,8 @@ export default function EventVenuePage() {
       setSearching(true);
       setError(null);
       setHasSearched(true);
-      console.log('[Venue Search] Searching for:', searchQuery);
-      const response = await eventsService.searchEventVenues(event.id, undefined, searchQuery);
+      console.log('[Venue Search] Searching for:', { city: searchCity, query: searchQuery });
+      const response = await eventsService.searchEventVenues(event.id, searchCity || undefined, searchQuery || undefined);
       console.log('[Venue Search] Response:', response);
       setSearchResults(response.venues || []);
     } catch (err) {
@@ -140,7 +138,7 @@ export default function EventVenuePage() {
   const selectVenueListing = (listing: VenueListingSearchResponse) => {
     setReservationForm((f) => ({
       ...f,
-      venue_listing_id: listing.id,
+      vendor_id: listing.id,
       venue_name_display: listing.venue_name,
       estimated_cost: listing.estimated_cost ? String(listing.estimated_cost) : f.estimated_cost,
     }));
@@ -148,7 +146,7 @@ export default function EventVenuePage() {
 
   const handleCreateReservation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reservationForm.venue_listing_id) {
+    if (!reservationForm.vendor_id) {
       setError('Please select a venue from the search results first.');
       return;
     }
@@ -156,7 +154,7 @@ export default function EventVenuePage() {
       setCreating(true);
       setError(null);
       await eventsService.createVenueReservation(eventId, {
-        venue_listing_id: reservationForm.venue_listing_id,
+        vendor_id: reservationForm.vendor_id,
         requested_start: reservationForm.requested_start,
         requested_end: reservationForm.requested_end,
         estimated_cost: reservationForm.estimated_cost ? Number(reservationForm.estimated_cost) : undefined,
@@ -243,21 +241,23 @@ export default function EventVenuePage() {
           <h2 className="mt-1 text-2xl font-bold text-[#062E22]">Search Available Venues</h2>
           <p className="mt-2 text-sm text-slate-500">Search real venue listings. Select one to pre-fill the reservation form.</p>
 
-          <div className="mt-5 flex gap-3">
+          <div className="mt-5 flex flex-col sm:flex-row gap-3">
             <input
               type="text"
-<<<<<<< HEAD
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-              placeholder="Search by venue name or city (e.g. Addis Ababa, Millennium Hall)"
-=======
-              value={searchCity}
-              onChange={(e) => setSearchCity(e.target.value)}
-              placeholder="Filter by city (e.g. Addis Ababa)"
->>>>>>> origin/venue-listing-backend
+              placeholder="Search by venue name (e.g. Millennium Hall)"
               className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
             />
+             <input
+               type="text"
+               value={searchCity}
+               onChange={(e) => setSearchCity(e.target.value)}
+               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+               placeholder="City (e.g. Addis, Bole)"
+               className="sm:w-48 rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
+             />
             <button
               onClick={() => void handleSearch()}
               disabled={searching}
@@ -271,7 +271,7 @@ export default function EventVenuePage() {
           {searchResults.length > 0 && (
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {searchResults.map((listing) => {
-                const isSelected = reservationForm.venue_listing_id === listing.id;
+                const isSelected = reservationForm.vendor_id === listing.id;
                 return (
                   <button
                     key={listing.id}
@@ -306,15 +306,14 @@ export default function EventVenuePage() {
               })}
             </div>
           )}
-<<<<<<< HEAD
+
 
           {searchResults.length === 0 && !searching && hasSearched && (
             <div className="mt-5 rounded-2xl border border-dashed border-slate-200 p-8 text-center">
               <p className="text-slate-500 text-sm">No venues found for &quot;{searchQuery}&quot;. Try a different search term.</p>
             </div>
           )}
-=======
->>>>>>> origin/venue-listing-backend
+
         </div>
 
         {/* ─── Reservation Form ─── */}
@@ -334,10 +333,9 @@ export default function EventVenuePage() {
                 <input
                   type="datetime-local"
                   required
-<<<<<<< HEAD
+
                   title="Start date and time"
-=======
->>>>>>> origin/venue-listing-backend
+
                   value={reservationForm.requested_start}
                   onChange={(e) => setReservationForm((f) => ({ ...f, requested_start: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
@@ -348,10 +346,9 @@ export default function EventVenuePage() {
                 <input
                   type="datetime-local"
                   required
-<<<<<<< HEAD
+
                   title="End date and time"
-=======
->>>>>>> origin/venue-listing-backend
+
                   value={reservationForm.requested_end}
                   onChange={(e) => setReservationForm((f) => ({ ...f, requested_end: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
@@ -381,7 +378,7 @@ export default function EventVenuePage() {
             </div>
             <button
               type="submit"
-              disabled={creating || !reservationForm.venue_listing_id}
+              disabled={creating || !reservationForm.vendor_id}
               className="w-full rounded-xl bg-[#062E22] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0a4a37] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {creating ? 'Sending request…' : 'Send Reservation Request'}
