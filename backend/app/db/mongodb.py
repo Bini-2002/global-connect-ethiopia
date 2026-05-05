@@ -1,8 +1,14 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.config import settings
 
+# --- MOCK DB FALLBACK ---
+if getattr(settings, "USE_MOCK_DB", False):
+    from mongomock_motor import AsyncMongoMockClient as MockClient
+    client = MockClient()
+else:
+    client = AsyncIOMotorClient(settings.MONGODB_URL, serverSelectionTimeoutMS=2000)
+# ------------------------
 
-client = AsyncIOMotorClient(settings.MONGODB_URL)
 db = client[settings.DATABASE_NAME]
 
 # users collection

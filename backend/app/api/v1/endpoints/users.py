@@ -35,7 +35,6 @@ async def get_my_profile(current_user: dict = Depends(get_current_user)):
     profile["id"] = str(profile["_id"])
     profile["user_id"] = str(profile["user_id"])
     profile["name"] = current_user.get("full_name")
-
     if profile["name"] is None:
         user = await user_collection.find_one(
             {"_id": ObjectId(current_user["id"])},
@@ -43,6 +42,7 @@ async def get_my_profile(current_user: dict = Depends(get_current_user)):
         )
         profile["name"] = user.get("full_name") if user else None
 
+    profile["email"] = current_user.get("email")
     return profile
 
 
@@ -101,7 +101,6 @@ async def update_my_profile(
     updated_profile["id"] = str(updated_profile["_id"])
     updated_profile["user_id"] = str(updated_profile["user_id"])
     updated_profile["name"] = current_user.get("full_name")
-
     if updated_profile["name"] is None:
         user = await user_collection.find_one(
             {"_id": ObjectId(current_user["id"])},
@@ -109,6 +108,7 @@ async def update_my_profile(
         )
         updated_profile["name"] = user.get("full_name") if user else None
 
+    updated_profile["email"] = current_user.get("email")
     return updated_profile
 
 
