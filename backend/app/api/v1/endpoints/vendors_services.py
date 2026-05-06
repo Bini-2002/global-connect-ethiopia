@@ -51,6 +51,7 @@ async def _serialize_service(service: dict) -> dict:
         "location": service.get("location"),
         "images": _normalize_images(service.get("images", [])),
         "availability": service.get("availability"),
+        "features": service.get("features", {}),
         "tags": service.get("tags", []),
         "is_active": bool(service.get("is_active", True)),
         "created_at": service["created_at"],
@@ -72,6 +73,7 @@ async def create_vendor_service(
     location: str = Form(...),
     images: str | None = Form(default=None),
     availability: str | None = Form(default=None),
+    features: str | None = Form(default=None),
     tags: str | None = Form(default=None),
     image_files: list[UploadFile] = File(default=[]),
     current_user: dict = Depends(get_current_user),
@@ -102,6 +104,7 @@ async def create_vendor_service(
         "location": location.strip(),
         "images": _normalize_images(uploaded_images),
         "availability": parse_flexible_payload(availability),
+        "features": parse_flexible_payload(features) or {},
         "tags": parse_string_list(tags),
         "is_active": True,
         "created_at": now,
@@ -142,6 +145,7 @@ async def update_vendor_service(
     location: str | None = Form(default=None),
     images: str | None = Form(default=None),
     availability: str | None = Form(default=None),
+    features: str | None = Form(default=None),
     tags: str | None = Form(default=None),
     image_files: list[UploadFile] = File(default=[]),
     current_user: dict = Depends(get_current_user),
@@ -180,6 +184,8 @@ async def update_vendor_service(
 
     if availability is not None:
         update_data["availability"] = parse_flexible_payload(availability)
+    if features is not None:
+        update_data["features"] = parse_flexible_payload(features) or {}
     if tags is not None:
         update_data["tags"] = parse_string_list(tags)
 
