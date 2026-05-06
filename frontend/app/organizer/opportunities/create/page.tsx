@@ -75,7 +75,22 @@ export default function CreateOpportunityPage() {
         const data = await eventsService.getEvents();
         setEvents(data);
       } catch (err) {
-        console.error('Failed to load events:', err);
+        console.error('Failed to load events via service, trying direct fallback:', err);
+        try {
+          const { api } = await import('@/app/lib/api');
+          const rawEvents = await api.get<any[]>('/events/');
+          setEvents(rawEvents.map(e => ({
+            id: e.id,
+            proposal_id: e.proposal_id || '',
+            title: e.title,
+            location: e.location || 'Location pending',
+            date: e.start_date || 'Date pending',
+            status: 'UPCOMING',
+            backend_status: e.status,
+          } as EventListItem)));
+        } catch (fallbackErr) {
+          console.error('Fallback failed:', fallbackErr);
+        }
       } finally {
         setEventsLoading(false);
       }
@@ -193,6 +208,10 @@ const toggleVendorSelection = (vendor: VendorRecord) => {
     try {
       const payload: CreateOpportunityPayload = {
         ...formData,
+        event_id: formData.event_id || undefined,
+        requirements: formData.requirements || undefined,
+        submission_deadline: formData.submission_deadline ? new Date(formData.submission_deadline).toISOString() : undefined,
+        event_date: formData.event_date ? new Date(formData.event_date).toISOString() : undefined,
         invited_vendor_ids:
           sourcingMode === 'invite_only' ? formData.invited_vendor_ids : [],
         invited_vendor_user_ids:

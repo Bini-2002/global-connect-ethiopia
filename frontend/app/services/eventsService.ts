@@ -264,9 +264,12 @@ export const eventsService = {
   },
 
   /** Phase 2: search returns real venue listing records with `id` field */
-  searchEventVenues: async (eventId: string, city?: string): Promise<VenueSearchResult> => {
-    const query = city?.trim() ? `?city=${encodeURIComponent(city.trim())}` : '';
-    return api.get<VenueSearchResult>(`/events/${eventId}/venues/search${query}`);
+  searchEventVenues: async (eventId: string, city?: string, q?: string): Promise<VenueSearchResult> => {
+    const params = new URLSearchParams();
+    if (city?.trim()) params.set('city', city.trim());
+    if (q?.trim()) params.set('q', q.trim());
+    const query = params.toString();
+    return api.get<VenueSearchResult>(`/events/${eventId}/venues/search${query ? '?' + query : ''}`);
   },
 
   getVenueReservations: async (eventId: string): Promise<VenueReservationRecord[]> => {

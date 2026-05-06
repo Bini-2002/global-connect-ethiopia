@@ -3,9 +3,10 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.api.v1.deps import get_current_user
+from app.api.v1.deps import get_current_user, get_current_user_allow_inactive
 from app.core.config import settings
 from app.core.queue import get_verification_queue
+from starlette.concurrency import run_in_threadpool
 from app.db.mongodb import contract_collection, request_collection, vendor_collection, vendor_service_collection, verification_job_collection
 from app.models.roles import UserRole
 from app.schemas.marketplace_mvp import VendorMarketplaceResponse
@@ -19,6 +20,7 @@ from app.services.marketplace_mvp import get_vendor_detail, list_verified_vendor
 from app.services.object_storage import ObjectStorageService
 
 router = APIRouter()
+# Trigger reload again
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -80,7 +82,8 @@ async def _store_upload_file(file: UploadFile, folder: str, allowed_extensions: 
         )
 
     storage = ObjectStorageService()
-    stored = storage.upload_verification_document(
+    stored = await run_in_threadpool(
+        storage.upload_verification_document,
         content=content,
         filename=file.filename or "document",
         folder=folder,
@@ -109,9 +112,10 @@ async def create_or_update_vendor_business_details(
     registration_number: str | None = Form(None),
     years_of_operation: int = Form(...),
     website_url: str | None = Form(None),
+    category_metadata: str | None = Form(None),
     business_license_or_registration_certificate: UploadFile = File(...),
     government_issued_id: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     _require_vendor(current_user)
 
@@ -138,6 +142,14 @@ async def create_or_update_vendor_business_details(
         allowed_extensions=ID_DOCUMENT_EXTENSIONS,
     )
 
+    import json
+    metadata_dict = {}
+    if category_metadata:
+        try:
+            metadata_dict = json.loads(category_metadata)
+        except Exception:
+            pass
+
     now = datetime.now(timezone.utc)
     step_2_payload = {
         "business_details": {
@@ -147,6 +159,7 @@ async def create_or_update_vendor_business_details(
             "registration_number": registration_number,
             "years_of_operation": years_of_operation,
             "website_url": website_url,
+            "category_metadata": metadata_dict,
         },
         "required_documents": {
             "business_license_or_registration_certificate": business_doc_metadata,
@@ -203,7 +216,7 @@ async def create_or_update_vendor_business_details(
 
 
 @router.get("/verification/review-summary", response_model=VendorReviewSummaryResponse)
-async def get_vendor_review_summary(current_user: dict = Depends(get_current_user)):
+async def get_vendor_review_summary(current_user: dict = Depends(get_current_user_allow_inactive)):
     _require_vendor(current_user)
 
     vendor = await vendor_collection.find_one({"user_id": ObjectId(current_user["id"])})
@@ -230,7 +243,7 @@ async def get_vendor_review_summary(current_user: dict = Depends(get_current_use
 async def submit_vendor_for_verification(
     confirm_information_is_accurate: bool = Form(...),
     agree_terms_and_privacy: bool = Form(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     _require_vendor(current_user)
 
@@ -338,7 +351,7 @@ async def submit_vendor_for_verification(
 
 
 @router.get("/verification/status", response_model=VendorStatusResponse)
-async def get_vendor_verification_status(current_user: dict = Depends(get_current_user)):
+async def get_vendor_verification_status(current_user: dict = Depends(get_current_user_allow_inactive)):
     _require_vendor(current_user)
 
     vendor = await vendor_collection.find_one({"user_id": ObjectId(current_user["id"])})
@@ -435,7 +448,7 @@ async def get_vendor_portal_summary(current_user: dict = Depends(get_current_use
         "recent_requests": [
             {
                 "id": str(item["_id"]),
-                "event_id": item.get("event_id"),
+                "event_id": str(item["event_id"]) if item.get("event_id") else None,
                 "service_title": item.get("service_title"),
                 "status": item.get("status"),
                 "proposed_amount": item.get("proposed_amount") or item.get("current_amount"),
@@ -446,7 +459,7 @@ async def get_vendor_portal_summary(current_user: dict = Depends(get_current_use
         "recent_contracts": [
             {
                 "id": str(item["_id"]),
-                "event_id": item.get("event_id"),
+                "event_id": str(item["event_id"]) if item.get("event_id") else None,
                 "title": item.get("title"),
                 "status": item.get("status"),
                 "amount": float(item.get("amount", item.get("price", 0.0))),

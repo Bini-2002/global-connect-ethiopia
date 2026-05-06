@@ -196,7 +196,7 @@ export default function VendorContractDetailPage() {
                       ) : (
                         <>
                           <p className="mt-1 text-sm font-semibold text-slate-500">Not yet signed</p>
-                          {(contract.status === 'draft' || contract.status === 'pending_signatures') ? (
+                          {(!contract.signed_by_vendor) ? (
                             <button
                               onClick={() => void handleSignAsVendor()}
                               disabled={actionState === 'sign'}

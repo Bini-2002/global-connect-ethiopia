@@ -1,4 +1,4 @@
-// components/RegistrationForm.js
+// components/RegistrationForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -15,8 +15,7 @@ export default function RegistrationForm() {
     role: "",
     password: "",
   });
-
-  const [passwordStrength, setPasswordStrength] = useState("Weak"); // Will calculate based on password
+  const [passwordStrength, setPasswordStrength] = useState("Weak");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -63,6 +62,7 @@ export default function RegistrationForm() {
         return "text-slate-500";
     }
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -114,6 +114,7 @@ export default function RegistrationForm() {
       setLoading(false);
     }
   };
+
   return (
     <>
       <LoginHeader />

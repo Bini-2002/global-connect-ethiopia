@@ -229,7 +229,7 @@ export interface VenueSearchResult {
 
 /** Phase 2: creation now uses venue_listing_id instead of free-text */
 export interface VenueReservationCreatePayload {
-  venue_listing_id: string;
+  vendor_id: string;
   requested_start: string;
   requested_end: string;
   estimated_cost?: number;
@@ -254,7 +254,6 @@ export interface VenueReservationDepositUpdatePayload {
 export interface VenueReservationRecord {
   id: string;
   event_id: string;
-  venue_listing_id: string;
   vendor_id: string;
   vendor_user_id: string;
   venue_name: string;

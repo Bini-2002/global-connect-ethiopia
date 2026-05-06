@@ -11,6 +11,8 @@ import { useMarketplaceVendor } from '@/app/hooks/useMarketplace';
 import eventsService from '@/app/services/eventsService';
 import marketplaceService from '@/app/services/marketplaceService';
 import Image from 'next/image';
+import { VendorServiceRecord } from '@/app/types/marketplace';
+
 export default function OrganizerVendorDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -24,6 +26,7 @@ export default function OrganizerVendorDetailPage() {
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [selectedServiceRecord, setSelectedServiceRecord] = useState<VendorServiceRecord | null>(null);
 
   const handleServiceToggle = (service: string) => {
     setSelectedServices((prev) =>
@@ -158,16 +161,54 @@ export default function OrganizerVendorDetailPage() {
 
                 <div className="mt-6">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Services</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {vendor.services.length ? (
-                      vendor.services.map((service) => (
-                        <span
-                          key={`${vendor.id}-${service}`}
-                          className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700"
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    {vendor.service_records && vendor.service_records.length > 0 ? (
+                      vendor.service_records.map((service) => (
+                        <div
+                          key={service.id}
+                          onClick={() => setSelectedServiceRecord(service)}
+                          className="cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-[#062E22] hover:shadow-md flex flex-col"
                         >
-                          {service}
-                        </span>
+                          {service.images && service.images.length > 0 ? (
+                            <div className="aspect-video w-full bg-slate-100 relative shrink-0">
+                              <Image src={service.images[0].url} alt={service.title} fill className="object-cover" />
+                            </div>
+                          ) : (
+                            <div className="aspect-video w-full bg-slate-50 flex items-center justify-center shrink-0 border-b border-slate-100">
+                              <span className="text-slate-400 text-sm">No Image</span>
+                            </div>
+                          )}
+                          <div className="p-4 flex flex-col flex-1">
+                            <h3 className="font-semibold text-slate-800 line-clamp-1">{service.title}</h3>
+                            <p className="mt-1 text-sm text-slate-500 line-clamp-2">{service.description}</p>
+                            <div className="mt-auto pt-3 flex flex-wrap gap-2 justify-between items-center">
+                              {service.location && (
+                                <p className="text-xs text-slate-400 flex items-center gap-1">
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  <span className="line-clamp-1 max-w-[100px]">{service.location}</span>
+                                </p>
+                              )}
+                              <p className="text-xs font-semibold text-[#062E22]">
+                                {service.price_min} ETB
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       ))
+                    ) : vendor.services.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {vendor.services.map((service) => (
+                          <span
+                            key={`${vendor.id}-${service}`}
+                            className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700"
+                          >
+                            {service}
+                          </span>
+                        ))}
+                      </div>
                     ) : (
                       <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
                         No services listed yet
@@ -263,6 +304,117 @@ export default function OrganizerVendorDetailPage() {
           )}
         </div>
       </main>
+
+      {/* Service Detail Modal */}
+      {selectedServiceRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm transition-all duration-300">
+          <div 
+            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl animate-in fade-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-start justify-between bg-white/90 p-6 backdrop-blur-md border-b border-slate-100">
+              <h2 className="text-2xl font-bold text-[#062E22]">{selectedServiceRecord.title}</h2>
+              <button 
+                onClick={() => setSelectedServiceRecord(null)} 
+                className="rounded-full p-2 hover:bg-slate-100 transition-colors bg-slate-50"
+              >
+                <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6 pt-2">
+              {selectedServiceRecord.images && selectedServiceRecord.images.length > 0 && (
+                <div className="mt-2 flex gap-3 overflow-x-auto pb-4 snap-x">
+                  {selectedServiceRecord.images.map((img, idx) => (
+                     <div key={idx} className="relative h-40 w-64 flex-shrink-0 rounded-2xl overflow-hidden bg-slate-100 snap-center shadow-sm">
+                        <Image src={img.url} alt="" fill className="object-cover" />
+                     </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-2">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</p>
+                <p className="text-sm leading-relaxed text-slate-600 bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                  {selectedServiceRecord.description}
+                </p>
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Category</p>
+                  <p className="mt-1 text-sm font-semibold text-[#062E22]">{selectedServiceRecord.category}</p>
+                </div>
+                {selectedServiceRecord.location && (
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Location</p>
+                    <p className="mt-1 text-sm font-semibold text-[#062E22]">{selectedServiceRecord.location}</p>
+                  </div>
+                )}
+                <div className="bg-[#062E22]/5 p-4 rounded-2xl border border-[#062E22]/10">
+                  <p className="text-xs font-medium text-[#062E22]/60 uppercase tracking-wider">Pricing</p>
+                  <p className="mt-1 text-sm font-bold text-[#062E22]">
+                    {selectedServiceRecord.pricing_type === 'fixed' 
+                      ? `${selectedServiceRecord.price_min} ETB` 
+                      : `${selectedServiceRecord.price_min} - ${selectedServiceRecord.price_max} ETB`}
+                  </p>
+                  {selectedServiceRecord.pricing_type === 'negotiable' && (
+                    <span className="text-[10px] font-medium text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded ml-1">Negotiable</span>
+                  )}
+                </div>
+              </div>
+
+              {selectedServiceRecord.service_details && Object.keys(selectedServiceRecord.service_details as any).length > 0 && (
+                <div className="mt-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-[#0a4a37]">Service Details</h3>
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {Object.entries(selectedServiceRecord.service_details as Record<string, any>).map(([key, value]) => {
+                      const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/^./, str => str.toUpperCase());
+                      let displayValue = value;
+                      if (typeof value === 'boolean') {
+                        displayValue = value ? 'Yes' : 'No';
+                      } else if (Array.isArray(value)) {
+                        displayValue = value.join(', ');
+                      } else if (typeof value === 'object' && value !== null) {
+                        displayValue = JSON.stringify(value);
+                      }
+                      return (
+                        <div key={key} className="flex justify-between items-center bg-white rounded-xl p-3 border border-slate-200 shadow-sm hover:border-[#062E22]/30 transition-colors">
+                          <p className="text-xs font-medium text-slate-500 mr-4">{formattedKey}</p>
+                          <p className="text-sm font-semibold text-slate-800 text-right">{String(displayValue)}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="sticky bottom-0 bg-white p-6 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => {
+                  setSelectedServiceRecord(null);
+                  if (!selectedServices.includes(selectedServiceRecord.title)) {
+                    handleServiceToggle(selectedServiceRecord.title);
+                  }
+                  // Scroll to form smoothly
+                  document.getElementById('eventId')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+                className="rounded-xl bg-[#062E22] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0a4a37] shadow-lg shadow-[#062E22]/20"
+              >
+                Add to Request
+              </button>
+            </div>
+          </div>
+          
+          <div className="absolute inset-0 -z-10" onClick={() => setSelectedServiceRecord(null)}></div>
+        </div>
+      )}
     </div>
   );
 }

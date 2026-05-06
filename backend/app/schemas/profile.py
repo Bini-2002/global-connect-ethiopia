@@ -18,6 +18,7 @@ class ProfileResponse(ProfileBase):
     id: str
     user_id: str
     name: Optional[str] = None
+    email: Optional[str] = None
     role: UserRole
     extra_data: Optional[Dict[str, Any]] = None
     created_at: datetime
