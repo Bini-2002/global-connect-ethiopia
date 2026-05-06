@@ -19,7 +19,7 @@ from app.models.roles import UserRole, normalize_role, to_user_role
 from app.core.config import settings
 from app.core import security
 from app.db.mongodb import organizer_collection, session_collection, user_collection
-from app.services.email_service import EmailDeliveryError, ResendEmailService
+from app.services.email_service import EmailDeliveryError, EmailService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -286,7 +286,7 @@ async def register(user_in: UserCreate):
         }
 
     try:
-        ResendEmailService.send_otp_email(
+        EmailService.send_otp_email(
             recipient_email=user_in.email,
             otp_code=otp_payload["code"],  # type: ignore[index]
             expiry_minutes=OTP_EXPIRY_MINUTES,
@@ -389,7 +389,7 @@ async def send_email_otp(payload: OtpSendRequest):
             )
 
     try:
-        ResendEmailService.send_otp_email(
+        EmailService.send_otp_email(
             recipient_email=payload.email,
             otp_code=otp_payload["code"],
             expiry_minutes=OTP_EXPIRY_MINUTES,

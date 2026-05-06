@@ -75,6 +75,13 @@ from app.schemas.event import (
     IncidentResponse,
     IncidentUpdate,
 )
+from app.schemas.ai import (
+    AiScheduleDraftCreate,
+    AiScheduleDraftResponse,
+    AiScheduleApplyRequest,
+    AiErrorResponse
+)
+from app.services.ai_service import AIService
 from app.schemas.venue_reservation import VenueReservationDepositUpdateRequest
 from app.services.venue_reservation_service import VenueReservationService
 from app.services.marketplace import parse_object_id, utc_now
@@ -86,8 +93,6 @@ from app.schemas.venue_reservation import (
     VenueReservationResponse,
     VenueSearchResponse,
 )
-from app.schemas.ai import AiScheduleDraftCreate, AiScheduleDraftResponse, AiScheduleApplyRequest
-from app.services.ai_service import AIService
 
 router = APIRouter()
 
@@ -951,7 +956,6 @@ async def search_venues(
         event_id=event_id,
         current_user=current_user,
         city=city,
-        q=q,
     )
 
 

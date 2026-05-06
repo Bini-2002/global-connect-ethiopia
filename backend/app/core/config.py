@@ -44,12 +44,12 @@ class Settings(BaseSettings):
     RESEND_FROM_EMAIL: Optional[str] = None
     RESEND_OTP_SUBJECT: str = "Your Global Connect Ethiopia verification code"
 
-    # SMTP email delivery (fallback / alternative to Resend)
+    # SMTP email delivery
     SMTP_ENABLED: bool = False
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
     SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
 
     # Session cookie auth
     SESSION_COOKIE_NAME: str = "gce_sid"
@@ -61,7 +61,6 @@ class Settings(BaseSettings):
     # AI Config
     GEMINI_API_KEY: Optional[str] = None
     AI_MOCK_MODE: bool = False
-    USE_MOCK_DB: bool = False
 
     class Config:
         # case_sensitive = False
