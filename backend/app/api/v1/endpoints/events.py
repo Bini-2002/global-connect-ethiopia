@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -116,6 +116,14 @@ def _serialize_budget_items(items: list[dict] | None) -> list[dict]:
             }
         )
     return serialized
+
+
+def _to_utc_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def _event_base_response(document: dict) -> dict:
@@ -427,11 +435,11 @@ def _derive_event_category(proposal: dict) -> str | None:
 
 
 def _resolve_booking_status(event: dict, *, now: datetime | None = None) -> BookingStatus:
-    current_time = now or utc_now()
+    current_time = _to_utc_datetime(now or utc_now())
     if not event.get("booking_required"):
         return BookingStatus.DISABLED
 
-    closes_at = event.get("booking_closes_at")
+    closes_at = _to_utc_datetime(event.get("booking_closes_at"))
     if closes_at and closes_at <= current_time:
         return BookingStatus.CLOSED
 
@@ -440,7 +448,7 @@ def _resolve_booking_status(event: dict, *, now: datetime | None = None) -> Book
     if capacity and booked_count >= capacity:
         return BookingStatus.FULL
 
-    opens_at = event.get("booking_opens_at")
+    opens_at = _to_utc_datetime(event.get("booking_opens_at"))
     if opens_at and opens_at > current_time:
         return BookingStatus.CLOSED
 
