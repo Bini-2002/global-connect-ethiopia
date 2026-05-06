@@ -37,6 +37,7 @@ class VendorServiceResponse(BaseModel):
     location: str | None = None
     images: list[ServiceImageAsset] = []
     availability: dict[str, Any] | list[Any] | str | None = None
+    features: dict[str, Any] = {}
     tags: list[str] = []
     is_active: bool = True
     created_at: datetime
