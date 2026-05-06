@@ -1,13 +1,18 @@
-from __future__ import annotations
-
-from bson import ObjectId
 from fastapi import APIRouter, Query
+
+from app.models.vendor_categories import VENDOR_CATEGORIES
 
 from app.db.mongodb import vendor_collection, vendor_service_collection
 from app.schemas.marketplace import MarketplaceSearchResponse
-from app.services.marketplace import build_vendor_summary
+from app.services.marketplace import build_vendor_summary, parse_flexible_payload
 
 router = APIRouter()
+
+
+@router.get("/categories")
+async def get_vendor_categories():
+    """Returns the list of supported vendor categories and their associated features."""
+    return VENDOR_CATEGORIES
 
 
 async def _serialize_service(service: dict) -> dict:
@@ -24,6 +29,7 @@ async def _serialize_service(service: dict) -> dict:
         "location": service.get("location"),
         "images": service.get("images", []),
         "availability": service.get("availability"),
+        "features": service.get("features", {}),
         "tags": service.get("tags", []),
         "is_active": bool(service.get("is_active", True)),
         "created_at": service["created_at"],
@@ -39,6 +45,7 @@ async def search_marketplace_services(
     location: str | None = Query(default=None),
     price_min: float | None = Query(default=None, ge=0),
     price_max: float | None = Query(default=None, ge=0),
+    features: str | None = Query(default=None, description="JSON string of features to filter by, e.g. {'star_rating': 5}"),
 ):
     query: dict = {"is_active": True}
 
@@ -48,6 +55,12 @@ async def search_marketplace_services(
         query["category"] = {"$regex": category.strip(), "$options": "i"}
     if location:
         query["location"] = {"$regex": location.strip(), "$options": "i"}
+
+    if features:
+        parsed_features = parse_flexible_payload(features)
+        if isinstance(parsed_features, dict):
+            for key, value in parsed_features.items():
+                query[f"features.{key}"] = value
 
     if price_min is not None or price_max is not None:
         clauses: list[dict] = []
