@@ -69,9 +69,6 @@ export default function EventVenuePage() {
   const [loadingReservations, setLoadingReservations] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
-
-  const [searchCity, setSearchCity] = useState('');
-
   const [searchResults, setSearchResults] = useState<VenueListingSearchResponse[]>([]);
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -102,6 +99,7 @@ export default function EventVenuePage() {
 
     setSearchCity((c) => c || defaultCity);
 
+    setSearchQuery((c) => c || defaultCity);
     setReservationForm((current) =>
       current.vendor_id || current.requested_start ? current : {
         ...current,
@@ -247,7 +245,7 @@ export default function EventVenuePage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-              placeholder="Search by venue name (e.g. Millennium Hall)"
+              placeholder="Search by venue name or city (e.g. Addis Ababa, Millennium Hall)"
               className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
             />
              <input
@@ -313,7 +311,6 @@ export default function EventVenuePage() {
               <p className="text-slate-500 text-sm">No venues found for &quot;{searchQuery}&quot;. Try a different search term.</p>
             </div>
           )}
-
         </div>
 
         {/* ─── Reservation Form ─── */}
@@ -333,9 +330,7 @@ export default function EventVenuePage() {
                 <input
                   type="datetime-local"
                   required
-
                   title="Start date and time"
-
                   value={reservationForm.requested_start}
                   onChange={(e) => setReservationForm((f) => ({ ...f, requested_start: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
@@ -346,9 +341,7 @@ export default function EventVenuePage() {
                 <input
                   type="datetime-local"
                   required
-
                   title="End date and time"
-
                   value={reservationForm.requested_end}
                   onChange={(e) => setReservationForm((f) => ({ ...f, requested_end: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
