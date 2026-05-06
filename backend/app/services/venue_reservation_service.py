@@ -1,0 +1,641 @@
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import HTTPException
+from bson import ObjectId
+
+from app.db.mongodb import event_collection, vendor_collection
+from app.models.event_states import VenueReservationPaymentStatus, VenueReservationStatus
+from app.models.roles import UserRole, to_user_role
+from app.repositories import VenueReservationRepository, VenueListingRepository
+from app.services.venue_listing_service import VenueListingService
+from app.schemas.venue_listing import VenueListingSearchResponse
+from app.schemas.venue_reservation import (
+    VenueReservationCreateRequest,
+    VenueReservationDepositUpdateRequest,
+    VenueReservationOrganizerConfirmRequest,
+    VenueReservationProviderResponseRequest,
+    VenueReservationResponse,
+    VenueSearchResponse,
+)
+from app.services.marketplace import parse_object_id, require_organizer_profile, require_vendor_profile, utc_now
+from app.services.vendor_search_service import VendorSearchService
+
+
+class VenueReservationService:
+    def __init__(
+        self,
+        *,
+        repository: VenueReservationRepository | None = None,
+        venue_listing_repository: VenueListingRepository | None = None,
+        venue_listing_service: VenueListingService | None = None,
+        vendor_search_service: VendorSearchService | None = None,
+    ) -> None:
+        self.repository = repository or VenueReservationRepository()
+        self.venue_listing_repository = venue_listing_repository or VenueListingRepository()
+        self.venue_listing_service = venue_listing_service or VenueListingService(
+            repository=self.venue_listing_repository)
+        self.vendor_search_service = vendor_search_service or VendorSearchService()
+
+    async def search_venues_for_event(
+        self,
+        *,
+        event_id: str,
+        current_user: dict,
+        city: str | None = None,
+        q: str | None = None,
+    ) -> VenueSearchResponse:
+        event = await self._get_owned_event_or_403(event_id, current_user)
+
+        # Determine city filter
+        if city is not None:
+            # User explicitly provided a city filter
+            target_city = city
+        else:
+            # No city filter - search all cities (text search covers city matching if needed)
+            target_city = None
+
+        venues = await self.vendor_search_service.search_venue_vendors(
+            city=target_city,
+            q=q,
+            limit=20,
+        )
+        return VenueSearchResponse(
+            event_id=event_id,
+            date_from=event.get("start_date"),
+            date_to=event.get("end_date"),
+            city=target_city,
+            venues=[venue.model_dump(mode="python") if isinstance(
+                venue, VenueListingSearchResponse) else venue for venue in venues],
+        )
+
+    async def list_event_reservations(
+        self,
+        *,
+        event_id: str,
+        current_user: dict,
+    ) -> list[VenueReservationResponse]:
+        await self._get_owned_event_or_403(event_id, current_user)
+        documents = await self.repository.list_by_event(event_id)
+        return [self._serialize_reservation(item) for item in documents]
+
+    async def create_reservation_request(
+        self,
+        *,
+        event_id: str,
+        payload: VenueReservationCreateRequest,
+        current_user: dict,
+    ) -> VenueReservationResponse:
+        event = await self._get_owned_event_or_403(event_id, current_user)
+        existing_active = await self.repository.get_active_for_event(event_id)
+        if existing_active:
+            raise HTTPException(
+                status_code=409,
+                detail="Resolve the existing active venue reservation before creating a new one",
+            )
+        # Look up vendor directly by vendor_id (convert string to ObjectId)
+        vendor = await vendor_collection.find_one(
+            {"_id": ObjectId(payload.vendor_id), "status": "approved", "verification_status": "approved"}
+        )
+        if not vendor:
+            raise HTTPException(status_code=404, detail="Vendor not found or not approved")
+        
+        business_details = vendor.get("step_2", {}).get("business_details", {})
+        category_metadata = business_details.get("category_metadata", {})
+        
+        if payload.requested_end <= payload.requested_start:
+            raise HTTPException(
+                status_code=400, detail="requested_end must be after requested_start")
+
+        event_capacity = int(event.get("capacity") or 0)
+        venue_capacity = int(category_metadata.get("capacity") or 0)
+        if event_capacity and venue_capacity and venue_capacity < event_capacity:
+            raise HTTPException(
+                status_code=400, detail="Selected venue capacity is below the event capacity")
+
+        now = utc_now()
+        document: dict[str, Any] = {
+            "event_id": event_id,
+            "organizer_id": event["organizer_id"],
+            "vendor_id": payload.vendor_id,
+            "vendor_user_id": vendor.get("user_id"),
+            "venue_name": business_details.get("business_name", ""),
+            "city": VenueReservationService._extract_city(business_details.get("business_address", "")),
+            "location": business_details.get("business_address"),
+            "requested_start": payload.requested_start,
+            "requested_end": payload.requested_end,
+            "requested_capacity": event_capacity or None,
+            "estimated_cost": payload.estimated_cost if payload.estimated_cost is not None else category_metadata.get("base_price"),
+            "deposit_amount": category_metadata.get("deposit_amount"),
+            "currency": "ETB",
+            "notes": payload.notes.strip() if payload.notes else None,
+            "provider_action": None,
+            "provider_response_notes": None,
+            "failure_reason": None,
+            "organizer_confirmation_notes": None,
+            "cancellation_notes": None,
+            "proposed_start": None,
+            "proposed_end": None,
+            "proposed_cost": None,
+            "proposed_deposit_amount": None,
+            "alternative_suggestions": [],
+            "alternative_suggestions_generated_at": None,
+            "agreed_start": None,
+            "agreed_end": None,
+            "agreed_cost": None,
+            "agreed_deposit_amount": None,
+            "status": VenueReservationStatus.REQUESTED.value,
+            "payment_milestone_status": VenueReservationPaymentStatus.NOT_REQUIRED.value,
+            "payment_reference_id": None,
+            "deposit_funded_at": None,
+            "deposit_satisfied_at": None,
+            "created_at": now,
+            "updated_at": now,
+            "failed_at": None,
+            "provider_responded_at": None,
+            "organizer_confirmed_at": None,
+            "confirmed_at": None,
+            "cancelled_at": None,
+        }
+        created = await self.repository.create(document)
+        await event_collection.update_one(
+            {"_id": event["_id"]},
+            {"$set": {"venue_status": VenueReservationStatus.REQUESTED.value, "updated_at": now}},
+        )
+        return self._serialize_reservation(created)
+
+    async def list_provider_reservations(self, *, current_user: dict) -> list[VenueReservationResponse]:
+        await require_vendor_profile(current_user, approved_only=True)
+        documents = await self.repository.list_by_vendor_user(current_user["id"])
+        return [self._serialize_reservation(item) for item in documents]
+
+    async def respond_as_provider(
+        self,
+        *,
+        reservation_id: str,
+        payload: VenueReservationProviderResponseRequest,
+        current_user: dict,
+    ) -> VenueReservationResponse:
+        await require_vendor_profile(current_user, approved_only=True)
+        reservation = await self._get_provider_reservation_or_403(reservation_id, current_user)
+        if reservation.get("status") != VenueReservationStatus.REQUESTED.value:
+            raise HTTPException(
+                status_code=400, detail="Only requested reservations can receive a provider response")
+
+        now = utc_now()
+        updates: dict[str, Any] = {
+            "provider_response_notes": payload.response_notes.strip() if payload.response_notes else None,
+            "provider_responded_at": now,
+            "updated_at": now,
+        }
+
+        if payload.action == "accept":
+            proposed_start = payload.proposed_start or reservation["requested_start"]
+            proposed_end = payload.proposed_end or reservation["requested_end"]
+            if proposed_end <= proposed_start:
+                raise HTTPException(
+                    status_code=400, detail="proposed_end must be after proposed_start")
+            proposed_cost = payload.proposed_cost if payload.proposed_cost is not None else reservation.get(
+                "estimated_cost")
+            proposed_deposit_amount = (
+                payload.proposed_deposit_amount
+                if payload.proposed_deposit_amount is not None
+                else reservation.get("deposit_amount")
+            )
+            self._validate_deposit_amount(
+                cost=proposed_cost, deposit_amount=proposed_deposit_amount)
+            updates.update(
+                {
+                    "provider_action": payload.action,
+                    "status": VenueReservationStatus.PROVIDER_ACCEPTED.value,
+                    "proposed_start": proposed_start,
+                    "proposed_end": proposed_end,
+                    "proposed_cost": proposed_cost,
+                    "proposed_deposit_amount": proposed_deposit_amount,
+                    "failure_reason": None,
+                    "failed_at": None,
+                    "alternative_suggestions": [],
+                    "alternative_suggestions_generated_at": None,
+                }
+            )
+        elif payload.action == "decline":
+            updates.update(
+                {
+                    "provider_action": payload.action,
+                    "status": VenueReservationStatus.DECLINED.value,
+                    "failure_reason": payload.response_notes.strip() if payload.response_notes else "Provider declined the reservation request",
+                    "failed_at": now,
+                    "alternative_suggestions": await self._build_alternative_suggestions(reservation=reservation),
+                    "alternative_suggestions_generated_at": now,
+                }
+            )
+        else:
+            if payload.proposed_start is None and payload.proposed_end is None and payload.proposed_cost is None and payload.proposed_deposit_amount is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Alternative offers should include at least one changed term",
+                )
+            proposed_start = payload.proposed_start or reservation["requested_start"]
+            proposed_end = payload.proposed_end or reservation["requested_end"]
+            if proposed_end <= proposed_start:
+                raise HTTPException(
+                    status_code=400, detail="proposed_end must be after proposed_start")
+            proposed_cost = payload.proposed_cost if payload.proposed_cost is not None else reservation.get(
+                "estimated_cost")
+            proposed_deposit_amount = (
+                payload.proposed_deposit_amount
+                if payload.proposed_deposit_amount is not None
+                else reservation.get("deposit_amount")
+            )
+            self._validate_deposit_amount(
+                cost=proposed_cost, deposit_amount=proposed_deposit_amount)
+            updates.update(
+                {
+                    "provider_action": payload.action,
+                    "status": VenueReservationStatus.OFFERED_ALTERNATIVE.value,
+                    "proposed_start": proposed_start,
+                    "proposed_end": proposed_end,
+                    "proposed_cost": proposed_cost,
+                    "proposed_deposit_amount": proposed_deposit_amount,
+                    "failure_reason": None,
+                    "failed_at": None,
+                    "alternative_suggestions": await self._build_alternative_suggestions(reservation=reservation),
+                    "alternative_suggestions_generated_at": now,
+                }
+            )
+
+        updated = await self.repository.update_for_provider(
+            reservation_id,
+            vendor_user_id=current_user["id"],
+            from_statuses=[VenueReservationStatus.REQUESTED],
+            updates=updates,
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=409, detail="Provider response could not be saved")
+
+        await event_collection.update_one(
+            {"_id": parse_object_id(
+                reservation["event_id"], field_name="event id")},
+            {"$set": {"venue_status": updates["status"], "updated_at": now}},
+        )
+
+        refreshed = await self.repository.get_by_id(reservation_id)
+        if not refreshed:
+            raise HTTPException(
+                status_code=404, detail="Venue reservation not found")
+        return self._serialize_reservation(refreshed)
+
+    async def confirm_as_organizer(
+        self,
+        *,
+        event_id: str,
+        reservation_id: str,
+        payload: VenueReservationOrganizerConfirmRequest,
+        current_user: dict,
+    ) -> VenueReservationResponse:
+        event = await self._get_owned_event_or_403(event_id, current_user)
+        reservation = await self._get_event_reservation_or_404(event_id, reservation_id)
+        if reservation.get("status") not in {
+            VenueReservationStatus.PROVIDER_ACCEPTED.value,
+            VenueReservationStatus.OFFERED_ALTERNATIVE.value,
+        }:
+            raise HTTPException(
+                status_code=400, detail="Only accepted or alternative provider responses can be confirmed")
+
+        agreed_start = reservation.get(
+            "proposed_start") or reservation["requested_start"]
+        agreed_end = reservation.get(
+            "proposed_end") or reservation["requested_end"]
+        agreed_cost = reservation.get("proposed_cost")
+        if agreed_cost is None:
+            agreed_cost = reservation.get("estimated_cost")
+        agreed_deposit_amount = reservation.get("proposed_deposit_amount")
+        if agreed_deposit_amount is None:
+            agreed_deposit_amount = reservation.get("deposit_amount")
+        self._validate_deposit_amount(
+            cost=agreed_cost, deposit_amount=agreed_deposit_amount)
+
+        now = utc_now()
+        deposit_required = agreed_deposit_amount is not None and float(
+            agreed_deposit_amount) > 0
+        next_status = (
+            VenueReservationStatus.ORGANIZER_CONFIRMED.value if deposit_required else VenueReservationStatus.CONFIRMED.value
+        )
+        next_payment_status = (
+            VenueReservationPaymentStatus.PENDING.value if deposit_required else VenueReservationPaymentStatus.NOT_REQUIRED.value
+        )
+
+        updates: dict[str, Any] = {
+            "status": next_status,
+            "payment_milestone_status": next_payment_status,
+            "organizer_confirmation_notes": payload.confirmation_notes.strip() if payload.confirmation_notes else None,
+            "organizer_confirmed_at": now,
+            "agreed_start": agreed_start,
+            "agreed_end": agreed_end,
+            "agreed_cost": agreed_cost,
+            "agreed_deposit_amount": agreed_deposit_amount,
+            "updated_at": now,
+        }
+        if next_status == VenueReservationStatus.CONFIRMED.value:
+            updates["confirmed_at"] = now
+
+        updated = await self.repository.update_for_event(
+            reservation_id,
+            event_id=event_id,
+            from_statuses=[
+                VenueReservationStatus.PROVIDER_ACCEPTED,
+                VenueReservationStatus.OFFERED_ALTERNATIVE,
+            ],
+            updates=updates,
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=409, detail="Reservation confirmation could not be saved")
+
+        if next_status == VenueReservationStatus.CONFIRMED.value:
+            await self.repository.cancel_others_for_event(
+                event_id,
+                selected_reservation_id=reservation_id,
+                now=now,
+                cancellation_notes="Another venue reservation was finalized for this event.",
+            )
+
+        await event_collection.update_one(
+            {"_id": event["_id"]},
+            {
+                "$set": {
+                    "venue_status": next_status,
+                    "location": reservation.get("location") or reservation.get("venue_name"),
+                    "updated_at": now,
+                }
+            },
+        )
+
+        refreshed = await self.repository.get_by_id(reservation_id)
+        if not refreshed:
+            raise HTTPException(
+                status_code=404, detail="Venue reservation not found")
+        return self._serialize_reservation(refreshed)
+
+    async def update_deposit_milestone(
+        self,
+        *,
+        event_id: str,
+        reservation_id: str,
+        payload: VenueReservationDepositUpdateRequest,
+        current_user: dict,
+    ) -> VenueReservationResponse:
+        event = await self._get_owned_event_or_403(event_id, current_user)
+        reservation = await self._get_event_reservation_or_404(event_id, reservation_id)
+        if reservation.get("status") not in {
+            VenueReservationStatus.ORGANIZER_CONFIRMED.value,
+            VenueReservationStatus.CONFIRMED.value,
+        }:
+            raise HTTPException(
+                status_code=400, detail="Only organizer-confirmed reservations can update deposit milestones")
+
+        now = utc_now()
+        milestone = payload.payment_milestone_status
+        updates: dict[str, Any] = {
+            "payment_milestone_status": milestone.value,
+            "payment_reference_id": payload.payment_reference_id.strip() if payload.payment_reference_id else reservation.get("payment_reference_id"),
+            "updated_at": now,
+        }
+        if payload.notes is not None:
+            updates["organizer_confirmation_notes"] = payload.notes.strip(
+            ) if payload.notes else None
+
+        if milestone == VenueReservationPaymentStatus.PENDING:
+            pass
+        elif milestone == VenueReservationPaymentStatus.FUNDED:
+            updates["deposit_funded_at"] = now
+            updates["status"] = VenueReservationStatus.ORGANIZER_CONFIRMED.value
+        elif milestone == VenueReservationPaymentStatus.SATISFIED:
+            updates["deposit_satisfied_at"] = now
+            updates["status"] = VenueReservationStatus.CONFIRMED.value
+            updates["confirmed_at"] = now
+        else:
+            raise HTTPException(
+                status_code=400, detail="Unsupported payment milestone status")
+
+        updated = await self.repository.update_for_event(
+            reservation_id,
+            event_id=event_id,
+            from_statuses=[
+                VenueReservationStatus.ORGANIZER_CONFIRMED,
+                VenueReservationStatus.CONFIRMED,
+            ],
+            updates=updates,
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=409, detail="Deposit milestone could not be updated")
+
+        if milestone == VenueReservationPaymentStatus.SATISFIED:
+            await self.repository.cancel_others_for_event(
+                event_id,
+                selected_reservation_id=reservation_id,
+                now=now,
+                cancellation_notes="A venue reservation was finalized after deposit completion.",
+            )
+
+        await event_collection.update_one(
+            {"_id": event["_id"]},
+            {"$set": {"venue_status": updates["status"], "updated_at": now}},
+        )
+
+        refreshed = await self.repository.get_by_id(reservation_id)
+        if not refreshed:
+            raise HTTPException(
+                status_code=404, detail="Venue reservation not found")
+        return self._serialize_reservation(refreshed)
+
+    async def cancel_as_organizer(
+        self,
+        *,
+        event_id: str,
+        reservation_id: str,
+        cancellation_notes: str | None,
+        current_user: dict,
+    ) -> VenueReservationResponse:
+        event = await self._get_owned_event_or_403(event_id, current_user)
+        reservation = await self._get_event_reservation_or_404(event_id, reservation_id)
+        if reservation.get("status") in {
+            VenueReservationStatus.CONFIRMED.value,
+            VenueReservationStatus.DECLINED.value,
+            VenueReservationStatus.CANCELLED.value,
+        }:
+            raise HTTPException(
+                status_code=400, detail="This reservation can no longer be cancelled")
+
+        now = utc_now()
+        updated = await self.repository.update_for_event(
+            reservation_id,
+            event_id=event_id,
+            from_statuses=[
+                VenueReservationStatus.REQUESTED,
+                VenueReservationStatus.PROVIDER_ACCEPTED,
+                VenueReservationStatus.OFFERED_ALTERNATIVE,
+                VenueReservationStatus.ORGANIZER_CONFIRMED,
+            ],
+            updates={
+                "status": VenueReservationStatus.CANCELLED.value,
+                "cancellation_notes": cancellation_notes.strip() if cancellation_notes else None,
+                "cancelled_at": now,
+                "updated_at": now,
+            },
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=409, detail="Reservation could not be cancelled")
+
+        await event_collection.update_one(
+            {"_id": event["_id"]},
+            {"$set": {"venue_status": VenueReservationStatus.CANCELLED.value, "updated_at": now}},
+        )
+
+        refreshed = await self.repository.get_by_id(reservation_id)
+        if not refreshed:
+            raise HTTPException(
+                status_code=404, detail="Venue reservation not found")
+        return self._serialize_reservation(refreshed)
+
+    async def _get_owned_event_or_403(self, event_id: str, current_user: dict) -> dict:
+        event = await event_collection.find_one({"_id": parse_object_id(event_id, field_name="event id")})
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+        role = to_user_role(current_user.get("role"))
+        if role == UserRole.ORGANIZER:
+            await require_organizer_profile(current_user)
+        if role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN} and event.get("organizer_id") != current_user["id"]:
+            raise HTTPException(
+                status_code=403, detail="You do not own this event")
+        return event
+
+    async def _get_provider_reservation_or_403(self, reservation_id: str, current_user: dict) -> dict:
+        reservation = await self.repository.get_by_id(reservation_id)
+        if not reservation:
+            raise HTTPException(
+                status_code=404, detail="Venue reservation not found")
+        if reservation.get("vendor_user_id") != current_user["id"]:
+            raise HTTPException(
+                status_code=403, detail="You do not manage this venue reservation")
+        return reservation
+
+    async def _get_event_reservation_or_404(self, event_id: str, reservation_id: str) -> dict:
+        reservation = await self.repository.get_by_id(reservation_id)
+        if not reservation or reservation.get("event_id") != event_id:
+            raise HTTPException(
+                status_code=404, detail="Venue reservation not found")
+        return reservation
+
+    async def _build_alternative_suggestions(self, *, reservation: dict) -> list[dict[str, Any]]:
+        event = await event_collection.find_one({"_id": parse_object_id(reservation["event_id"], field_name="event id")})
+        city = reservation.get("city") or (
+            event.get("location") if event else None)
+        capacity = reservation.get("requested_capacity") or (
+            event.get("capacity") if event else None)
+        suggestions = await self.vendor_search_service.search_venue_vendors(
+            city=city,
+            limit=10,
+        )
+        filtered: list[dict[str, Any]] = []
+        for suggestion in suggestions:
+            suggestion_data = suggestion.model_dump(mode="python")
+            if suggestion_data.get("id") == reservation.get("vendor_id"):
+                continue
+            filtered.append(suggestion_data)
+        return filtered
+
+    @staticmethod
+    def _extract_city(address: str) -> str:
+        """Extract city from address (e.g., 'Bole, Addis Ababa' -> 'Addis Ababa')."""
+        if not address:
+            return ""
+        parts = [p.strip() for p in address.split(",")]
+        return parts[-1] if parts else ""
+
+    def _serialize_reservation(self, document: dict) -> VenueReservationResponse:
+        return VenueReservationResponse(
+            id=str(document["_id"]),
+            event_id=document["event_id"],
+            vendor_id=document["vendor_id"],
+            vendor_user_id=document["vendor_user_id"],
+            venue_name=document["venue_name"],
+            city=document["city"],
+            location=document.get("location"),
+            requested_start=document["requested_start"],
+            requested_end=document["requested_end"],
+            requested_capacity=document.get("requested_capacity"),
+            estimated_cost=float(document["estimated_cost"]) if document.get(
+                "estimated_cost") is not None else None,
+            deposit_amount=float(document["deposit_amount"]) if document.get(
+                "deposit_amount") is not None else None,
+            currency=document.get("currency", "ETB"),
+            notes=document.get("notes"),
+            provider_action=document.get("provider_action"),
+            provider_response_notes=document.get("provider_response_notes"),
+            failure_reason=document.get("failure_reason"),
+            organizer_confirmation_notes=document.get(
+                "organizer_confirmation_notes"),
+            cancellation_notes=document.get("cancellation_notes"),
+            proposed_start=document.get("proposed_start"),
+            proposed_end=document.get("proposed_end"),
+            proposed_cost=float(document["proposed_cost"]) if document.get(
+                "proposed_cost") is not None else None,
+            proposed_deposit_amount=(
+                float(document["proposed_deposit_amount"]) if document.get(
+                    "proposed_deposit_amount") is not None else None
+            ),
+            agreed_start=document.get("agreed_start"),
+            agreed_end=document.get("agreed_end"),
+            agreed_cost=float(document["agreed_cost"]) if document.get(
+                "agreed_cost") is not None else None,
+            agreed_deposit_amount=(
+                float(document["agreed_deposit_amount"]) if document.get(
+                    "agreed_deposit_amount") is not None else None
+            ),
+            status=VenueReservationStatus(document["status"]),
+            payment_milestone_status=VenueReservationPaymentStatus(
+                document.get("payment_milestone_status", "not_required")),
+            payment_reference_id=document.get("payment_reference_id"),
+            deposit_funded_at=document.get("deposit_funded_at"),
+            deposit_satisfied_at=document.get("deposit_satisfied_at"),
+            alternative_suggestions=[self._serialize_alternative_suggestion(
+                item) for item in document.get("alternative_suggestions", [])],
+            alternative_suggestions_generated_at=document.get(
+                "alternative_suggestions_generated_at"),
+            created_at=document["created_at"],
+            updated_at=document["updated_at"],
+            failed_at=document.get("failed_at"),
+            provider_responded_at=document.get("provider_responded_at"),
+            organizer_confirmed_at=document.get("organizer_confirmed_at"),
+            confirmed_at=document.get("confirmed_at"),
+            cancelled_at=document.get("cancelled_at"),
+        )
+
+    @staticmethod
+    def _serialize_alternative_suggestion(document: dict) -> dict[str, Any]:
+        return {
+            "id": document.get("id"),
+            "venue_name": document.get("venue_name"),
+            "city": document.get("city"),
+            "location": document.get("location"),
+            "capacity": document.get("capacity"),
+            "estimated_cost": document.get("estimated_cost"),
+            "deposit_amount": document.get("deposit_amount"),
+            "currency": document.get("currency", "ETB"),
+            "available": document.get("available", True),
+            "is_reservable": document.get("is_reservable", True),
+            "description": document.get("description"),
+            "notes": document.get("notes"),
+            "vendor": document.get("vendor"),
+        }
+
+    @staticmethod
+    def _validate_deposit_amount(*, cost: float | None, deposit_amount: float | None) -> None:
+        if cost is not None and deposit_amount is not None and float(deposit_amount) > float(cost):
+            raise HTTPException(
+                status_code=400, detail="deposit amount cannot exceed the agreed venue cost")

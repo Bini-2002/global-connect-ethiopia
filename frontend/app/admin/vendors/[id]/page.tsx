@@ -26,6 +26,14 @@ interface VendorDetail {
       years_of_operation?: number;
       website_url?: string;
     };
+    required_documents?: {
+      business_license_or_registration_certificate?: {
+        filename?: string;
+      };
+      government_issued_id?: {
+        filename?: string;
+      };
+    };
   };
   status: string;
   verification_status?: string;
@@ -183,6 +191,46 @@ export default function AdminVendorDetailPage() {
                     ))}
                   </div>
                 </div>
+
+                {vendor?.step_2?.required_documents && (
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    <h3 className="font-semibold text-[#062E22] mb-4 text-sm uppercase tracking-wide">Submitted Documents</h3>
+                    <div className="space-y-3">
+                      {vendor.step_2.required_documents.business_license_or_registration_certificate && (
+                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded flex items-center justify-center">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">Business License / Registration</p>
+                              <p className="text-xs text-slate-500">{vendor.step_2.required_documents.business_license_or_registration_certificate.filename || 'Document'}</p>
+                            </div>
+                          </div>
+                          <a href={`/api/v1/admin/documents/download?owner_type=vendor&entity_id=${vendor.id}&document_key=business_license_or_registration_certificate`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-[#062E22] hover:underline">
+                            Download
+                          </a>
+                        </div>
+                      )}
+                      {vendor.step_2.required_documents.government_issued_id && (
+                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded flex items-center justify-center">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">Government Issued ID</p>
+                              <p className="text-xs text-slate-500">{vendor.step_2.required_documents.government_issued_id.filename || 'Document'}</p>
+                            </div>
+                          </div>
+                          <a href={`/api/v1/admin/documents/download?owner_type=vendor&entity_id=${vendor.id}&document_key=government_issued_id`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-[#062E22] hover:underline">
+                            Download
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                   <h3 className="font-semibold text-[#062E22] mb-3 text-sm uppercase tracking-wide">Admin Notes</h3>
                   <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Add notes for this decision..."

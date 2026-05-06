@@ -43,12 +43,17 @@ export default function OpportunityDetailPage() {
 
   const handleSubmitProposal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount) return;
+    if (!amount || !coverLetter) {
+      alert("Amount and Cover Letter / Scope Summary are required.");
+      return;
+    }
     
     setSubmitting(true);
     try {
       await opportunitiesService.submitProposal(opportunityId, {
+        submission_mode: opportunity?.sourcing_mode === 'invite_only' ? 'invited' : 'open_bid',
         proposal_amount: Number(amount),
+        scope_summary: coverLetter,
         cover_letter: coverLetter,
         delivery_timeline_days: timeline ? Number(timeline) : undefined,
       });
@@ -223,13 +228,14 @@ export default function OpportunityDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700">Cover Letter</label>
+                      <label className="block text-sm font-medium text-slate-700">Scope Summary & Cover Letter</label>
                       <textarea
+                        required
                         rows={4}
                         value={coverLetter}
                         onChange={(e) => setCoverLetter(e.target.value)}
                         className="mt-1 block w-full rounded-xl border-slate-200 p-3 shadow-sm focus:border-[#062E22] focus:ring-[#062E22] sm:text-sm"
-                        placeholder="Why are you the best fit for this opportunity?"
+                        placeholder="Briefly describe your scope of work and why you are the best fit."
                       />
                     </div>
                     <button

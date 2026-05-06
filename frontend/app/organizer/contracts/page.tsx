@@ -38,7 +38,7 @@ export default function OrganizerContractsPage() {
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#0a4a37]">Contracts</p>
             <h1 className="mt-2 text-3xl font-bold text-[#062E22]">Move accepted deals through escrow and payment.</h1>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-500">
-              Fund agreed contracts from the organizer wallet, wait for completion, then release payment to close the engagement cleanly.
+              Fund signed contracts from the organizer wallet, wait for completion, then release payment to close the engagement cleanly.
             </p>
           </div>
 

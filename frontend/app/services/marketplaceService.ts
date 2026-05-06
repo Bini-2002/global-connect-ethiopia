@@ -170,8 +170,3 @@ export const marketplaceService = {
 };
 
 export default marketplaceService;
-
-
-
-
-export default marketplaceService;

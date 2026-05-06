@@ -28,8 +28,6 @@ from app.db.mongodb import (
     proposal_collection,
     ticket_purchase_collection,
     user_collection,
-    venue_reservation_collection,
-    verification_letter_collection,
 )
 from app.models.event_states import (
     BookingStatus,
@@ -950,6 +948,7 @@ async def update_schedule_item(
 async def search_venues(
     event_id: str,
     city: str | None = None,
+    q: str | None = None,
     current_user: dict = Depends(get_current_user),
 ):
     reservation_service = VenueReservationService()
@@ -1044,8 +1043,9 @@ async def create_team_invitation(
     payload: EventTeamInvitationCreate,
     current_user: dict = Depends(get_current_user),
 ):
-    await _get_owned_event_or_403(event_id, current_user)
+    event = await _get_owned_event_or_403(event_id, current_user)
     now = utc_now()
+    token = secrets.token_urlsafe(18)
     doc = {
         "event_id": event_id,
         "email": payload.email.strip().lower(),
@@ -1053,13 +1053,39 @@ async def create_team_invitation(
         "display_name": payload.display_name,
         "invited_by_user_id": current_user["id"],
         "status": "pending",
-        "token": secrets.token_urlsafe(18),
+        "token": token,
         "created_at": now,
         "updated_at": now,
         "accepted_at": None,
     }
     result = await event_team_invitation_collection.insert_one(doc)
     doc["_id"] = result.inserted_id
+
+    try:
+        from app.services.email_service import ResendEmailService
+        from app.core.config import settings
+        import asyncio
+
+        frontend_url = getattr(settings, "FRONTEND_ORIGIN", "http://localhost:3000")
+        if not frontend_url:
+            frontend_url = "http://localhost:3000"
+
+        invite_link = f"{frontend_url}/register?role={payload.assigned_role}&invite_token={token}"
+        inviter_name = current_user.get("full_name") or current_user.get("email") or "An Organizer"
+        event_name = event.get("title") or "A Professional Event"
+
+        asyncio.get_event_loop().run_in_executor(
+            None,
+            ResendEmailService.send_team_invitation_email,
+            doc["email"],
+            event_name,
+            inviter_name,
+            invite_link,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("Failed to send team invitation email: %s", e)
+
     return _serialize_invitation(doc)
 
 

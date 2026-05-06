@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Optional
 from urllib import error, request
 import smtplib
@@ -17,6 +20,55 @@ class EmailDeliveryError(RuntimeError):
     """Raised when OTP email delivery fails or is misconfigured."""
 
 
+class SMTPEmailService:
+    """Sends emails via SMTP (e.g. Gmail). Used when Resend is disabled or fails."""
+
+    @staticmethod
+    def _is_configured() -> bool:
+        return bool(
+            settings.SMTP_ENABLED
+            and settings.SMTP_HOST
+            and settings.SMTP_USERNAME
+            and settings.SMTP_PASSWORD
+        )
+
+    @classmethod
+    def send_otp_email(cls, recipient_email: str, otp_code: str, expiry_minutes: int) -> None:
+        if not cls._is_configured():
+            raise EmailDeliveryError(
+                "SMTP is not configured. Set SMTP_HOST, SMTP_USERNAME, and SMTP_PASSWORD."
+            )
+
+        subject = settings.RESEND_OTP_SUBJECT
+        body_text = (
+            f"Your verification code is {otp_code}. "
+            f"It expires in {expiry_minutes} minutes."
+        )
+        body_html = (
+            f"<p>Your verification code is <strong>{otp_code}</strong>.</p>"
+            f"<p>This code expires in {expiry_minutes} minutes.</p>"
+        )
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = settings.SMTP_USERNAME
+        msg["To"] = recipient_email
+        msg.attach(MIMEText(body_text, "plain"))
+        msg.attach(MIMEText(body_html, "html"))
+
+        try:
+            logger.info("Sending OTP email via SMTP to %s", recipient_email)
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+                server.sendmail(settings.SMTP_USERNAME, recipient_email, msg.as_string())
+            logger.info("SMTP OTP email sent successfully to %s", recipient_email)
+        except smtplib.SMTPException as exc:
+            logger.error("SMTP error sending OTP to %s: %s", recipient_email, exc)
+            raise EmailDeliveryError(f"SMTP error: {exc}") from exc
+
+
 class ResendEmailService:
     API_URL = "https://api.resend.com/emails"
 
@@ -26,49 +78,28 @@ class ResendEmailService:
 
     @classmethod
     def send_otp_email(cls, recipient_email: str, otp_code: str, expiry_minutes: int) -> Optional[str]:
-        if not settings.RESEND_ENABLED:
-            logger.info("OTP email sending skipped because Resend is disabled for %s", recipient_email)
-            return None
 
-        if not cls._is_configured():
-            raise EmailDeliveryError(
-                "Resend is enabled but RESEND_API_KEY or RESEND_FROM_EMAIL is missing"
-            )
+        # --- Resend path ---
+        if settings.RESEND_ENABLED:
+            if not cls._is_configured():
+                logger.warning("Resend enabled but not configured. Falling back.")
+            else:
+                payload = {
+                    "from": settings.RESEND_FROM_EMAIL,
+                    "to": [recipient_email],
+                    "subject": settings.RESEND_OTP_SUBJECT,
+                    "text": f"Your verification code is {otp_code}. It expires in {expiry_minutes} minutes.",
+                    "html": f"<p>Your verification code is <strong>{otp_code}</strong>.</p><p>Expires in {expiry_minutes} minutes.</p>",
+                }
 
-        payload = {
-            "from": settings.RESEND_FROM_EMAIL,
-            "to": [recipient_email],
-            "subject": settings.RESEND_OTP_SUBJECT,
-            "text": (
-                "Your verification code is "
-                f"{otp_code}. It expires in {expiry_minutes} minutes."
-            ),
-            "html": (
-                "<p>Your verification code is "
-                f"<strong>{otp_code}</strong>.</p>"
-                f"<p>This code expires in {expiry_minutes} minutes.</p>"
-            ),
-        }
-
-        req = request.Request(
-            cls.API_URL,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Authorization": f"Bearer {settings.RESEND_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-
-        try:
-            logger.info("Sending OTP email via Resend to %s", recipient_email)
-            with request.urlopen(req, timeout=10) as response:
-                body = response.read().decode("utf-8")
-                response_json = json.loads(body) if body else {}
-                logger.info(
-                    "Resend accepted OTP email for %s with id=%s",
-                    recipient_email,
-                    response_json.get("id"),
+                req = request.Request(
+                    cls.API_URL,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={
+                        "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    method="POST",
                 )
                 return response_json.get("id")
         except error.HTTPError as exc:

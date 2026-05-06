@@ -14,10 +14,14 @@ class NegotiationMessageType(str, Enum):
 
 
 class ContractStatus(str, Enum):
+    DRAFT = "draft"
     AGREED = "AGREED"
+    PENDING_SIGNATURES = "AGREED"
     FUNDED = "FUNDED"
+    ACTIVE = "FUNDED"
     COMPLETED = "COMPLETED"
     PAID = "PAID"
+    CANCELLED = "CANCELLED"
 
 
 class EscrowStatus(str, Enum):

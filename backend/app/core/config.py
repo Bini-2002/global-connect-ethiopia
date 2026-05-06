@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     OTP_ATTEMPT_LIMIT: int = 3
     AUTO_APPROVE_SCORE: int = 75
     MANUAL_REVIEW_MIN_SCORE: int = 50
-    ENABLE_DEBUG_OTP_RESPONSE: bool = True
+    ENABLE_DEBUG_OTP_RESPONSE: bool = False
 
     # Resend email delivery (OTP)
     RESEND_ENABLED: bool = False

@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.api.v1.deps import get_current_user
+from app.api.v1.deps import get_current_user, get_current_user_allow_inactive
 from app.core.config import settings
 from app.core.queue import get_verification_queue
 from app.db.mongodb import organizer_collection, verification_job_collection
@@ -171,7 +171,7 @@ async def register_individual_organizer(
     social_media_link: str | None = Form(None),
     national_id: UploadFile = File(...),
     government_issued_id: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     """
     Individual organizer one-step registration.
@@ -290,7 +290,7 @@ async def register_individual_organizer(
 
 
 @router.get("/individual/review-summary")
-async def get_individual_review_summary(current_user: dict = Depends(get_current_user)):
+async def get_individual_review_summary(current_user: dict = Depends(get_current_user_allow_inactive)):
     """Returns the submitted individual registration data for review."""
     _require_organizer(current_user)
     profile = await organizer_collection.find_one({"user_id": ObjectId(current_user["id"])})
@@ -322,7 +322,7 @@ async def create_or_update_organization_step_1(
     website_url: str | None = Form(None),
     organization_description: str | None = Form(None),
     business_licence: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     """
     Organization step 1 — org details and business licence upload.
@@ -420,7 +420,7 @@ async def create_or_update_organization_step_2(
     rep_workspace_id: str = Form(...),
     representative_id_document: UploadFile = File(...),
     authorization_proof: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     """
     Organization step 2 — representative data and authorization proof.
@@ -493,7 +493,7 @@ async def submit_organization_for_verification(
     alternative_contact: str | None = Form(None),
     confirm_information_is_accurate: bool = Form(...),
     agree_terms_and_privacy: bool = Form(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     """
     Organization step 3 — final submission.
@@ -626,7 +626,7 @@ async def submit_organization_for_verification(
 
 
 @router.get("/organization/review-summary")
-async def get_organization_review_summary(current_user: dict = Depends(get_current_user)):
+async def get_organization_review_summary(current_user: dict = Depends(get_current_user_allow_inactive)):
     """Returns the full organization registration data for the organizer to review."""
     _require_organizer(current_user)
     profile = await organizer_collection.find_one({"user_id": ObjectId(current_user["id"])})
@@ -659,7 +659,7 @@ async def get_organization_review_summary(current_user: dict = Depends(get_curre
 
 
 @router.get("/verification-status", response_model=OrganizerVerificationStatusResponse)
-async def get_verification_status(current_user: dict = Depends(get_current_user)):
+async def get_verification_status(current_user: dict = Depends(get_current_user_allow_inactive)):
     """Returns current verification status, OCR score and tier for any organizer type."""
     _require_organizer(current_user)
     profile = await organizer_collection.find_one({"user_id": ObjectId(current_user["id"])})

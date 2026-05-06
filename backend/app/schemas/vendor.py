@@ -19,6 +19,7 @@ class VendorBusinessDetails(BaseModel):
     registration_number: str | None = None
     years_of_operation: int = Field(..., ge=0)
     website_url: str | None = None
+    category_metadata: dict | None = None
 
 
 class VendorRequiredDocuments(BaseModel):

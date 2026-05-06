@@ -133,6 +133,15 @@ class ObjectStorageService:
         response = client.get_object(Bucket=settings.S3_BUCKET_NAME, Key=storage_key)
         return response["Body"].read()
 
+    _sync_mongo_client = None
+
+    @classmethod
+    def _get_sync_mongo_client(cls):
+        if cls._sync_mongo_client is None:
+            import pymongo
+            cls._sync_mongo_client = pymongo.MongoClient(settings.MONGODB_URL)
+        return cls._sync_mongo_client
+
     def _upload_to_gridfs(
         self,
         content: bytes,
@@ -147,19 +156,16 @@ class ObjectStorageService:
             raise RuntimeError("pymongo/gridfs are required for GridFS storage provider") from exc
 
         db_name = settings.GRIDFS_DATABASE_NAME or settings.DATABASE_NAME
-        client = pymongo.MongoClient(settings.MONGODB_URL)
-        try:
-            db = client[db_name]
-            fs = gridfs.GridFS(db, collection=settings.GRIDFS_BUCKET_NAME)
-            safe_name = os.path.basename(filename or "document")
-            file_id = fs.put(
-                content,
-                filename=safe_name,
-                content_type=content_type or "application/octet-stream",
-                metadata={"folder": folder, "uploaded_at": datetime.now(timezone.utc)},
-            )
-        finally:
-            client.close()
+        client = self._get_sync_mongo_client()
+        db = client[db_name]
+        fs = gridfs.GridFS(db, collection=settings.GRIDFS_BUCKET_NAME)
+        safe_name = os.path.basename(filename or "document")
+        file_id = fs.put(
+            content,
+            filename=safe_name,
+            content_type=content_type or "application/octet-stream",
+            metadata={"folder": folder, "uploaded_at": datetime.now(timezone.utc)},
+        )
 
         id_str = str(file_id)
         return StoredFile(
@@ -179,14 +185,11 @@ class ObjectStorageService:
 
         file_id_str = storage_key.split(":", 1)[1]
         db_name = settings.GRIDFS_DATABASE_NAME or settings.DATABASE_NAME
-        client = pymongo.MongoClient(settings.MONGODB_URL)
-        try:
-            db = client[db_name]
-            fs = gridfs.GridFS(db, collection=settings.GRIDFS_BUCKET_NAME)
-            grid_out = fs.get(bson.ObjectId(file_id_str))
-            return grid_out.read()
-        finally:
-            client.close()
+        client = self._get_sync_mongo_client()
+        db = client[db_name]
+        fs = gridfs.GridFS(db, collection=settings.GRIDFS_BUCKET_NAME)
+        grid_out = fs.get(bson.ObjectId(file_id_str))
+        return grid_out.read()
 
     def _upload_to_local(self, content: bytes, filename: str, folder: str) -> StoredFile:
         storage_root = Path(settings.LOCAL_STORAGE_PATH)

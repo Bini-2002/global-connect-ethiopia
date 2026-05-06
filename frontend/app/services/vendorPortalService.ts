@@ -23,8 +23,18 @@ function buildServiceFormData(payload: VendorServiceCreatePayload): FormData {
     formData.append('images', payload.image_urls.join(','));
   }
 
+  if (payload.image_files?.length) {
+    payload.image_files.forEach((file) => {
+      formData.append('image_files', file);
+    });
+  }
+
   if (payload.availability?.trim()) {
     formData.append('availability', payload.availability.trim());
+  }
+
+  if (payload.service_details?.trim()) {
+    formData.append('service_details', payload.service_details.trim());
   }
 
   return formData;

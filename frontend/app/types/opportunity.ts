@@ -1,4 +1,4 @@
-﻿export type MarketplaceActor = 'client' | 'vendor' | 'admin' | 'none';
+export type MarketplaceActor = 'client' | 'vendor' | 'admin' | 'none';
 export type OpportunitySourcingMode = 'invite_only' | 'open_bid' | 'hybrid';
 export type ProposalSubmissionMode = 'invited' | 'open_bid';
 export type OpportunityStatus = 'draft' | 'published' | 'closed' | 'awarded' | 'contracted' | 'cancelled' | 'expired';
@@ -108,7 +108,9 @@ export interface CreateOpportunityPayload {
 }
 
 export interface SubmitProposalPayload {
+  submission_mode: ProposalSubmissionMode;
   proposal_amount: number;
+  scope_summary: string;
   cover_letter?: string;
   delivery_timeline_days?: number;
 }

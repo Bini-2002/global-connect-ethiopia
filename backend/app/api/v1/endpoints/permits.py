@@ -76,6 +76,18 @@ async def get_permit(
     return _to_response(permit)
 
 
+
+
+from datetime import datetime
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        if isinstance(o, datetime):
+            return o.isoformat()
+        return super().default(o)
+
 @router.get("/{proposal_id}/download")
 async def download_permit(
     proposal_id: str,
@@ -93,7 +105,7 @@ async def download_permit(
 
     payload = _to_response(dict(permit))
     filename = f"permit-{payload.get('permit_number', proposal_id)}.json"
-    body = json.dumps(payload, ensure_ascii=True, indent=2)
+    body = json.dumps(payload, cls=MongoJSONEncoder, ensure_ascii=True, indent=2)
     return Response(
         content=body,
         media_type="application/json",

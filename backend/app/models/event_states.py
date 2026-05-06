@@ -13,11 +13,20 @@ class EventStatus(str, Enum):
 
 
 class VenueReservationStatus(str, Enum):
-    PENDING = "pending"
+    REQUESTED = "requested"
+    PROVIDER_ACCEPTED = "provider_accepted"
     OFFERED_ALTERNATIVE = "offered_alternative"
+    ORGANIZER_CONFIRMED = "organizer_confirmed"
     CONFIRMED = "confirmed"
     DECLINED = "declined"
     CANCELLED = "cancelled"
+
+
+class VenueReservationPaymentStatus(str, Enum):
+    NOT_REQUIRED = "not_required"
+    PENDING = "pending"
+    FUNDED = "funded"
+    SATISFIED = "satisfied"
 
 
 class BookingStatus(str, Enum):
