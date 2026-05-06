@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     # AI Config
     GEMINI_API_KEY: Optional[str] = None
     AI_MOCK_MODE: bool = False
+    USE_MOCK_DB: bool = False
 
     class Config:
         # case_sensitive = False
