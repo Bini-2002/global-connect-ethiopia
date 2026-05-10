@@ -26,7 +26,7 @@ import {
   Sparkles,
   TriangleAlert,
 } from 'lucide-react';
-import { getOrganizerPortalRoute, waitForToken } from '@/app/lib/auth';
+import { getToken } from '@/app/lib/auth';
 
 interface UserProfile {
   id: string;
@@ -67,43 +67,23 @@ export default function OrganizerDashboard() {
   const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [accessChecked, setAccessChecked] = useState(false);
-  const [accessAllowed, setAccessAllowed] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadDashboard = async () => {
-      const token = await waitForToken();
-      if (!token) {
-        setAccessChecked(true);
-        setAccessAllowed(false);
-        router.replace('/login');
-        return;
-      }
-
-      const organizerRoute = await getOrganizerPortalRoute(token);
-      if (organizerRoute !== '/organizer/dashboard') {
-        setAccessChecked(true);
-        setAccessAllowed(false);
-        router.replace(organizerRoute);
-        return;
-      }
-
-      setAccessAllowed(true);
-      setAccessChecked(true);
+      const token = getToken();
 
       try {
         const [proposalData, profileData] = await Promise.all([
-          api.get<ProposalRecord[]>('/proposals/', { authToken: token }),
-          api.get<UserProfile>('/users/me', { authToken: token }),
+          api.get<ProposalRecord[]>('/proposals/', { authToken: token ?? undefined }),
+          api.get<UserProfile>('/users/me', { authToken: token ?? undefined }),
         ]);
         setProposals(proposalData);
         setUserProfile(profileData);
         setError(null);
       } catch (err) {
         if (err instanceof Error && err.message === 'Not authenticated') {
-          setAccessAllowed(false);
           setError(null);
           router.replace('/login');
           return;
@@ -165,27 +145,12 @@ export default function OrganizerDashboard() {
   const nextApprovedEvent = upcomingEvents[0] || null;
   const hasData = proposals.length > 0;
 
-  if (!accessChecked) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-500 text-sm">Checking organizer access...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!accessAllowed) {
-    return null;
-  }
-
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen ">
       <Sidebar role="organizer" />
       <DashboardHeader searchPlaceholder="Search proposals and events..." />
       <main className="md:ml-60 pt-3 md:pt-16 relative p-4 md:p-8">
-        <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+        <div className="min-h-screen  p-4 md:p-6">
           <div className='flex flex-col md:flex-row justify-between md:pb-8 gap-4'>
             <div>
               <h1 className="text-xl md:text-2xl font-bold text-[#062E22]">
