@@ -2,6 +2,8 @@ import { getToken, logout } from './auth';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
+const inflight = new Map<string, Promise<unknown>>();
+
 type ApiRequestInit = RequestInit & {
   authToken?: string | null;
 };
@@ -20,7 +22,31 @@ function resolveUrl(path: string): string {
   return `${BASE_URL}${path}`;
 }
 
+function inflightKey(path: string, options: ApiRequestInit = {}): string | null {
+  const method = (options.method || 'GET').toUpperCase();
+  if (method !== 'GET') return null;
+  const token = options.authToken ?? getToken();
+  return `${method}:${resolveUrl(path)}:${token || ''}`;
+}
+
 async function request<T>(
+  path: string,
+  options: ApiRequestInit = {}
+): Promise<T> {
+  const key = inflightKey(path, options);
+  if (key && inflight.has(key)) {
+    return inflight.get(key) as Promise<T>;
+  }
+
+  const promise = executeRequest<T>(path, options);
+  if (key) {
+    inflight.set(key, promise);
+    promise.finally(() => inflight.delete(key));
+  }
+  return promise;
+}
+
+async function executeRequest<T>(
   path: string,
   options: ApiRequestInit = {}
 ): Promise<T> {
