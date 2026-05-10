@@ -363,7 +363,7 @@ export default function LandingPage() {
                     <Link href="#discover-events" className="rounded-lg bg-white px-6 py-3 font-bold text-[#062E22] shadow-lg transition hover:bg-slate-100">
                       Browse Events
                     </Link>
-                    <Link href="/dashboard" className="rounded-lg border-2 border-white/50 px-6 py-3 font-semibold text-white transition hover:bg-white/10">
+                    <Link href="/login" className="rounded-lg border-2 border-white/50 px-6 py-3 font-semibold text-white transition hover:bg-white/10">
                       Open Portal
                     </Link>
                   </>

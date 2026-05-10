@@ -45,6 +45,7 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    role: str
 
 # Data stored in DB
 class UserInDB(BaseModel):

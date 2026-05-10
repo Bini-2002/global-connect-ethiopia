@@ -325,6 +325,7 @@ async def login(user_in: UserLogin, response: Response):
     return {
         "access_token": token_payload["access_token"],
         "token_type": token_payload["token_type"],
+        "role": token_payload["role"],
     }
 
 

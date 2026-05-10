@@ -5,11 +5,12 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import LoginHeader from "../../components/loginHeader"
-import { saveAuthSession } from '@/app/lib/auth'
+import { getRoleFromToken, ROLE_DASHBOARDS, saveAuthSession } from '@/app/lib/auth'
 
 interface LoginResponse {
   access_token: string
   token_type: string
+  role?: string
 }
 
 export default function LoginPage() {
@@ -48,12 +49,13 @@ export default function LoginPage() {
 
       const tokenData: LoginResponse = data
       saveAuthSession(tokenData.access_token, tokenData.token_type, keepLoggedIn)
-      router.replace('/dashboard')
+      const role = tokenData.role || getRoleFromToken(tokenData.access_token) || ''
+      router.replace(ROLE_DASHBOARDS[role] || '/')
+      return
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred.')
-    } finally {
-      setIsLoading(false)
     }
+    setIsLoading(false)
   }
 
   return (
