@@ -67,6 +67,66 @@ class EventAIDraftRequest(BaseModel):
     sessions_per_day: int = Field(default=4, ge=1, le=12)
 
 
+class TicketTypeCreate(BaseModel):
+    name: str
+    description: str | None = None
+    price: float = Field(..., ge=0)
+    quantity: int = Field(..., ge=1)
+    currency: str = "ETB"
+    sales_start: datetime | None = None
+    sales_end: datetime | None = None
+    seat_mode: Literal["general", "assigned"] = "general"
+    visibility: Literal["public", "private"] = "public"
+    is_active: bool = True
+
+
+class TicketTypeUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    price: float | None = Field(default=None, ge=0)
+    quantity: int | None = Field(default=None, ge=1)
+    currency: str | None = None
+    sales_start: datetime | None = None
+    sales_end: datetime | None = None
+    seat_mode: Literal["general", "assigned"] | None = None
+    visibility: Literal["public", "private"] | None = None
+    is_active: bool | None = None
+
+
+class TicketTypeResponse(BaseModel):
+    id: str
+    event_id: str
+    name: str
+    description: str | None = None
+    price: float
+    quantity: int
+    sold_quantity: int = 0
+    reserved_quantity: int = 0
+    remaining_quantity: int = 0
+    currency: str = "ETB"
+    sales_start: datetime | None = None
+    sales_end: datetime | None = None
+    seat_mode: Literal["general", "assigned"] = "general"
+    visibility: Literal["public", "private"] = "public"
+    is_active: bool = True
+    created_at: datetime
+    updated_at: datetime
+
+
+class TicketCheckoutRequest(BaseModel):
+    ticket_type_id: str
+    quantity: int = Field(default=1, ge=1, le=20)
+    attendee_name: str | None = None
+    attendee_email: str | None = None
+    notes: str | None = None
+    attendee_profile: dict[str, str] = {}
+
+
+class TicketPaymentConfirmRequest(BaseModel):
+    payment_reference_id: str | None = None
+    payment_method: str | None = None
+
+
 class EventTeamInvitationCreate(BaseModel):
     email: str
     assigned_role: str
@@ -376,6 +436,7 @@ class EventResponse(BaseModel):
     status: EventStatus
     venue_status: str
     booking_status: BookingStatus
+    ticketing_status: str = "disabled"
     booking_opens_at: datetime | None = None
     booking_closes_at: datetime | None = None
     allow_waitlist: bool = False

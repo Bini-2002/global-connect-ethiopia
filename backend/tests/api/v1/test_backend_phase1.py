@@ -369,3 +369,83 @@ def test_announcements_support_scheduling_manual_run_and_inbox_delivery(client: 
     inbox = inbox_response.json()
     assert len(inbox) == 1
     assert inbox[0]["subject"] == "Agenda update"
+
+
+def test_ticketing_supports_inventory_checkout_and_payment_confirmation(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.api.v1.endpoints import events
+
+    event_id = ObjectId()
+    organizer_id = ObjectId()
+    attendee = _user("attendee", full_name="Ticket Buyer", email="buyer@example.com")
+    organizer_user = _user("organizer", user_id=organizer_id)
+    now = datetime.now(timezone.utc)
+
+    event_collection = FakeCollection(
+        [
+            {
+                "_id": event_id,
+                "organizer_id": str(organizer_id),
+                "proposal_id": str(ObjectId()),
+                "title": "Festival Night",
+                "status": "published",
+                "visibility": "public",
+                "booking_required": True,
+                "capacity": 100,
+                "booked_count": 0,
+                "ticketing_status": "configured",
+                "created_at": now,
+                "updated_at": now,
+            }
+        ]
+    )
+    ticket_types = FakeCollection([])
+    purchases = FakeCollection([])
+    team_members = FakeCollection([])
+
+    monkeypatch.setattr(events, "event_collection", event_collection)
+    monkeypatch.setattr(events, "ticket_type_collection", ticket_types)
+    monkeypatch.setattr(events, "ticket_purchase_collection", purchases)
+    monkeypatch.setattr(events, "event_team_member_collection", team_members)
+
+    current_user = {"value": organizer_user}
+    app.dependency_overrides[deps.get_current_user] = lambda: current_user["value"]
+
+    create_type = client.post(
+        f"/api/v1/events/{event_id}/ticket-types",
+        json={
+            "name": "General Admission",
+            "price": 250,
+            "quantity": 5,
+            "currency": "ETB",
+        },
+    )
+    assert create_type.status_code == 201
+    assert create_type.json()["remaining_quantity"] == 5
+
+    current_user["value"] = attendee
+    checkout = client.post(
+        f"/api/v1/events/{event_id}/tickets/checkout",
+        json={
+            "ticket_type_id": create_type.json()["id"],
+            "quantity": 2,
+            "attendee_profile": {"company": "Acme"},
+        },
+    )
+    assert checkout.status_code == 201
+    assert checkout.json()["booking_status"] == "pending_payment"
+    assert checkout.json()["qr_code"] is None
+
+    confirm = client.post(
+        f"/api/v1/events/{event_id}/tickets/confirm-payment",
+        json={"payment_reference_id": "pay-001", "payment_method": "chapa"},
+    )
+    assert confirm.status_code == 200
+    assert confirm.json()["booking_status"] == "confirmed"
+    assert confirm.json()["qr_code"]
+
+    ticket_type_after = next(doc for doc in ticket_types.docs if doc["_id"] == ObjectId(create_type.json()["id"]))
+    assert ticket_type_after["sold_quantity"] == 2
+    assert ticket_type_after["reserved_quantity"] == 0
+
+    event_after = next(doc for doc in event_collection.docs if doc["_id"] == event_id)
+    assert event_after["booked_count"] == 2
