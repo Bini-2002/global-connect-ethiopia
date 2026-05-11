@@ -60,6 +60,7 @@ class ContractService:
             "currency": contract.get("currency", "ETB"),
             "terms": contract.get("terms"),
             "status": contract.get("status", ContractStatus.AGREED.value),
+            "escrow_status": contract.get("escrow_status", EscrowStatus.NONE.value),
             "payment_status": contract.get("payment_status", PaymentStatus.PENDING.value),
             "start_date": contract.get("start_date"),
             "end_date": contract.get("end_date"),
@@ -77,8 +78,14 @@ class ContractService:
             },
             "created_at": contract["created_at"],
             "updated_at": contract["updated_at"],
-            "signed_at": contract.get("signed_at"),
+            "signed_by_organizer": bool(contract.get("signed_by_organizer", False)),
+            "signed_by_vendor": bool(contract.get("signed_by_vendor", False)),
+            "signed_by_organizer_at": contract.get("signed_by_organizer_at"),
+            "signed_by_vendor_at": contract.get("signed_by_vendor_at"),
+            "funded_at": contract.get("funded_at"),
             "completed_at": contract.get("completed_at"),
+            "paid_at": contract.get("paid_at"),
+            "cancelled_at": contract.get("cancelled_at"),
         }
 
     async def accept_request_contract(
@@ -432,4 +439,3 @@ class ContractService:
 
         await log_transaction(user_id=current_user["id"], transaction_type=TransactionType.REFUND, amount=amount, reference_id=updated["_id"])
         return await self._serialize_contract(updated)
-*** End Patch

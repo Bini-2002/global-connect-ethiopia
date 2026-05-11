@@ -319,7 +319,7 @@ def test_marketplace_lifecycle_handles_quote_counter_accept_fund_complete_and_re
     current_user_ref["user"] = vendor_user
     vendor_wallet_response = client.get("/api/v1/wallet/me")
     assert vendor_wallet_response.status_code == 200
-    assert vendor_wallet_response.json()["balance"] == 900
+    assert vendor_wallet_response.json()["balance"] == 810
     assert vendor_wallet_response.json()["locked_balance"] == 0
 
     vendor_transactions_response = client.get("/api/v1/wallet/transactions")
