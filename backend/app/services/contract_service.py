@@ -142,6 +142,7 @@ class ContractService:
     async def get_contract_detail(self, contract_id: str, current_user: dict) -> ContractResponse:
         contract = await self._get_accessible_contract(contract_id, current_user)
         return await self._serialize_contract(contract)
+        ensure_platform_wallet,
 
     async def sign_contract_as_organizer(self, contract_id: str, current_user: dict) -> ContractResponse:
         await get_current_organizer_or_403(current_user)
@@ -153,13 +154,23 @@ class ContractService:
         if contract.get("signed_by_organizer"):
             return await self._serialize_contract(contract)
 
-        now = utc_now()
-        signed_by_vendor = bool(contract.get("signed_by_vendor"))
-        updated = await self.repository.transition_state(
-            contract_id,
-            from_statuses=[ContractStatus.DRAFT, ContractStatus.PENDING_SIGNATURES, ContractStatus.ACTIVE],
-            now=now,
-            updates={
+            wallet_result = await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
+                {"_id": wallet["_id"], "budget_balance": {"$gte": amount}},
+                {
+                    "$inc": {"budget_balance": -amount, "budget_spent_total": amount, "locked_balance": amount},
+                    "$set": {"updated_at": now},
+                },
+            )
+            fund_source = "budget" if wallet_result.modified_count == 1 else None
+            if wallet_result.modified_count != 1:
+                wallet_result = await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
+                    {"_id": wallet["_id"], "balance": {"$gte": amount}},
+                    {
+                        "$inc": {"balance": -amount, "locked_balance": amount},
+                        "$set": {"updated_at": now},
+                    },
+                )
+                fund_source = "balance" if wallet_result.modified_count == 1 else None
                 "status": ContractStatus.ACTIVE.value if signed_by_vendor else ContractStatus.PENDING_SIGNATURES.value,
                 "signed_by_organizer": True,
                 "signed_by_organizer_at": now,
@@ -284,15 +295,19 @@ class ContractService:
         contract = await self._get_accessible_contract(contract_id, current_user)
         if contract["status"] != ContractStatus.FUNDED.value:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only active contracts can be marked completed.")
+                "fund_source": fund_source,
         if contract["escrow_status"] != EscrowStatus.LOCKED.value or contract["payment_status"] != PaymentStatus.PENDING.value:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This contract is not ready to be completed.")
 
+            revert_inc = {"locked_balance": -amount}
+            if fund_source == "budget":
+                revert_inc["budget_balance"] = amount
+                revert_inc["budget_spent_total"] = -amount
+            else:
+                revert_inc["balance"] = amount
         updated = await self.repository.transition_state(
             contract_id,
-            from_statuses=[ContractStatus.FUNDED],
-            from_escrow_status=EscrowStatus.LOCKED,
-            from_payment_status=PaymentStatus.PENDING,
-            now=utc_now(),
+                {"$inc": revert_inc, "$set": {"updated_at": utc_now()}},
             updates={"status": ContractStatus.COMPLETED.value, "completed_at": utc_now()},
         )
         if not updated:
@@ -303,6 +318,7 @@ class ContractService:
         await get_current_organizer_or_403(current_user)
         contract = await self._get_contract_or_404(contract_id)
         if not ids_match(contract["organizer_id"], current_user["id"]):
+        platform_wallet = await ensure_platform_wallet()
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the organizer can release this contract.")
         if contract["status"] != ContractStatus.COMPLETED.value:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only completed contracts can release payment.")
@@ -315,7 +331,7 @@ class ContractService:
 
         amount = self._get_contract_amount(contract)
         organizer_wallet = await ensure_wallet(current_user["id"])
-        vendor_wallet = await ensure_wallet(vendor["user_id"])
+            {"$inc": {"balance": vendor_payout}, "$set": {"updated_at": now}},
         now = utc_now()
 
         lock_result = await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
@@ -323,6 +339,21 @@ class ContractService:
             {"$inc": {"locked_balance": -amount}, "$set": {"updated_at": now}},
         )
         if lock_result.modified_count != 1:
+
+        commission_result = await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
+            {"_id": platform_wallet["_id"]},
+            {"$inc": {"balance": commission}, "$set": {"updated_at": now}},
+        )
+        if commission_result.modified_count != 1:
+            await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
+                {"_id": organizer_wallet["_id"]},
+                {"$inc": {"locked_balance": amount}, "$set": {"updated_at": utc_now()}},
+            )
+            await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
+                {"_id": vendor_wallet["_id"]},
+                {"$inc": {"balance": -vendor_payout}, "$set": {"updated_at": utc_now()}},
+            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Platform commission wallet could not be credited.")
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Organizer escrow balance is no longer available.",
@@ -335,6 +366,7 @@ class ContractService:
         if credit_result.modified_count != 1:
             await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
                 {"_id": organizer_wallet["_id"]},
+                "commission_amount": commission,
                 {"$inc": {"locked_balance": amount}, "$set": {"updated_at": utc_now()}},
             )
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Vendor wallet could not be credited.")
@@ -344,7 +376,11 @@ class ContractService:
             from_statuses=[ContractStatus.COMPLETED],
             from_escrow_status=EscrowStatus.LOCKED,
             from_payment_status=PaymentStatus.PENDING,
-            now=now,
+                {"$inc": {"balance": -vendor_payout}, "$set": {"updated_at": utc_now()}},
+            )
+            await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
+                {"_id": platform_wallet["_id"]},
+                {"$inc": {"balance": -commission}, "$set": {"updated_at": utc_now()}},
             updates={
                 "status": ContractStatus.PAID.value,
                 "escrow_status": EscrowStatus.RELEASED.value,
@@ -357,14 +393,27 @@ class ContractService:
                 {"_id": organizer_wallet["_id"]},
                 {"$inc": {"locked_balance": amount}, "$set": {"updated_at": utc_now()}},
             )
-            await getattr(_marketplace_mvp, "wallet_collection", wallet_collection).update_one(
+            amount=vendor_payout,
                 {"_id": vendor_wallet["_id"]},
                 {"$inc": {"balance": -amount}, "$set": {"updated_at": utc_now()}},
+        await log_transaction(
+            user_id=None,
+            transaction_type=TransactionType.COMMISSION,
+            amount=commission,
+            reference_id=updated["_id"],
+        )
             )
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The contract could not be released.")
 
         await log_transaction(
             user_id=current_user["id"],
+        fund_source = contract.get("fund_source", "balance")
+        inc_payload = {"locked_balance": -amount}
+        if fund_source == "budget":
+            inc_payload["budget_balance"] = amount
+            inc_payload["budget_spent_total"] = -amount
+        else:
+            inc_payload["balance"] = amount
             transaction_type=TransactionType.RELEASE,
             amount=amount,
             reference_id=updated["_id"],
