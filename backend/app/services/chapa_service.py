@@ -8,6 +8,7 @@ CHAPA_SECRET_KEY = os.getenv("CHAPA_SECRET_KEY", "CHASECK_TEST-bRzQUZZDbeDk7Vk7B
 CHAPA_PUBLIC_KEY = os.getenv("CHAPA_PUBLIC_KEY", "CHAPUBK_TEST-lJCcDzcYPwjYSKYM6vDvLSjGqZA4dc24")
 CHAPA_INITIALIZE_URL = "https://api.chapa.co/v1/transaction/initialize"
 CHAPA_VERIFY_URL = "https://api.chapa.co/v1/transaction/verify/"
+CHAPA_TRANSFER_URL = os.getenv("CHAPA_TRANSFER_URL", "https://api.chapa.co/v1/transfers")
 
 async def initialize_payment(amount: float, email: str, first_name: str, last_name: str, return_url: str):
     tx_ref = f"tx-{uuid.uuid4().hex}"
@@ -71,4 +72,47 @@ async def verify_payment(tx_ref: str):
         return {
             "success": False,
             "status": data.get("data", {}).get("status", "failed")
+        }
+
+
+async def initialize_withdrawal(
+    amount: float,
+    payout_reference: str,
+    email: str,
+    first_name: str,
+    last_name: str,
+):
+    tx_ref = f"wd-{uuid.uuid4().hex}"
+
+    payload = {
+        "amount": str(amount),
+        "currency": "ETB",
+        "email": email,
+        "first_name": first_name,
+        "last_name": last_name,
+        "tx_ref": tx_ref,
+        "account_reference": payout_reference,
+        "narration": "Global Connect Ethiopia wallet withdrawal",
+    }
+
+    headers = {
+        "Authorization": f"Bearer {CHAPA_SECRET_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(CHAPA_TRANSFER_URL, json=payload, headers=headers)
+
+        if response.status_code not in {200, 201}:
+            raise HTTPException(status_code=400, detail="Failed to initialize withdrawal with Chapa")
+
+        data = response.json()
+        if data.get("status") not in {"success", "pending"}:
+            raise HTTPException(status_code=400, detail=data.get("message", "Withdrawal initialization failed"))
+
+        provider_reference = (data.get("data") or {}).get("reference") or (data.get("data") or {}).get("id") or tx_ref
+        return {
+            "success": True,
+            "tx_ref": tx_ref,
+            "provider_reference": provider_reference,
         }

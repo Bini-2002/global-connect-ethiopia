@@ -82,12 +82,37 @@ class WalletResponse(BaseModel):
     user_id: str
     balance: float
     locked_balance: float
+    pending_withdrawal_balance: float = 0.0
+    total_withdrawn: float = 0.0
+    currency: str = "ETB"
     created_at: datetime
     updated_at: datetime
 
 
 class WalletDepositCreate(BaseModel):
     amount: float = Field(..., gt=0)
+
+
+class WithdrawalCreate(BaseModel):
+    amount: float = Field(..., gt=0)
+    payout_method: str = "chapa"
+    payout_reference: str | None = None
+    notes: str | None = None
+
+
+class WithdrawalResponse(BaseModel):
+    id: str
+    wallet_id: str
+    user_id: str
+    amount: float
+    status: str
+    payout_method: str | None = None
+    payout_reference: str | None = None
+    provider_reference: str | None = None
+    notes: str | None = None
+    currency: str = "ETB"
+    requested_at: datetime
+    updated_at: datetime
 
 
 class TransactionResponse(BaseModel):
