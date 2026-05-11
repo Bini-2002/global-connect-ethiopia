@@ -171,8 +171,27 @@ export interface WalletRecord {
   user_id: string;
   balance: number;
   locked_balance: number;
+  pending_withdrawal_balance?: number;
+  total_withdrawn?: number;
+  currency?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface WithdrawalRecord {
+  id: string;
+  wallet_id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  payout_method: string | null;
+  payout_reference: string | null;
+  provider_reference: string | null;
+  notes: string | null;
+  currency: string;
+  requested_at: string;
+  updated_at: string;
+  completed_at: string | null;
 }
 
 export interface WalletTransactionRecord {
