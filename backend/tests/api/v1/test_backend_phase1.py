@@ -84,6 +84,9 @@ class FakeCollection:
                 matched.sort(key=lambda item: self._get_value(item, field), reverse=reverse)
         return _FakeCursor(matched)
 
+    async def count_documents(self, query: dict[str, Any]) -> int:
+        return sum(1 for doc in self.docs if self._match(doc, query))
+
     def _apply_update(self, doc: dict[str, Any], update: dict[str, Any]) -> None:
         for key, value in update.get("$set", {}).items():
             self._set_value(doc, key, value)
@@ -449,3 +452,173 @@ def test_ticketing_supports_inventory_checkout_and_payment_confirmation(client: 
 
     event_after = next(doc for doc in event_collection.docs if doc["_id"] == event_id)
     assert event_after["booked_count"] == 2
+
+
+def test_post_event_lifecycle_covers_badges_check_in_feedback_and_final_report(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.api.v1.endpoints import events
+
+    event_id = ObjectId()
+    organizer_id = ObjectId()
+    organizer_user = _user("organizer", user_id=organizer_id)
+    attendee = _user("attendee", full_name="Guest Attendee", email="guest@example.com")
+    now = datetime.now(timezone.utc)
+
+    event_collection = FakeCollection(
+        [
+            {
+                "_id": event_id,
+                "organizer_id": str(organizer_id),
+                "proposal_id": str(ObjectId()),
+                "title": "Future Leaders Summit",
+                "status": "published",
+                "visibility": "public",
+                "booking_required": True,
+                "capacity": 100,
+                "booked_count": 0,
+                "ticketing_status": "configured",
+                "survey_status": "not_sent",
+                "final_report_status": "draft",
+                "created_at": now,
+                "updated_at": now,
+            }
+        ]
+    )
+    ticket_types = FakeCollection([])
+    purchases = FakeCollection([])
+    badges = FakeCollection([])
+    announcements = FakeCollection([])
+    deliveries = FakeCollection([])
+    feedback_surveys = FakeCollection([])
+    feedback_responses = FakeCollection([])
+    final_reports = FakeCollection([])
+    team_members = FakeCollection([])
+
+    monkeypatch.setattr(events, "event_collection", event_collection)
+    monkeypatch.setattr(events, "ticket_type_collection", ticket_types)
+    monkeypatch.setattr(events, "ticket_purchase_collection", purchases)
+    monkeypatch.setattr(events, "badge_collection", badges)
+    monkeypatch.setattr(events, "event_announcement_collection", announcements)
+    monkeypatch.setattr(events, "announcement_delivery_collection", deliveries)
+    monkeypatch.setattr(events, "feedback_survey_collection", feedback_surveys)
+    monkeypatch.setattr(events, "feedback_response_collection", feedback_responses)
+    monkeypatch.setattr(events, "event_final_report_collection", final_reports)
+    monkeypatch.setattr(events, "event_team_member_collection", team_members)
+
+    current_user = {"value": organizer_user}
+    app.dependency_overrides[deps.get_current_user] = lambda: current_user["value"]
+
+    ticket_type_response = client.post(
+        f"/api/v1/events/{event_id}/ticket-types",
+        json={
+            "name": "General Admission",
+            "price": 150,
+            "quantity": 10,
+            "currency": "ETB",
+        },
+    )
+    assert ticket_type_response.status_code == 201
+
+    current_user["value"] = attendee
+    checkout_response = client.post(
+        f"/api/v1/events/{event_id}/tickets/checkout",
+        json={
+            "ticket_type_id": ticket_type_response.json()["id"],
+            "quantity": 1,
+            "attendee_profile": {"company": "Acme"},
+        },
+    )
+    assert checkout_response.status_code == 201
+
+    confirm_response = client.post(
+        f"/api/v1/events/{event_id}/tickets/confirm-payment",
+        json={
+            "payment_reference_id": "pay-002",
+            "payment_method": "chapa",
+        },
+    )
+    assert confirm_response.status_code == 200
+    booking_id = confirm_response.json()["id"]
+    qr_code = confirm_response.json()["qr_code"]
+
+    current_user["value"] = organizer_user
+    announcement_response = client.post(
+        f"/api/v1/events/{event_id}/announcements",
+        json={
+            "subject": "Doors open soon",
+            "body": "Please head to the main hall.",
+        },
+    )
+    assert announcement_response.status_code == 201
+    assert announcement_response.json()["status"] == "sent"
+    assert announcement_response.json()["recipient_count"] == 1
+    assert announcement_response.json()["delivered_count"] == 1
+
+    badge_response = client.post(
+        f"/api/v1/events/{event_id}/badges/generate",
+        json={"booking_ids": [booking_id], "include_unchecked_in": True},
+    )
+    assert badge_response.status_code == 200
+    assert len(badge_response.json()) == 1
+    assert badge_response.json()[0]["booking_id"] == booking_id
+
+    scan_response = client.post(
+        f"/api/v1/events/{event_id}/check-in/scan",
+        json={"qr_code": qr_code},
+    )
+    assert scan_response.status_code == 200
+    assert scan_response.json()["check_in_status"] == "checked_in"
+
+    event_collection.docs[0]["status"] = "completed"
+
+    survey_response = client.post(
+        f"/api/v1/events/{event_id}/feedback/send",
+        json={
+            "audience_segment": "all",
+            "custom_questions": ["What did you learn today?"],
+        },
+    )
+    assert survey_response.status_code == 200
+    assert survey_response.json()["survey_status"] == "sent"
+
+    current_user["value"] = attendee
+    feedback_response = client.post(
+        f"/api/v1/events/{event_id}/feedback/respond",
+        json={
+            "rating": 5,
+            "nps_score": 10,
+            "comments": "Excellent event.",
+            "vendor_rating": 5,
+        },
+    )
+    assert feedback_response.status_code == 201
+
+    current_user["value"] = organizer_user
+    summary_response = client.get(f"/api/v1/events/{event_id}/feedback/summary")
+    assert summary_response.status_code == 200
+    assert summary_response.json()["response_count"] == 1
+    assert summary_response.json()["average_rating"] == 5.0
+
+    final_report_response = client.post(
+        f"/api/v1/events/{event_id}/final-report",
+        json={
+            "timeline_summary": "Smooth launch and strong attendance.",
+            "total_costs": 1200,
+            "vendors_used": ["Catering Co"],
+            "lessons_learned": "Open the check-in desks earlier.",
+            "visibility": "public",
+        },
+    )
+    assert final_report_response.status_code == 201
+    assert final_report_response.json()["status"] == "published"
+
+    archive_response = client.post(f"/api/v1/events/{event_id}/archive")
+    assert archive_response.status_code == 200
+    assert archive_response.json()["status"] == "archived"
+    assert archive_response.json()["final_report_status"] == "archived"
+
+    report_response = client.get(f"/api/v1/events/{event_id}/final-report")
+    assert report_response.status_code == 200
+    assert report_response.json()["status"] == "archived"
