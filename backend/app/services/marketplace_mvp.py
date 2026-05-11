@@ -13,6 +13,7 @@ from app.db.mongodb import (
     organizer_collection,
     request_collection,
     transaction_collection,
+    withdrawal_collection,
     user_collection,
     vendor_collection,
     vendor_service_collection,
@@ -200,8 +201,29 @@ def serialize_wallet(wallet: dict) -> dict:
         "locked_balance": float(wallet.get("locked_balance", 0.0)),
         "budget_balance": float(wallet.get("budget_balance", 0.0)),
         "budget_spent_total": float(wallet.get("budget_spent_total", 0.0)),
+        "pending_withdrawal_balance": float(wallet.get("pending_withdrawal_balance", 0.0)),
+        "total_withdrawn": float(wallet.get("total_withdrawn", 0.0)),
+        "currency": wallet.get("currency", "ETB"),
         "created_at": wallet["created_at"],
         "updated_at": wallet["updated_at"],
+    }
+
+
+def serialize_withdrawal(withdrawal: dict) -> dict:
+    return {
+        "id": str(withdrawal["_id"]),
+        "wallet_id": stringify_id(withdrawal.get("wallet_id")) or "",
+        "user_id": stringify_id(withdrawal.get("user_id")) or "",
+        "amount": float(withdrawal["amount"]),
+        "status": withdrawal["status"],
+        "payout_method": withdrawal.get("payout_method"),
+        "payout_reference": withdrawal.get("payout_reference"),
+        "provider_reference": withdrawal.get("provider_reference"),
+        "notes": withdrawal.get("notes"),
+        "currency": withdrawal.get("currency", "ETB"),
+        "requested_at": withdrawal["requested_at"],
+        "updated_at": withdrawal["updated_at"],
+        "completed_at": withdrawal.get("completed_at"),
     }
 
 
@@ -268,6 +290,8 @@ async def ensure_wallet(user_id: Any) -> dict:
         "locked_balance": 0.0,
         "budget_balance": 0.0,
         "budget_spent_total": 0.0,
+        "pending_withdrawal_balance": 0.0,
+        "total_withdrawn": 0.0,
         "created_at": now,
         "updated_at": now,
     }
@@ -898,6 +922,164 @@ async def deposit_to_wallet(current_user: dict, *, amount: float) -> dict:
         amount=float(amount),
     )
     return serialize_wallet(updated)
+
+
+async def request_withdrawal(
+    current_user: dict,
+    *,
+    amount: float,
+    payout_method: str = "chapa",
+    payout_reference: str | None = None,
+    notes: str | None = None,
+) -> dict:
+    require_role(current_user, UserRole.ORGANIZER, UserRole.VENDOR)
+
+    wallet = await ensure_wallet(current_user["id"])
+    amount_value = float(amount)
+    if amount_value <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Withdrawal amount must be greater than zero.")
+
+    payout_method_value = (payout_method or "chapa").strip().lower()
+    if payout_method_value == "chapa" and not payout_reference:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A payout reference is required for Chapa withdrawals.")
+
+    now = utc_now()
+    reserve_result = await wallet_collection.update_one(
+        {"_id": wallet["_id"], "balance": {"$gte": amount_value}},
+        {
+            "$inc": {
+                "balance": -amount_value,
+                "pending_withdrawal_balance": amount_value,
+            },
+            "$set": {"updated_at": now},
+        },
+    )
+    if reserve_result.modified_count != 1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Insufficient wallet balance for withdrawal.")
+
+    provider_reference: str | None = None
+    withdrawal_status = "PENDING"
+    withdrawal_id = None
+
+    try:
+        if payout_method_value == "chapa":
+            from app.services.chapa_service import initialize_withdrawal
+
+            chapa_result = await initialize_withdrawal(
+                amount=amount_value,
+                payout_reference=payout_reference or "",
+                email=current_user.get("email", "user@globalconnect.com"),
+                first_name=current_user.get("first_name", "Global"),
+                last_name=current_user.get("last_name", "Connect"),
+            )
+            provider_reference = chapa_result.get("provider_reference") or chapa_result.get("tx_ref")
+            withdrawal_status = "PROCESSING"
+
+        withdrawal_doc = {
+            "wallet_id": wallet["_id"],
+            "user_id": wallet["user_id"],
+            "amount": amount_value,
+            "status": withdrawal_status,
+            "payout_method": payout_method_value,
+            "payout_reference": payout_reference,
+            "provider_reference": provider_reference,
+            "notes": notes,
+            "currency": wallet.get("currency", "ETB"),
+            "requested_at": now,
+            "updated_at": now,
+        }
+        result = await withdrawal_collection.insert_one(withdrawal_doc)
+        withdrawal_id = result.inserted_id
+        withdrawal_doc["_id"] = withdrawal_id
+
+        await log_transaction(
+            user_id=current_user["id"],
+            transaction_type=TransactionType.WITHDRAWAL,
+            amount=amount_value,
+            reference_id=result.inserted_id,
+        )
+
+        return serialize_withdrawal(withdrawal_doc)
+    except Exception:
+        if withdrawal_id is not None:
+            await withdrawal_collection.delete_one({"_id": withdrawal_id})
+        await wallet_collection.update_one(
+            {"_id": wallet["_id"]},
+            {
+                "$inc": {
+                    "balance": amount_value,
+                    "pending_withdrawal_balance": -amount_value,
+                },
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        raise
+
+
+async def list_wallet_withdrawals(current_user: dict) -> list[dict]:
+    wallet = await ensure_wallet(current_user["id"])
+    items = await withdrawal_collection.find({"wallet_id": wallet["_id"]}, sort=[("requested_at", -1)]).to_list(length=500)
+    return [serialize_withdrawal(item) for item in items]
+
+
+async def complete_withdrawal(
+    current_user: dict,
+    withdrawal_id: str,
+    *,
+    provider_reference: str | None = None,
+) -> dict:
+    wallet = await ensure_wallet(current_user["id"])
+    withdrawal_object_id = parse_object_id(withdrawal_id, field_name="withdrawal id")
+    withdrawal = await withdrawal_collection.find_one({"_id": withdrawal_object_id, "wallet_id": wallet["_id"]})
+    if not withdrawal:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Withdrawal not found.")
+
+    if withdrawal.get("status") == "COMPLETED":
+        return serialize_withdrawal(withdrawal)
+    if withdrawal.get("status") not in {"PENDING", "PROCESSING"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This withdrawal can no longer be completed.")
+
+    amount_value = float(withdrawal["amount"])
+    now = utc_now()
+    wallet_result = await wallet_collection.update_one(
+        {"_id": wallet["_id"], "pending_withdrawal_balance": {"$gte": amount_value}},
+        {
+            "$inc": {
+                "pending_withdrawal_balance": -amount_value,
+                "total_withdrawn": amount_value,
+            },
+            "$set": {"updated_at": now},
+        },
+    )
+    if wallet_result.modified_count != 1:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Withdrawal could not be finalized.")
+
+    updated = await withdrawal_collection.find_one_and_update(
+        {"_id": withdrawal_object_id, "wallet_id": wallet["_id"]},
+        {
+            "$set": {
+                "status": "COMPLETED",
+                "provider_reference": provider_reference or withdrawal.get("provider_reference"),
+                "updated_at": now,
+                "completed_at": now,
+            }
+        },
+        return_document=ReturnDocument.AFTER,
+    )
+    if not updated:
+        await wallet_collection.update_one(
+            {"_id": wallet["_id"]},
+            {
+                "$inc": {
+                    "pending_withdrawal_balance": amount_value,
+                    "total_withdrawn": -amount_value,
+                },
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Withdrawal could not be finalized.")
+
+    return serialize_withdrawal(updated)
 
 
 async def list_wallet_transactions(current_user: dict) -> list[dict]:

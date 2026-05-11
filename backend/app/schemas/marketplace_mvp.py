@@ -113,6 +113,7 @@ class WithdrawalResponse(BaseModel):
     currency: str = "ETB"
     requested_at: datetime
     updated_at: datetime
+    completed_at: datetime | None = None
 
 
 class TransactionResponse(BaseModel):

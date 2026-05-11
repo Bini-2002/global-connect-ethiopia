@@ -1,10 +1,24 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 from app.api.v1.deps import get_current_user
-from app.schemas.marketplace_mvp import TransactionResponse, WalletDepositCreate, WalletResponse
-from app.services.marketplace_mvp import deposit_to_wallet, get_wallet_for_user, list_wallet_transactions
+from app.schemas.marketplace_mvp import (
+    TransactionResponse,
+    WalletDepositCreate,
+    WalletResponse,
+    WithdrawalCreate,
+    WithdrawalResponse,
+)
+from app.services.marketplace_mvp import (
+    complete_withdrawal,
+    deposit_to_wallet,
+    get_wallet_for_user,
+    list_wallet_transactions,
+    list_wallet_withdrawals,
+    request_withdrawal,
+)
 
 router = APIRouter()
 
@@ -25,8 +39,6 @@ async def deposit_wallet_funds(
 @router.get("/transactions", response_model=list[TransactionResponse])
 async def get_my_wallet_transactions(current_user: dict = Depends(get_current_user)):
     return await list_wallet_transactions(current_user)
-
-from pydantic import BaseModel
 
 class ChapaInitializeRequest(BaseModel):
     amount: float
@@ -80,3 +92,39 @@ async def verify_chapa_topup(tx_ref: str, current_user: dict = Depends(get_curre
     )
     
     return wallet
+
+
+@router.get("/withdrawals", response_model=list[WithdrawalResponse])
+async def get_my_withdrawals(current_user: dict = Depends(get_current_user)):
+    return await list_wallet_withdrawals(current_user)
+
+
+@router.post("/withdrawals", response_model=WithdrawalResponse, status_code=201)
+async def request_wallet_withdrawal_endpoint(
+    payload: WithdrawalCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    return await request_withdrawal(
+        current_user,
+        amount=payload.amount,
+        payout_method=payload.payout_method,
+        payout_reference=payload.payout_reference,
+        notes=payload.notes,
+    )
+
+
+class WithdrawalCompletePayload(BaseModel):
+    provider_reference: str | None = None
+
+
+@router.post("/withdrawals/{withdrawal_id}/complete", response_model=WithdrawalResponse)
+async def complete_wallet_withdrawal_endpoint(
+    withdrawal_id: str,
+    payload: WithdrawalCompletePayload,
+    current_user: dict = Depends(get_current_user),
+):
+    return await complete_withdrawal(
+        current_user,
+        withdrawal_id,
+        provider_reference=payload.provider_reference,
+    )
