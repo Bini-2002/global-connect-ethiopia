@@ -4,7 +4,8 @@ from app.models.vendor_categories import VENDOR_CATEGORIES
 
 from app.db.mongodb import vendor_collection, vendor_service_collection
 from app.schemas.marketplace import MarketplaceSearchResponse
-from app.services.marketplace import build_vendor_summary, parse_flexible_payload
+from app.services.ai_service import AIService
+from app.services.marketplace import build_vendor_summary
 
 router = APIRouter()
 
@@ -31,6 +32,9 @@ async def _serialize_service(service: dict) -> dict:
         "availability": service.get("availability"),
         "features": service.get("features", {}),
         "tags": service.get("tags", []),
+        "recommended_price_min": service.get("recommended_price_min"),
+        "recommended_price_max": service.get("recommended_price_max"),
+        "price_recommendation_source": service.get("price_recommendation_source"),
         "is_active": bool(service.get("is_active", True)),
         "created_at": service["created_at"],
         "updated_at": service["updated_at"],
@@ -45,7 +49,7 @@ async def search_marketplace_services(
     location: str | None = Query(default=None),
     price_min: float | None = Query(default=None, ge=0),
     price_max: float | None = Query(default=None, ge=0),
-    features: str | None = Query(default=None, description="JSON string of features to filter by, e.g. {'star_rating': 5}"),
+    recommend_prices: bool = Query(default=False),
 ):
     query: dict = {"is_active": True}
 
@@ -94,5 +98,17 @@ async def search_marketplace_services(
     for service in services:
         service["vendor"] = vendor_map.get(service.get("vendor_id"))
         response_items.append(await _serialize_service(service))
+
+    if recommend_prices and response_items:
+        recommendation = await AIService.recommend_service_price_range(
+            query=q,
+            category=category,
+            location=location,
+            candidate_services=response_items,
+        )
+        for item in response_items:
+            item["recommended_price_min"] = recommendation.get("recommended_price_min")
+            item["recommended_price_max"] = recommendation.get("recommended_price_max")
+            item["price_recommendation_source"] = recommendation.get("price_recommendation_source")
 
     return {"count": len(response_items), "items": response_items}

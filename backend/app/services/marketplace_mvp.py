@@ -183,7 +183,7 @@ def get_current_amount(request_doc: dict) -> float | None:
 def serialize_transaction(transaction: dict) -> dict:
     return {
         "id": str(transaction["_id"]),
-        "user_id": stringify_id(transaction["user_id"]) or "",
+        "user_id": stringify_id(transaction.get("user_id")) or "",
         "type": transaction["type"],
         "amount": float(transaction["amount"]),
         "reference_id": stringify_id(transaction.get("reference_id")),
@@ -195,9 +195,11 @@ def serialize_transaction(transaction: dict) -> dict:
 def serialize_wallet(wallet: dict) -> dict:
     return {
         "id": str(wallet["_id"]),
-        "user_id": stringify_id(wallet["user_id"]) or "",
+        "user_id": stringify_id(wallet.get("user_id")) or "",
         "balance": float(wallet.get("balance", 0.0)),
         "locked_balance": float(wallet.get("locked_balance", 0.0)),
+        "budget_balance": float(wallet.get("budget_balance", 0.0)),
+        "budget_spent_total": float(wallet.get("budget_spent_total", 0.0)),
         "created_at": wallet["created_at"],
         "updated_at": wallet["updated_at"],
     }
@@ -264,6 +266,31 @@ async def ensure_wallet(user_id: Any) -> dict:
         "vendor_id": normalized_user_id,
         "balance": 0.0,
         "locked_balance": 0.0,
+        "budget_balance": 0.0,
+        "budget_spent_total": 0.0,
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await wallet_collection.insert_one(payload)
+    payload["_id"] = result.inserted_id
+    return payload
+
+
+async def ensure_platform_wallet() -> dict:
+    wallet = await wallet_collection.find_one({"wallet_type": "platform"})
+    if wallet:
+        return wallet
+
+    now = utc_now()
+    payload = {
+        "wallet_type": "platform",
+        "user_id": "platform",
+        "vendor_user_id": "platform",
+        "vendor_id": "platform",
+        "balance": 0.0,
+        "locked_balance": 0.0,
+        "budget_balance": 0.0,
+        "budget_spent_total": 0.0,
         "created_at": now,
         "updated_at": now,
     }
@@ -274,14 +301,16 @@ async def ensure_wallet(user_id: Any) -> dict:
 
 async def log_transaction(
     *,
-    user_id: Any,
+    user_id: Any | None,
     transaction_type: TransactionType,
     amount: float,
     reference_id: Any = None,
     status_value: TransactionStatus = TransactionStatus.SUCCESS,
 ) -> dict:
     document = {
-        "user_id": user_id if isinstance(user_id, ObjectId) else parse_object_id(str(user_id), field_name="user id"),
+        "user_id": None
+        if user_id is None
+        else user_id if isinstance(user_id, ObjectId) else parse_object_id(str(user_id), field_name="user id"),
         "type": transaction_type.value,
         "amount": float(amount),
         "reference_id": reference_id,
@@ -571,15 +600,29 @@ async def fund_contract(contract_id: str, current_user: dict) -> dict:
     wallet = await ensure_wallet(current_user["id"])
     now = utc_now()
     wallet_result = await wallet_collection.update_one(
-        {"_id": wallet["_id"], "balance": {"$gte": price}},
+        {"_id": wallet["_id"], "budget_balance": {"$gte": price}},
         {
             "$inc": {
-                "balance": -price,
+                "budget_balance": -price,
+                "budget_spent_total": price,
                 "locked_balance": price,
             },
             "$set": {"updated_at": now},
         },
     )
+    fund_source = "budget" if wallet_result.modified_count == 1 else None
+    if wallet_result.modified_count != 1:
+        wallet_result = await wallet_collection.update_one(
+            {"_id": wallet["_id"], "balance": {"$gte": price}},
+            {
+                "$inc": {
+                    "balance": -price,
+                    "locked_balance": price,
+                },
+                "$set": {"updated_at": now},
+            },
+        )
+        fund_source = "balance" if wallet_result.modified_count == 1 else None
     if wallet_result.modified_count != 1:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Insufficient wallet balance to fund this contract.")
 
@@ -595,20 +638,21 @@ async def fund_contract(contract_id: str, current_user: dict) -> dict:
                 "escrow_status": EscrowStatus.LOCKED.value,
                 "payment_status": PaymentStatus.PENDING.value,
                 "funded_at": now,
+                "fund_source": fund_source,
                 "updated_at": now,
             }
         },
     )
     if contract_result.modified_count != 1:
+        revert_update = {"locked_balance": -price}
+        if fund_source == "budget":
+            revert_update["budget_balance"] = price
+            revert_update["budget_spent_total"] = -price
+        else:
+            revert_update["balance"] = price
         await wallet_collection.update_one(
             {"_id": wallet["_id"]},
-            {
-                "$inc": {
-                    "balance": price,
-                    "locked_balance": -price,
-                },
-                "$set": {"updated_at": utc_now()},
-            },
+            {"$inc": revert_update, "$set": {"updated_at": utc_now()}},
         )
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The contract could not be funded.")
 
@@ -639,7 +683,11 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
     price = float(contract["price"])
     organizer_wallet = await ensure_wallet(current_user["id"])
     vendor_wallet = await ensure_wallet(vendor["user_id"])
+    platform_wallet = await ensure_platform_wallet()
     now = utc_now()
+
+    commission = round(price * 0.10, 2)
+    vendor_payout = round(price - commission, 2)
 
     lock_result = await wallet_collection.update_one(
         {"_id": organizer_wallet["_id"], "locked_balance": {"$gte": price}},
@@ -656,7 +704,7 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
     credit_result = await wallet_collection.update_one(
         {"_id": vendor_wallet["_id"]},
         {
-            "$inc": {"balance": price},
+            "$inc": {"balance": vendor_payout},
             "$set": {"updated_at": now},
         },
     )
@@ -670,6 +718,30 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
         )
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Vendor wallet could not be credited.")
 
+    commission_result = await wallet_collection.update_one(
+        {"_id": platform_wallet["_id"]},
+        {
+            "$inc": {"balance": commission},
+            "$set": {"updated_at": now},
+        },
+    )
+    if commission_result.modified_count != 1:
+        await wallet_collection.update_one(
+            {"_id": organizer_wallet["_id"]},
+            {
+                "$inc": {"locked_balance": price},
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        await wallet_collection.update_one(
+            {"_id": vendor_wallet["_id"]},
+            {
+                "$inc": {"balance": -vendor_payout},
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Platform commission wallet could not be credited.")
+
     contract_result = await contract_collection.update_one(
         {
             "_id": contract["_id"],
@@ -682,6 +754,7 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
                 "status": ContractStatus.PAID.value,
                 "escrow_status": EscrowStatus.RELEASED.value,
                 "payment_status": PaymentStatus.PAID.value,
+                "commission_amount": commission,
                 "paid_at": now,
                 "updated_at": now,
             }
@@ -698,7 +771,14 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
         await wallet_collection.update_one(
             {"_id": vendor_wallet["_id"]},
             {
-                "$inc": {"balance": -price},
+                "$inc": {"balance": -vendor_payout},
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        await wallet_collection.update_one(
+            {"_id": platform_wallet["_id"]},
+            {
+                "$inc": {"balance": -commission},
                 "$set": {"updated_at": utc_now()},
             },
         )
@@ -713,7 +793,13 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
     await log_transaction(
         user_id=vendor["user_id"],
         transaction_type=TransactionType.RELEASE,
-        amount=price,
+        amount=vendor_payout,
+        reference_id=contract["_id"],
+    )
+    await log_transaction(
+        user_id=None,
+        transaction_type=TransactionType.COMMISSION,
+        amount=commission,
         reference_id=contract["_id"],
     )
     updated = await get_contract_or_404(contract_id)
@@ -733,13 +819,17 @@ async def refund_contract(contract_id: str, current_user: dict) -> dict:
     price = float(contract["price"])
     organizer_wallet = await ensure_wallet(current_user["id"])
     now = utc_now()
+    fund_source = contract.get("fund_source", "balance")
+    inc_payload = {"locked_balance": -price}
+    if fund_source == "budget":
+        inc_payload["budget_balance"] = price
+        inc_payload["budget_spent_total"] = -price
+    else:
+        inc_payload["balance"] = price
     wallet_result = await wallet_collection.update_one(
         {"_id": organizer_wallet["_id"], "locked_balance": {"$gte": price}},
         {
-            "$inc": {
-                "balance": price,
-                "locked_balance": -price,
-            },
+            "$inc": inc_payload,
             "$set": {"updated_at": now},
         },
     )
@@ -766,7 +856,6 @@ async def refund_contract(contract_id: str, current_user: dict) -> dict:
             {"_id": organizer_wallet["_id"]},
             {
                 "$inc": {
-                    "balance": -price,
                     "locked_balance": price,
                 },
                 "$set": {"updated_at": utc_now()},

@@ -36,7 +36,6 @@ def _to_response(proposal: dict) -> dict:
         "event_type": proposal.get("event_type"),
         "location": proposal.get("location"),
         "expected_attendees": proposal.get("expected_attendees"),
-        "budget_estimate": proposal.get("budget_estimate"),
         "start_date": proposal.get("start_date"),
         "end_date": proposal.get("end_date"),
         "program_overview": proposal.get("program_overview"),
@@ -122,7 +121,6 @@ async def create_proposal(
     event_type: Optional[str] = Form(None),
     location: Optional[str] = Form(None),
     expected_attendees: Optional[int] = Form(None),
-    budget_estimate: Optional[float] = Form(None),
     start_date: Optional[str] = Form(None),
     end_date: Optional[str] = Form(None),
     program_overview: Optional[str] = Form(None),
@@ -176,7 +174,6 @@ async def create_proposal(
         "event_type": normalized_event_type,
         "location": location,
         "expected_attendees": expected_attendees,
-        "budget_estimate": budget_estimate,
         "start_date": datetime.fromisoformat(start_date) if start_date else None,
         "end_date": datetime.fromisoformat(end_date) if end_date else None,
         "program_overview": program_overview,
@@ -206,7 +203,6 @@ async def update_proposal(
     event_type: Optional[str] = Form(None),
     location: Optional[str] = Form(None),
     expected_attendees: Optional[int] = Form(None),
-    budget_estimate: Optional[float] = Form(None),
     start_date: Optional[str] = Form(None),
     end_date: Optional[str] = Form(None),
     program_overview: Optional[str] = Form(None),
@@ -253,8 +249,6 @@ async def update_proposal(
         update_data["location"] = location
     if expected_attendees is not None:
         update_data["expected_attendees"] = expected_attendees
-    if budget_estimate is not None:
-        update_data["budget_estimate"] = budget_estimate
     if start_date is not None:
         update_data["start_date"] = datetime.fromisoformat(start_date) if start_date else None
     if end_date is not None:
@@ -329,7 +323,6 @@ async def submit_proposal(
         "end_date",
         "location",
         "expected_attendees",
-        "budget_estimate"
     ]
     invalid_fields = []
     for field in required_fields:

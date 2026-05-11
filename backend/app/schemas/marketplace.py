@@ -39,6 +39,9 @@ class VendorServiceResponse(BaseModel):
     availability: dict[str, Any] | list[Any] | str | None = None
     features: dict[str, Any] = {}
     tags: list[str] = []
+    recommended_price_min: float | None = None
+    recommended_price_max: float | None = None
+    price_recommendation_source: str | None = None
     is_active: bool = True
     created_at: datetime
     updated_at: datetime

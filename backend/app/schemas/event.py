@@ -17,12 +17,12 @@ from app.schemas.proposal import ProposalOfficeAssignments
 class EventBudgetItem(BaseModel):
     id: str | None = None
     name: str
-    estimated_cost: float = Field(..., ge=0)
     actual_cost: float | None = Field(default=None, ge=0)
     notes: str | None = None
 
 
 class EventBudgetUpdate(BaseModel):
+    budget_amount: float = Field(..., ge=0)
     items: list[EventBudgetItem] = []
     currency: str = "ETB"
 
@@ -386,7 +386,7 @@ class EventResponse(BaseModel):
     final_report_status: FinalReportStatus
     budget_currency: str = "ETB"
     budget_items: list[EventBudgetItem] = []
-    budget_total_estimated: float = 0.0
+    budget_amount: float = 0.0
     office_assignments: ProposalOfficeAssignments | None = None
     published_at: datetime | None = None
     live_started_at: datetime | None = None

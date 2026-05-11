@@ -332,6 +332,42 @@ def test_marketplace_lifecycle_handles_quote_counter_accept_fund_complete_and_re
     assert [item["type"] for item in organizer_transactions_response.json()] == ["RELEASE", "ESCROW_LOCK", "DEPOSIT"]
 
 
+def test_release_applies_commission_split(
+    client: TestClient,
+    setup_marketplace,
+) -> None:
+    current_user_ref = setup_marketplace["current_user_ref"]
+    organizer_user = setup_marketplace["organizer_user"]
+    vendor_user = setup_marketplace["vendor_user"]
+
+    _, contract_id = _create_accepted_contract(client, setup_marketplace)
+
+    current_user_ref["user"] = organizer_user
+    assert client.post("/api/v1/wallet/deposit", json={"amount": 1000}).status_code == 200
+
+    fund_response = client.post(f"/api/v1/contracts/{contract_id}/fund")
+    assert fund_response.status_code == 200
+
+    wallet_after_fund = client.get("/api/v1/wallet/me")
+    assert wallet_after_fund.status_code == 200
+    assert wallet_after_fund.json()["balance"] == 100
+    assert wallet_after_fund.json()["locked_balance"] == 900
+
+    current_user_ref["user"] = vendor_user
+    assert client.post(f"/api/v1/contracts/{contract_id}/complete").status_code == 200
+
+    current_user_ref["user"] = organizer_user
+    release_response = client.post(f"/api/v1/contracts/{contract_id}/release")
+    assert release_response.status_code == 200
+    assert release_response.json()["payment_status"] == "PAID"
+
+    vendor_wallet = next(doc for doc in setup_marketplace["collections"]["wallet_collection"].docs if doc.get("user_id") == setup_marketplace["vendor_user"]["_id"])
+    commission_entry = next(doc for doc in setup_marketplace["collections"]["transaction_collection"].docs if doc.get("type") == "COMMISSION")
+
+    assert float(vendor_wallet["balance"]) == 810.0
+    assert float(commission_entry["amount"]) == 90.0
+
+
 def test_contract_funding_requires_sufficient_balance(client: TestClient, setup_marketplace) -> None:
     current_user_ref = setup_marketplace["current_user_ref"]
     organizer_user = setup_marketplace["organizer_user"]

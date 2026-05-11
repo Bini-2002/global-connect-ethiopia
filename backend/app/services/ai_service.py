@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+from statistics import median
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 import google.generativeai as genai
@@ -14,6 +15,7 @@ from app.db.mongodb import (
     ai_regulatory_rule_collection,
     ai_schedule_draft_collection,
     ai_schedule_draft_item_collection,
+    contract_collection,
     event_schedule_collection
 )
 from app.schemas.ai import (
@@ -143,6 +145,77 @@ class AIService:
             expires_at=draft_doc["expires_at"],
             can_apply=draft_doc["can_apply"]
         )
+
+    @staticmethod
+    async def recommend_service_price_range(
+        *,
+        query: str | None = None,
+        category: str | None = None,
+        location: str | None = None,
+        candidate_services: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        services = candidate_services or []
+        listing_prices: list[float] = []
+        for service in services:
+            low = service.get("price_min")
+            high = service.get("price_max")
+            if low is not None:
+                listing_prices.append(float(low))
+            if high is not None:
+                listing_prices.append(float(high))
+
+        historical_prices: list[float] = []
+        contracts = await contract_collection.find({"price": {"$gt": 0}}, projection={"price": 1}).to_list(length=300)
+        for contract in contracts:
+            try:
+                historical_prices.append(float(contract.get("price", 0.0)))
+            except (TypeError, ValueError):
+                continue
+
+        if AIService._is_mock_mode() or not services:
+            pool = listing_prices or historical_prices or [0.0]
+            base = median(pool)
+            spread = max(base * 0.15, 500.0)
+            return {
+                "recommended_price_min": round(max(base - spread, 0.0), 2),
+                "recommended_price_max": round(base + spread, 2),
+                "price_recommendation_source": "mock" if AIService._is_mock_mode() else "market_data",
+            }
+
+        try:
+            model = genai.GenerativeModel("gemini-2.5-flash")
+            prompt = (
+                "You are recommending a market price range for event service providers.\n"
+                f"Search query: {query or 'none'}\n"
+                f"Category: {category or 'none'}\n"
+                f"Location: {location or 'none'}\n"
+                f"Candidate services: {json.dumps(services[:10], default=str)}\n"
+                f"Historical contract prices: {historical_prices[:50]}\n"
+                "Return strict JSON with recommended_price_min, recommended_price_max, and a short rationale."
+            )
+            response = model.generate_content(prompt)
+            response_text = (response.text or "").strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            data = json.loads(response_text)
+            return {
+                "recommended_price_min": float(data.get("recommended_price_min", 0.0)),
+                "recommended_price_max": float(data.get("recommended_price_max", 0.0)),
+                "price_recommendation_source": "gemini",
+                "rationale": data.get("rationale"),
+            }
+        except Exception as exc:
+            logger.error(f"Gemini price recommendation error: {exc}")
+            pool = listing_prices or historical_prices or [0.0]
+            base = median(pool)
+            spread = max(base * 0.15, 500.0)
+            return {
+                "recommended_price_min": round(max(base - spread, 0.0), 2),
+                "recommended_price_max": round(base + spread, 2),
+                "price_recommendation_source": "fallback",
+            }
 
     @staticmethod
     async def get_schedule_draft(draft_id: str) -> Optional[AiScheduleDraftResponse]:

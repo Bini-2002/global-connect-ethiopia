@@ -28,6 +28,7 @@ from app.db.mongodb import (
     proposal_collection,
     ticket_purchase_collection,
     user_collection,
+    wallet_collection,
 )
 from app.models.event_states import (
     BookingStatus,
@@ -85,6 +86,7 @@ from app.services.ai_service import AIService
 from app.schemas.venue_reservation import VenueReservationDepositUpdateRequest
 from app.services.venue_reservation_service import VenueReservationService
 from app.services.marketplace import parse_object_id, utc_now
+from app.services.marketplace_mvp import ensure_wallet
 from app.services.qr_codes import generate_booking_pass_png_bytes, generate_qr_png_bytes
 from app.schemas.venue_reservation import (
     VenueReservationCancelRequest,
@@ -110,7 +112,6 @@ def _serialize_budget_items(items: list[dict] | None) -> list[dict]:
             {
                 "id": item.get("id"),
                 "name": item.get("name"),
-                "estimated_cost": float(item.get("estimated_cost", 0.0)),
                 "actual_cost": float(item["actual_cost"]) if item.get("actual_cost") is not None else None,
                 "notes": item.get("notes"),
             }
@@ -128,7 +129,6 @@ def _to_utc_datetime(value: datetime | None) -> datetime | None:
 
 def _event_base_response(document: dict) -> dict:
     budget_items = _serialize_budget_items(document.get("budget_items"))
-    budget_total = sum(float(item.get("estimated_cost", 0.0)) for item in budget_items)
     capacity = document.get("capacity") or 0
     booked_count = int(document.get("booked_count", 0))
     remaining_slots = max(capacity - booked_count, 0) if capacity else 0
@@ -164,7 +164,7 @@ def _event_base_response(document: dict) -> dict:
         "final_report_status": document.get("final_report_status", FinalReportStatus.NOT_STARTED),
         "budget_currency": document.get("budget_currency", "ETB"),
         "budget_items": budget_items,
-        "budget_total_estimated": budget_total,
+        "budget_amount": float(document.get("budget_amount", 0.0)),
         "office_assignments": document.get("office_assignments"),
         "published_at": document.get("published_at"),
         "live_started_at": document.get("live_started_at"),
@@ -798,6 +798,8 @@ async def update_event_budget(
     current_user: dict = Depends(get_current_user),
 ):
     event = await _get_owned_event_or_403(event_id, current_user)
+    previous_budget = float(event.get("budget_amount", 0.0))
+    delta = float(payload.budget_amount) - previous_budget
     items = []
     for item in payload.items:
         item_data = item.model_dump()
@@ -805,12 +807,35 @@ async def update_event_budget(
             item_data["id"] = secrets.token_hex(8)
         items.append(item_data)
 
+    organizer_wallet = await ensure_wallet(current_user["id"])
+    if delta > 0:
+        wallet_result = await wallet_collection.update_one(
+            {"_id": organizer_wallet["_id"]},
+            {
+                "$inc": {"budget_balance": delta},
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        if wallet_result.modified_count != 1:
+            raise HTTPException(status_code=400, detail="Organizer wallet could not be updated")
+    elif delta < 0:
+        wallet_result = await wallet_collection.update_one(
+            {"_id": organizer_wallet["_id"], "budget_balance": {"$gte": abs(delta)}},
+            {
+                "$inc": {"budget_balance": delta},
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        if wallet_result.modified_count != 1:
+            raise HTTPException(status_code=400, detail="Insufficient reserved budget to reduce this allocation")
+
     await event_collection.update_one(
         {"_id": event["_id"]},
         {
             "$set": {
                 "budget_items": items,
                 "budget_currency": payload.currency,
+                "budget_amount": float(payload.budget_amount),
                 "updated_at": utc_now(),
             }
         },
