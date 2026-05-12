@@ -63,6 +63,12 @@ const workspaceCards = [
     icon: Tickets,
   },
   {
+    title: 'Ticket Management',
+    description: 'Create and manage paid or free ticket types.',
+    href: (eventId: string) => `/organizer/events/${eventId}/tickets`,
+    icon: Tickets,
+  },
+  {
     title: 'Announcements',
     description: 'Send immediate notices, store scheduled records, and run them manually.',
     href: (eventId: string) => `/organizer/events/${eventId}/announcements`,

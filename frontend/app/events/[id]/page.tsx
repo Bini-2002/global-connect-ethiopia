@@ -14,6 +14,7 @@ import {
   EventBookingRecord,
   EventRecord,
   EventScheduleItemRecord,
+  TicketTypeRecord,
 } from '@/app/types/event';
 
 function formatEventType(type?: string | null): string {
@@ -110,6 +111,7 @@ export default function EventDetailPage() {
   const [role, setRole] = useState<string | null>(null);
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [schedule, setSchedule] = useState<EventScheduleItemRecord[]>([]);
+  const [ticketTypes, setTicketTypes] = useState<TicketTypeRecord[]>([]);
   const [booking, setBooking] = useState<EventBookingRecord | null>(null);
   const [inboxAnnouncements, setInboxAnnouncements] = useState<AnnouncementDeliveryRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,15 +145,17 @@ export default function EventDetailPage() {
         setLoading(true);
         setError(null);
 
-        const [eventResponse, scheduleResponse] = await Promise.all([
+        const [eventResponse, scheduleResponse, ticketsResponse] = await Promise.all([
           eventsService.getEventById(eventId),
           eventsService.getEventSchedule(eventId).catch(() => []),
+          eventsService.getTicketTypes(eventId).catch(() => []),
         ]);
 
         if (!active) return;
 
         setEvent(eventResponse);
         setSchedule(scheduleResponse);
+        setTicketTypes(ticketsResponse.filter(t => t.visibility === 'public' && t.is_active));
 
         if (getRole() === 'attendee') {
           const [myBookings, inbox] = await Promise.all([
@@ -388,199 +392,86 @@ export default function EventDetailPage() {
 
             <div className="space-y-6">
               <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-wide text-[#0a4a37]">Reserve your seat</p>
-                <h3 className="mt-2 text-2xl font-bold text-[#062E22]">Booking panel</h3>
-                <p className="mt-3 text-sm leading-relaxed text-slate-500">
-                  Confirm your details here. Confirmed reservations generate a QR image and a branded check-in pass.
-                </p>
-
-                {role !== 'attendee' ? (
-                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-                    This reservation action is currently enabled for attendee accounts. Your current role is {role || 'unknown'}.
-                  </div>
-                ) : booking ? (
-                  <div className="mt-5 space-y-5">
-                    <div className="rounded-2xl bg-[#F5FBF8] p-4">
-                      <p className="text-[11px] uppercase tracking-wide text-slate-400">Booking reference</p>
-                      <p className="mt-1 text-lg font-bold text-[#062E22]">{booking.booking_reference}</p>
-                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <div>
-                          <p className="text-[11px] uppercase tracking-wide text-slate-400">Status</p>
-                          <p className="mt-1 text-sm font-semibold text-[#062E22]">{booking.booking_status}</p>
+                {booking ? (
+                  <>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-[#0a4a37]">Your booking</p>
+                    <h3 className="mt-2 text-2xl font-bold text-[#062E22]">Registration Confirmed</h3>
+                    <p className="mt-3 text-sm leading-relaxed text-slate-500">
+                      You are confirmed for this event. Your check-in pass and QR code are below.
+                    </p>
+                    <div className="mt-6 flex flex-col items-center gap-6">
+                      {qrLoading || passLoading ? (
+                        <div className="flex h-40 w-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50">
+                          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#062E22] border-t-transparent" />
                         </div>
-                        <div>
-                          <p className="text-[11px] uppercase tracking-wide text-slate-400">Check-in</p>
-                          <p className="mt-1 text-sm font-semibold text-[#062E22]">{booking.check_in_status}</p>
-                        </div>
-                      </div>
-                      <p className="mt-4 text-xs text-slate-500">
-                        Reserved for {booking.slots_requested} seat{booking.slots_requested === 1 ? '' : 's'}.
-                      </p>
-                    </div>
-
-                    {booking.booking_status === 'confirmed' ? (
-                      <>
-                        <div className="rounded-2xl border border-slate-200 p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-[#062E22]">QR code</p>
-                              <p className="text-xs text-slate-500">Use this at check-in.</p>
+                      ) : (
+                        <>
+                          {passImageUrl ? (
+                            <div className="flex flex-col items-center">
+                              <p className="mb-2 text-sm font-semibold text-slate-600">Event Badge</p>
+                              <img src={passImageUrl} alt="Check-in Pass" className="w-full max-w-sm rounded-xl border border-slate-200 shadow-sm" />
                             </div>
-                            {booking.qr_code_image_url && qrImageUrl && (
-                              <a href={qrImageUrl} download={`booking-${booking.booking_reference}-qr.png`} className="text-sm font-semibold text-[#062E22] hover:underline">
-                                Download
-                              </a>
-                            )}
-                          </div>
-                          <div className="mt-4 flex min-h-[220px] items-center justify-center rounded-2xl bg-slate-50 p-4">
-                            {qrLoading ? (
-                              <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#062E22] border-t-transparent" />
-                            ) : qrImageUrl ? (
-                              <img src={qrImageUrl} alt="Booking QR code" className="max-h-52 rounded-xl border border-slate-200 bg-white p-3" />
-                            ) : (
-                              <p className="text-sm text-slate-500">QR image could not be loaded.</p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-[#062E22]">Check-in pass</p>
-                              <p className="text-xs text-slate-500">Preview the attendee pass generated for this event.</p>
+                          ) : (
+                            <div className="flex h-24 w-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+                              Event badge not generated yet.
                             </div>
-                            {booking.check_in_pass_image_url && passImageUrl && (
-                              <a href={passImageUrl} download={`booking-${booking.booking_reference}-pass.png`} className="text-sm font-semibold text-[#062E22] hover:underline">
-                                Download
-                              </a>
-                            )}
-                          </div>
-                          <div className="mt-4 flex min-h-[220px] items-center justify-center rounded-2xl bg-slate-50 p-4">
-                            {passLoading ? (
-                              <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#062E22] border-t-transparent" />
-                            ) : passImageUrl ? (
-                              <img src={passImageUrl} alt="Booking check-in pass" className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-sm" />
-                            ) : (
-                              <p className="text-sm text-slate-500">Check-in pass image could not be loaded.</p>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-                        This reservation is not confirmed yet, so a QR code has not been issued.
-                      </div>
-                    )}
-                  </div>
-                ) : canReserve ? (
-                  <form onSubmit={handleBookingSubmit} className="mt-5 space-y-4">
-                    <div>
-                      <label htmlFor="attendee_name" className="mb-1 block text-sm font-medium text-slate-700">
-                        Full name
-                      </label>
-                      <input
-                        id="attendee_name"
-                        value={form.attendee_name}
-                        onChange={(eventForm) => setForm((current) => ({ ...current, attendee_name: eventForm.target.value }))}
-                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
-                        placeholder="Enter the attendee name"
-                      />
+                          )}
+                          {qrImageUrl ? (
+                            <div className="flex flex-col items-center">
+                              <p className="mb-2 text-sm font-semibold text-slate-600">Check-in QR Code</p>
+                              <img src={qrImageUrl} alt="QR Code" className="w-48 h-48 rounded-xl border border-slate-200 shadow-sm" />
+                            </div>
+                          ) : null}
+                        </>
+                      )}
                     </div>
-
-                    <div>
-                      <label htmlFor="attendee_email" className="mb-1 block text-sm font-medium text-slate-700">
-                        Email address
-                      </label>
-                      <input
-                        id="attendee_email"
-                        type="email"
-                        value={form.attendee_email}
-                        onChange={(eventForm) => setForm((current) => ({ ...current, attendee_email: eventForm.target.value }))}
-                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
-                        placeholder="Enter the attendee email"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="slots_requested" className="mb-1 block text-sm font-medium text-slate-700">
-                        Seats to reserve
-                      </label>
-                      <input
-                        id="slots_requested"
-                        type="number"
-                        min={1}
-                        max={20}
-                        value={form.slots_requested}
-                        onChange={(eventForm) =>
-                          setForm((current) => ({
-                            ...current,
-                            slots_requested: Number(eventForm.target.value) || 1,
-                          }))
-                        }
-                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
-                      />
-                      <p className="mt-2 text-xs text-slate-500">
-                        Remaining slots: {formatCurrency(event.remaining_slots)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label htmlFor="notes" className="mb-1 block text-sm font-medium text-slate-700">
-                        Notes for the organizer
-                      </label>
-                      <textarea
-                        id="notes"
-                        value={form.notes}
-                        onChange={(eventForm) => setForm((current) => ({ ...current, notes: eventForm.target.value }))}
-                        rows={4}
-                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
-                        placeholder="Optional seating or attendee notes"
-                      />
-                    </div>
-
-                    {requiredFields.map((field) => (
-                      <div key={field}>
-                        <label htmlFor={field} className="mb-1 block text-sm font-medium text-slate-700">
-                          {field.replace(/_/g, ' ')}
-                        </label>
-                        <input
-                          id={field}
-                          value={form.attendee_profile[field] || ''}
-                          onChange={(eventForm) =>
-                            setForm((current) => ({
-                              ...current,
-                              attendee_profile: {
-                                ...current.attendee_profile,
-                                [field]: eventForm.target.value,
-                              },
-                            }))
-                          }
-                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
-                          placeholder={`Enter ${field.replace(/_/g, ' ')}`}
-                        />
-                      </div>
-                    ))}
-
-                    {submitError && (
-                      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                        {submitError}
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="w-full rounded-xl bg-[#062E22] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0a4a37] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {submitting ? 'Confirming reservation...' : 'Reserve Place'}
-                    </button>
-                  </form>
+                  </>
                 ) : (
-                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                    {event.booking_required
-                      ? 'Booking is not currently available for this event.'
-                      : 'This event is viewable here, but it does not currently use advance booking.'}
-                  </div>
+                  <>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-[#0a4a37]">Reserve your seat</p>
+                    <h3 className="mt-2 text-2xl font-bold text-[#062E22]">Booking panel</h3>
+                    <p className="mt-3 text-sm leading-relaxed text-slate-500">
+                      Confirm your details here. Confirmed reservations generate a QR image and a branded check-in pass.
+                    </p>
+
+                    {role !== 'attendee' ? (
+                      <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                        Ticketing is enabled for attendee accounts. Your current role is {role || 'unknown'}.
+                      </div>
+                    ) : ticketTypes.length > 0 ? (
+                      <div className="mt-5 space-y-4">
+                        {ticketTypes.map((ticket) => {
+                          const isSoldOut = ticket.remaining_quantity <= 0;
+                          return (
+                            <div key={ticket.id} className={`rounded-2xl border ${isSoldOut ? 'border-slate-200 opacity-60 bg-slate-50' : 'border-slate-300 bg-white'} p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="text-lg font-bold text-[#062E22]">{ticket.name}</h4>
+                                  {isSoldOut && <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-600">Sold Out</span>}
+                                </div>
+                                <p className="text-sm text-slate-500 mt-1">{ticket.description}</p>
+                                <div className="flex items-center gap-4 mt-3">
+                                  <p className="text-sm font-bold text-[#062E22]">{ticket.price === 0 ? 'Free' : formatCurrency(ticket.price)} {ticket.currency}</p>
+                                  <p className="text-sm text-slate-500">Remaining: {ticket.remaining_quantity}</p>
+                                </div>
+                              </div>
+                              <Link
+                                href={isSoldOut ? '#' : `/events/${eventId}/checkout?ticket_id=${ticket.id}`}
+                                className={`px-6 py-2.5 rounded-xl text-sm font-semibold text-center transition ${isSoldOut ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-[#062E22] text-white hover:bg-[#0a4a37]'}`}
+                                onClick={(e) => isSoldOut && e.preventDefault()}
+                              >
+                                {isSoldOut ? 'Sold Out' : 'Select'}
+                              </Link>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                        No tickets are currently available for this event.
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 

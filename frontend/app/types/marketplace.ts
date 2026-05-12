@@ -1,6 +1,6 @@
 export type RequestStatus = 'REQUESTED' | 'QUOTED' | 'NEGOTIATING' | 'ACCEPTED';
 export type NegotiationMessageType = 'QUOTE' | 'COUNTER';
-export type ContractStatus = 'draft' | 'pending_signatures' | 'active' | 'completed' | 'cancelled';
+export type ContractStatus = 'draft' | 'AGREED' | 'FUNDED' | 'COMPLETED' | 'PAID' | 'CANCELLED';
 export type EscrowStatus = 'NONE' | 'LOCKED' | 'RELEASED';
 export type PaymentStatus = 'PENDING' | 'PAID';
 export type TransactionType = 'DEPOSIT' | 'ESCROW_LOCK' | 'RELEASE' | 'REFUND' | 'COMMISSION';

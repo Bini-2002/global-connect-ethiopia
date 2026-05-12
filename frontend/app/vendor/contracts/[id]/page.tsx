@@ -18,7 +18,7 @@ import {
 import { useMarketplaceContract } from '@/app/hooks/useMarketplace';
 import marketplaceService from '@/app/services/marketplaceService';
 
-const lifecycleSteps = ['draft', 'pending_signatures', 'active', 'completed'] as const;
+const lifecycleSteps = ['draft', 'AGREED', 'FUNDED', 'COMPLETED', 'PAID'] as const;
 
 export default function VendorContractDetailPage() {
   const params = useParams();
@@ -238,15 +238,17 @@ export default function VendorContractDetailPage() {
                     <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                       {contract.status === 'draft'
                         ? 'Contract is in draft. Both parties must sign before it becomes active.'
-                        : contract.status === 'pending_signatures'
-                          ? 'Waiting for both signatures. Sign the contract above to proceed.'
-                          : contract.status === 'active' && contract.escrow_status === 'NONE'
+                        : contract.status === 'AGREED'
+                          ? 'Waiting for both signatures and organizer funding.'
+                          : contract.status === 'FUNDED' && contract.escrow_status === 'NONE'
                             ? 'The organizer has not funded escrow yet. Wait for funding before marking complete.'
-                            : contract.status === 'completed'
+                            : contract.status === 'COMPLETED'
                               ? 'Completion has been recorded. The organizer can now release payment.'
-                              : contract.status === 'cancelled'
-                                ? 'This contract has been cancelled.'
-                                : 'No vendor action is required at this stage.'}
+                              : contract.status === 'PAID'
+                                ? 'Contract has been settled and payment has been released to your wallet.'
+                                : contract.status === 'CANCELLED'
+                                  ? 'This contract has been cancelled.'
+                                  : 'No vendor action is required at this stage.'}
                     </div>
                   )}
                 </div>
