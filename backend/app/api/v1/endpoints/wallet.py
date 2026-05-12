@@ -88,7 +88,8 @@ async def verify_chapa_topup(tx_ref: str, current_user: dict = Depends(get_curre
         user_id=current_user["id"],
         transaction_type=TransactionType.DEPOSIT,
         amount=amount,
-        reference_id=tx_ref
+        reference_id=tx_ref,
+        payment_method="chapa",
     )
     
     return wallet

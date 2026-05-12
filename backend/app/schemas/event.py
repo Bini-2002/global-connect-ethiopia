@@ -167,6 +167,7 @@ class EventTaskCreate(BaseModel):
     assignee_email: str | None = None
     due_date: datetime | None = None
     priority: Literal["low", "medium", "high"] = "medium"
+    payout_amount: float | None = Field(default=None, ge=0)
 
 
 class EventTaskUpdate(BaseModel):
@@ -176,7 +177,8 @@ class EventTaskUpdate(BaseModel):
     assignee_email: str | None = None
     due_date: datetime | None = None
     priority: Literal["low", "medium", "high"] | None = None
-    status: Literal["open", "in_progress", "done", "cancelled"] | None = None
+    status: Literal["open", "in_progress", "pending_approval", "done", "cancelled"] | None = None
+    payout_amount: float | None = Field(default=None, ge=0)
 
 
 class EventTaskResponse(BaseModel):
@@ -189,6 +191,7 @@ class EventTaskResponse(BaseModel):
     due_date: datetime | None = None
     priority: str
     status: str
+    payout_amount: float | None = None
     created_at: datetime
     updated_at: datetime
 

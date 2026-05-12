@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     admin_documents,
     admin_vendors,
     ai,
+    analytics,
     auth,
     catalog,
     events,
@@ -13,6 +14,7 @@ from app.api.v1.endpoints import (
     market_requests,
     ministry_proposals,
     municipal_proposals,
+    notifications,
     offices,
     organizers,
     opportunities,
@@ -20,6 +22,7 @@ from app.api.v1.endpoints import (
     permits,
     police_proposals,
     proposals,
+    team,
     users,
     venue_listings,
     vendors_services,
@@ -56,3 +59,7 @@ api_router.include_router(market_contracts.router, prefix="/contracts", tags=["C
 api_router.include_router(payments.router, prefix="/payments", tags=["Escrow Payments"])
 api_router.include_router(wallet.router, prefix="/wallet", tags=["Vendor Wallet"])
 api_router.include_router(ai.router, prefix="/ai", tags=["AI"])
+api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
+api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
+api_router.include_router(analytics.admin_router, prefix="/admin/analytics", tags=["Admin Analytics"])
+api_router.include_router(team.router, prefix="/team", tags=["Team Member"])

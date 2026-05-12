@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { CheckSquare, PlayCircle, SquareCheckBig } from 'lucide-react';
+import { CheckSquare, PlayCircle, SquareCheckBig, ThumbsUp, Banknote } from 'lucide-react';
 import { useEventWorkspace } from '@/app/hooks/useEventWorkspace';
 import { eventsService } from '@/app/services/eventsService';
 import { EventTaskRecord, EventTeamMemberRecord } from '@/app/types/event';
@@ -28,6 +28,7 @@ export default function EventTasksPage() {
     assignee_email: '',
     due_date: '',
     priority: 'medium',
+    payout_amount: '',
   });
 
   const loadTaskWorkspace = async () => {
@@ -62,6 +63,7 @@ export default function EventTasksPage() {
     () => ({
       open: tasks.filter((task) => task.status === 'open').length,
       inProgress: tasks.filter((task) => task.status === 'in_progress').length,
+      pendingApproval: tasks.filter((task) => task.status === 'pending_approval').length,
       done: tasks.filter((task) => task.status === 'done').length,
     }),
     [tasks]
@@ -78,6 +80,7 @@ export default function EventTasksPage() {
         assignee_email: taskForm.assignee_email || undefined,
         due_date: taskForm.due_date ? new Date(taskForm.due_date).toISOString() : undefined,
         priority: taskForm.priority as 'low' | 'medium' | 'high',
+        payout_amount: taskForm.payout_amount ? parseFloat(taskForm.payout_amount) : undefined,
       });
       setTasks((current) => [created, ...current]);
       setTaskForm({
@@ -86,11 +89,29 @@ export default function EventTasksPage() {
         assignee_email: '',
         due_date: startOfInputDateTime(event.start_date),
         priority: 'medium',
+        payout_amount: '',
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create task');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const approveTask = async (taskId: string) => {
+    if (!event) return;
+    try {
+      setUpdatingId(taskId);
+      setError(null);
+      const updated = await fetch(`/api/v1/events/${event.id}/tasks/${taskId}/approve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      }).then((r) => r.json());
+      setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, ...updated } : task)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve task');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -118,7 +139,7 @@ export default function EventTasksPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <h2 className="text-lg font-bold text-[#062E22]">Task Snapshot</h2>
-            <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-xs uppercase tracking-wide text-slate-400">Open</p>
                 <p className="text-xl font-bold text-[#062E22] mt-2">{groupedCounts.open}</p>
@@ -127,9 +148,13 @@ export default function EventTasksPage() {
                 <p className="text-xs uppercase tracking-wide text-slate-400">Working</p>
                 <p className="text-xl font-bold text-[#062E22] mt-2">{groupedCounts.inProgress}</p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Done</p>
-                <p className="text-xl font-bold text-[#062E22] mt-2">{groupedCounts.done}</p>
+              <div className="rounded-xl bg-purple-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-purple-400">Awaiting Approval</p>
+                <p className="text-xl font-bold text-purple-700 mt-2">{groupedCounts.pendingApproval}</p>
+              </div>
+              <div className="rounded-xl bg-emerald-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-emerald-500">Done</p>
+                <p className="text-xl font-bold text-emerald-700 mt-2">{groupedCounts.done}</p>
               </div>
             </div>
           </div>
@@ -160,7 +185,7 @@ export default function EventTasksPage() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4 mt-6">
+          <div className="grid md:grid-cols-2 gap-4 mt-6">
           <div>
             <label className="text-sm font-medium text-slate-700">Task Title</label>
             <input
@@ -212,7 +237,21 @@ export default function EventTasksPage() {
               <option value="high">High</option>
             </select>
           </div>
-          <div className="md:col-span-2">
+          <div>
+            <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5"><Banknote className="w-4 h-4" /> Payout Amount (ETB)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={taskForm.payout_amount}
+              onChange={(eventValue) =>
+                setTaskForm((current) => ({ ...current, payout_amount: eventValue.target.value }))
+              }
+              placeholder="Optional – paid on approval"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
             <label className="text-sm font-medium text-slate-700">Description</label>
             <textarea
               rows={3}
@@ -268,7 +307,7 @@ export default function EventTasksPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {task.status !== 'in_progress' && task.status !== 'done' ? (
+                    {task.status !== 'in_progress' && task.status !== 'done' && task.status !== 'pending_approval' ? (
                       <button
                         onClick={() => void updateStatus(task.id, 'in_progress')}
                         disabled={updatingId === task.id}
@@ -278,7 +317,22 @@ export default function EventTasksPage() {
                         {updatingId === task.id ? 'Saving...' : 'Start'}
                       </button>
                     ) : null}
-                    {task.status !== 'done' ? (
+                    {task.status === 'pending_approval' ? (
+                      <>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                          ⏳ Awaiting Your Approval
+                        </span>
+                        <button
+                          onClick={() => void approveTask(task.id)}
+                          disabled={updatingId === task.id}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
+                        >
+                          <ThumbsUp className="w-4 h-4" />
+                          {updatingId === task.id ? 'Approving...' : 'Approve & Pay Out'}
+                        </button>
+                      </>
+                    ) : null}
+                    {task.status !== 'done' && task.status !== 'pending_approval' ? (
                       <button
                         onClick={() => void updateStatus(task.id, 'done')}
                         disabled={updatingId === task.id}

@@ -7,14 +7,17 @@ import Link from 'next/link';
 import {
   CalendarDays,
   CheckSquare,
+  Crown,
   FileBarChart2,
   FolderOpen,
   Landmark,
   Megaphone,
   ShieldAlert,
   Tickets,
+  UserCheck,
   Users,
   Wallet,
+  BarChart3,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -28,10 +31,13 @@ type EventWorkspaceTab =
   | 'venue'
   | 'team'
   | 'tasks'
+  | 'attendees'
+  | 'vip'
   | 'booking'
   | 'tickets'
   | 'engagement'
   | 'operations'
+  | 'analytics'
   | 'wrap-up';
 
 interface EventWorkspaceShellProps {
@@ -58,10 +64,13 @@ const tabConfigs: TabConfig[] = [
   { id: 'venue', label: 'Venue', icon: Landmark, href: (eventId) => `/organizer/events/${eventId}/venue` },
   { id: 'team', label: 'Team', icon: Users, href: (eventId) => `/organizer/events/${eventId}/team` },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare, href: (eventId) => `/organizer/events/${eventId}/tasks` },
+  { id: 'attendees', label: 'Attendees', icon: UserCheck, href: (eventId) => `/organizer/events/${eventId}/attendees` },
+  { id: 'vip', label: 'VIP Hotels', icon: Crown, href: (eventId) => `/organizer/events/${eventId}/vip` },
   { id: 'booking', label: 'Booking', icon: Tickets, href: (eventId) => `/organizer/events/${eventId}/booking` },
   { id: 'tickets', label: 'Tickets', icon: Tickets, href: (eventId) => `/organizer/events/${eventId}/tickets` },
   { id: 'engagement', label: 'Engagement', icon: Megaphone, href: (eventId) => `/organizer/events/${eventId}/engagement` },
   { id: 'operations', label: 'Operations', icon: ShieldAlert, href: (eventId) => `/organizer/events/${eventId}/operations` },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, href: (eventId) => `/organizer/events/${eventId}/analytics` },
   { id: 'wrap-up', label: 'Wrap-Up', icon: FileBarChart2, href: (eventId) => `/organizer/events/${eventId}/wrap-up` },
 ];
 

@@ -330,6 +330,9 @@ async def log_transaction(
     amount: float,
     reference_id: Any = None,
     status_value: TransactionStatus = TransactionStatus.SUCCESS,
+    payment_method: str | None = None,
+    event_id: Any | None = None,
+    reference_type: str | None = None,
 ) -> dict:
     document = {
         "user_id": None
@@ -338,12 +341,19 @@ async def log_transaction(
         "type": transaction_type.value,
         "amount": float(amount),
         "reference_id": reference_id,
+        "reference_type": reference_type,
         "status": status_value.value,
+        "payment_method": payment_method,
         "created_at": utc_now(),
     }
+    if event_id is not None:
+        document["event_id"] = (
+            event_id if isinstance(event_id, ObjectId) else parse_object_id(str(event_id), field_name="event id")
+        )
     result = await transaction_collection.insert_one(document)
     document["_id"] = result.inserted_id
     return document
+
 
 
 async def get_vendor_or_404(vendor_id: str) -> dict:

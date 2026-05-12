@@ -2,16 +2,20 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowRight,
   CalendarDays,
   CheckSquare,
   ClipboardCheck,
+  Copy,
+  Crown,
   FileBarChart2,
   Landmark,
+  Loader2,
   ShieldAlert,
   Tickets,
+  UserCheck,
   Users,
   Wallet,
 } from 'lucide-react';
@@ -24,6 +28,7 @@ import {
   formatDateTime,
   sentenceCase,
 } from '@/components/organizer/events';
+import { api } from '@/app/lib/api';
 
 const workspaceCards = [
   {
@@ -86,13 +91,42 @@ const workspaceCards = [
     href: (eventId: string) => `/organizer/events/${eventId}/wrap-up`,
     icon: FileBarChart2,
   },
+  {
+    title: 'Register Attendees',
+    description: 'Manually register attendees by name/email and generate QR passes.',
+    href: (eventId: string) => `/organizer/events/${eventId}/attendees`,
+    icon: UserCheck,
+  },
+  {
+    title: 'VIP Hotel Reservations',
+    description: 'Book hotels for VIP guests and send confirmation emails directly.',
+    href: (eventId: string) => `/organizer/events/${eventId}/vip`,
+    icon: Crown,
+  },
 ];
 
 export default function OrganizerEventDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const eventId = params.id as string;
   const { event, loading, error, setEvent, setError } = useEventWorkspace(eventId);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [cloning, setCloning] = useState(false);
+
+  const handleClone = async () => {
+    if (!event) return;
+    setCloning(true);
+    try {
+      const data = await api.post<{ new_event_id: string; message: string }>(
+        `/events/${event.id}/clone`
+      );
+      if (data.new_event_id) router.push(`/organizer/events/${data.new_event_id}`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to clone event');
+    } finally {
+      setCloning(false);
+    }
+  };
 
   const handleAction = async (action: 'publish' | 'start' | 'complete' | 'archive') => {
     if (!event) return;
@@ -159,6 +193,14 @@ export default function OrganizerEventDetailPage() {
           {actionLoading === 'archive' ? 'Archiving...' : 'Archive'}
         </button>
       ) : null}
+      <button
+        onClick={() => void handleClone()}
+        disabled={cloning || !!actionLoading}
+        className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+      >
+        {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+        {cloning ? 'Cloning…' : 'Clone Event'}
+      </button>
     </>
   ) : null;
 

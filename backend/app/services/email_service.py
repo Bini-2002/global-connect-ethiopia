@@ -162,3 +162,56 @@ class EmailService:
         else:
             logger.info("Both SMTP and Resend are disabled. OTP email sending skipped for %s", recipient_email)
             return None
+
+    @classmethod
+    def send_generic_email(cls, recipient_email: str, subject: str, body: str) -> Optional[str]:
+        """Send a plain-text email to any recipient (manual attendee, VIP guest, etc.)."""
+        if settings.SMTP_ENABLED and SmtpEmailService._is_configured():
+            msg = MIMEMultipart()
+            msg['From'] = settings.SMTP_USERNAME
+            msg['To'] = recipient_email
+            msg['Subject'] = subject
+            msg.attach(MIMEText(body, 'plain'))
+            try:
+                server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT)
+                server.starttls()
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)  # type: ignore
+                server.send_message(msg)
+                server.quit()
+                logger.info("Generic email sent via SMTP to %s", recipient_email)
+                return "smtp-sent"
+            except Exception as exc:
+                logger.error("SMTP generic email failed for %s: %s", recipient_email, exc)
+                raise EmailDeliveryError(f"SMTP delivery failed: {exc}") from exc
+
+        elif settings.RESEND_ENABLED and ResendEmailService._is_configured():
+            payload = {
+                "from": settings.RESEND_FROM_EMAIL,
+                "to": [recipient_email],
+                "subject": subject,
+                "text": body,
+            }
+            req = request.Request(
+                ResendEmailService.API_URL,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            try:
+                with request.urlopen(req, timeout=10) as resp:
+                    response_json = json.loads(resp.read().decode("utf-8"))
+                    logger.info("Generic email sent via Resend to %s: %s", recipient_email, response_json.get("id"))
+                    return response_json.get("id")
+            except error.HTTPError as exc:
+                details = exc.read().decode("utf-8", errors="replace")
+                logger.error("Resend generic email error for %s: %s", recipient_email, details)
+                raise EmailDeliveryError(f"Resend API error ({exc.code}): {details}") from exc
+            except (error.URLError, TimeoutError) as exc:
+                logger.error("Resend request failed for %s: %s", recipient_email, exc)
+                raise EmailDeliveryError(f"Resend request failed: {exc}") from exc
+        else:
+            logger.info("Email delivery disabled. Skipping generic email to %s | Subject: %s", recipient_email, subject)
+            return None

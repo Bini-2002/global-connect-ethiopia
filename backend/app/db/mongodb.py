@@ -59,6 +59,12 @@ wallet_collection = db.wallets
 withdrawal_collection = db.withdrawals
 message_collection = db.messages
 
+# notifications collection
+notification_collection = db.notifications
+
+# VIP hotel reservations
+vip_hotel_reservation_collection = db.vip_hotel_reservations
+
 # AI collections
 ai_schedule_draft_collection = db.ai_schedule_drafts
 ai_schedule_draft_item_collection = db.ai_schedule_draft_items

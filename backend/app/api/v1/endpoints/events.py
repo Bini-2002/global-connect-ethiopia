@@ -29,6 +29,7 @@ from app.db.mongodb import (
     ticket_type_collection,
     ticket_purchase_collection,
     user_collection,
+    vip_hotel_reservation_collection,
     wallet_collection,
 )
 from app.models.event_states import (
@@ -92,7 +93,9 @@ from app.services.ai_service import AIService
 from app.schemas.venue_reservation import VenueReservationDepositUpdateRequest
 from app.services.venue_reservation_service import VenueReservationService
 from app.services.marketplace import parse_object_id, utc_now
-from app.services.marketplace_mvp import ensure_wallet
+from app.services.marketplace_mvp import ensure_wallet, log_transaction
+from app.models.marketplace import TransactionType, TransactionStatus
+from app.services.notification_service import push_notification
 from app.services.qr_codes import generate_booking_pass_png_bytes, generate_qr_png_bytes
 from app.schemas.venue_reservation import (
     VenueReservationCancelRequest,
@@ -238,6 +241,7 @@ def _serialize_task(document: dict) -> dict:
         "due_date": document.get("due_date"),
         "priority": document.get("priority", "medium"),
         "status": document.get("status", "open"),
+        "payout_amount": document.get("payout_amount"),
         "created_at": document["created_at"],
         "updated_at": document["updated_at"],
     }
@@ -1272,6 +1276,125 @@ async def update_event_task(
     return _serialize_task(task)
 
 
+@router.post("/{event_id}/tasks/{task_id}/submit", response_model=EventTaskResponse)
+async def submit_task_for_approval(
+    event_id: str,
+    task_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Team member marks their task as pending approval."""
+    event = await _get_event_or_404(event_id)
+    oid = parse_object_id(task_id, field_name="task id")
+    task = await event_task_collection.find_one({"_id": oid, "event_id": event_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Only the assignee or any team member can submit
+    if task.get("assignee_user_id") and task["assignee_user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the assigned team member can submit this task.")
+    if task.get("status") not in ("open", "in_progress"):
+        raise HTTPException(status_code=400, detail="Only open or in-progress tasks can be submitted for approval.")
+
+    now = utc_now()
+    await event_task_collection.update_one(
+        {"_id": oid},
+        {"$set": {"status": "pending_approval", "updated_at": now}},
+    )
+
+    # Notify organizer
+    organizer_id = str(event.get("organizer_id", ""))
+    if organizer_id:
+        await push_notification(
+            recipient_id=organizer_id,
+            notification_type="task_pending_approval",
+            message=f"Team member {current_user.get('full_name', current_user['id'])} submitted task '{task['title']}' for approval.",
+            related_entity={"type": "task", "id": task_id, "event_id": event_id},
+        )
+
+    updated = await event_task_collection.find_one({"_id": oid})
+    return _serialize_task(updated)
+
+
+@router.post("/{event_id}/tasks/{task_id}/approve", response_model=EventTaskResponse)
+async def approve_task(
+    event_id: str,
+    task_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Organizer approves completed task → auto-payout to team member wallet."""
+    event = await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(task_id, field_name="task id")
+    task = await event_task_collection.find_one({"_id": oid, "event_id": event_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.get("status") != "pending_approval":
+        raise HTTPException(status_code=400, detail="Task is not pending approval.")
+
+    payout_amount = float(task.get("payout_amount") or 0.0)
+    assignee_user_id = task.get("assignee_user_id")
+
+    now = utc_now()
+    await event_task_collection.update_one(
+        {"_id": oid},
+        {"$set": {"status": "done", "updated_at": now}},
+    )
+
+    # Auto-payout: debit organizer wallet, credit team member wallet
+    if payout_amount > 0 and assignee_user_id:
+        organizer_wallet = await wallet_collection.find_one({"user_id": str(event.get("organizer_id"))})
+        if organizer_wallet:
+            organizer_balance = float(organizer_wallet.get("balance", 0))
+            organizer_reserve = float(organizer_wallet.get("budget_reserve", 0))
+            if organizer_balance + organizer_reserve >= payout_amount:
+                # Debit organizer
+                if organizer_balance >= payout_amount:
+                    await wallet_collection.update_one(
+                        {"_id": organizer_wallet["_id"]},
+                        {"$inc": {"balance": -payout_amount}, "$set": {"updated_at": now}},
+                    )
+                else:
+                    remaining = payout_amount - organizer_balance
+                    await wallet_collection.update_one(
+                        {"_id": organizer_wallet["_id"]},
+                        {"$set": {"balance": 0, "budget_reserve": organizer_reserve - remaining, "updated_at": now}},
+                    )
+                # Provision and credit team member wallet
+                tm_wallet = await ensure_wallet(assignee_user_id)
+                await wallet_collection.update_one(
+                    {"_id": tm_wallet["_id"]},
+                    {"$inc": {"balance": payout_amount}, "$set": {"updated_at": now}},
+                )
+                # Log transactions
+                await log_transaction(
+                    user_id=str(event.get("organizer_id")),
+                    transaction_type=TransactionType.WITHDRAWAL,
+                    amount=payout_amount,
+                    reference_id=oid,
+                    reference_type="task_payout",
+                    event_id=event["_id"],
+                    payment_method="wallet",
+                )
+                await log_transaction(
+                    user_id=assignee_user_id,
+                    transaction_type=TransactionType.DEPOSIT,
+                    amount=payout_amount,
+                    reference_id=oid,
+                    reference_type="task_payout",
+                    event_id=event["_id"],
+                    payment_method="wallet",
+                )
+                # Notify team member
+                await push_notification(
+                    recipient_id=assignee_user_id,
+                    notification_type="payment_received",
+                    message=f"Your task '{task['title']}' was approved! ETB {payout_amount:,.2f} has been credited to your wallet.",
+                    related_entity={"type": "task", "id": task_id},
+                )
+
+    updated = await event_task_collection.find_one({"_id": oid})
+    return _serialize_task(updated)
+
+
 @router.get("/{event_id}/booking", response_model=EventResponse)
 async def get_booking_settings(event_id: str, current_user: dict = Depends(get_current_user)):
     event = await _get_event_or_404(event_id)
@@ -1563,6 +1686,93 @@ async def create_booking(
     doc["booking_status"] = "confirmed"
     doc["qr_code"] = qr_code
     return _serialize_booking(doc, reserved_event)
+
+
+class ManualAttendeePayload(BaseModel):
+    attendee_name: str
+    attendee_email: str
+    notes: str | None = None
+
+
+@router.post("/{event_id}/attendees/manual", response_model=EventBookingResponse, status_code=201)
+async def register_manual_attendee(
+    event_id: str,
+    payload: ManualAttendeePayload,
+    current_user: dict = Depends(get_current_user),
+):
+    """Organizer manually registers an attendee by name/email.
+    Generates a confirmed booking + QR code and emails the booking link.
+    """
+    event = await _get_owned_event_or_403(event_id, current_user)
+
+    now = utc_now()
+    booking_ref = _generate_ticket_code("MAN")
+    qr_code = _generate_ticket_code("QR")
+
+    # Use a synthetic attendee_id derived from email for uniqueness
+    import hashlib
+    attendee_id = "manual:" + hashlib.sha256(
+        (event_id + payload.attendee_email.lower().strip()).encode()
+    ).hexdigest()[:24]
+
+    # Check for duplicate
+    existing = await ticket_purchase_collection.find_one(
+        {"event_id": event_id, "attendee_id": attendee_id}
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="This attendee is already registered for this event.")
+
+    doc = {
+        "event_id": event_id,
+        "active_booking_key": f"{event_id}:{attendee_id}",
+        "booking_reference": booking_ref,
+        "attendee_id": attendee_id,
+        "attendee_name": payload.attendee_name.strip(),
+        "attendee_email": payload.attendee_email.strip().lower(),
+        "slots_requested": 1,
+        "notes": payload.notes,
+        "attendee_profile": {},
+        "qr_code": qr_code,
+        "booking_status": "confirmed",
+        "check_in_status": "pending",
+        "checked_in_at": None,
+        "registered_by": str(current_user["id"]),
+        "registration_type": "manual",
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await ticket_purchase_collection.insert_one(doc)
+    doc["_id"] = result.inserted_id
+
+    # Increment booked count
+    await event_collection.update_one(
+        {"_id": event["_id"]},
+        {"$inc": {"booked_count": 1}, "$set": {"updated_at": now}},
+    )
+
+    # Send confirmation email (best-effort)
+    try:
+        from app.services.email_service import EmailService
+        booking_url = f"{__import__('os').getenv('FRONTEND_BASE_URL', 'http://localhost:3000')}/events/{event_id}/bookings/{str(doc['_id'])}"
+        EmailService.send_generic_email(
+            recipient_email=payload.attendee_email.strip(),
+            subject=f"Your Registration: {event.get('title', 'Event')}",
+            body=(
+                f"Hello {payload.attendee_name.strip()},\n\n"
+                f"You have been registered for {event.get('title', 'the event')}.\n\n"
+                f"Booking Reference: {booking_ref}\n"
+                f"QR Code: {qr_code}\n\n"
+                f"View your booking: {booking_url}\n\n"
+                "Please bring this reference to the event check-in.\n\n"
+                "Global Connect Ethiopia"
+            ),
+        )
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("Manual registration email failed for %s: %s", payload.attendee_email, exc)
+
+    updated_event = await event_collection.find_one({"_id": event["_id"]})
+    return _serialize_booking(doc, updated_event or event)
 
 
 @router.post("/{event_id}/tickets/checkout", response_model=EventBookingResponse, status_code=201)
@@ -2172,3 +2382,251 @@ async def apply_schedule_ai_draft(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ─── Phase 4: VIP Hotel Reservations ─────────────────────────────────────────
+
+class VipHotelReservationPayload(BaseModel):
+    vip_name: str
+    vip_email: str
+    hotel_name: str
+    hotel_address: str | None = None
+    check_in_date: str
+    check_out_date: str
+    room_type: str | None = None
+    notes: str | None = None
+
+
+class VipHotelReservationResponse(BaseModel):
+    id: str
+    event_id: str
+    vip_name: str
+    vip_email: str
+    hotel_name: str
+    hotel_address: str | None
+    check_in_date: str
+    check_out_date: str
+    room_type: str | None
+    notes: str | None
+    status: str
+    created_at: str
+    updated_at: str
+
+
+def _serialize_vip_reservation(doc: dict) -> dict:
+    return {
+        "id": str(doc["_id"]),
+        "event_id": doc.get("event_id", ""),
+        "vip_name": doc.get("vip_name", ""),
+        "vip_email": doc.get("vip_email", ""),
+        "hotel_name": doc.get("hotel_name", ""),
+        "hotel_address": doc.get("hotel_address"),
+        "check_in_date": doc.get("check_in_date", ""),
+        "check_out_date": doc.get("check_out_date", ""),
+        "room_type": doc.get("room_type"),
+        "notes": doc.get("notes"),
+        "status": doc.get("status", "confirmed"),
+        "created_at": str(doc.get("created_at", "")),
+        "updated_at": str(doc.get("updated_at", "")),
+    }
+
+
+@router.post("/{event_id}/vip-reservations", status_code=201)
+async def create_vip_reservation(
+    event_id: str,
+    payload: VipHotelReservationPayload,
+    current_user: dict = Depends(get_current_user),
+):
+    """Organizer creates a VIP hotel reservation and emails the VIP directly."""
+    event = await _get_owned_event_or_403(event_id, current_user)
+
+    now = utc_now()
+    doc = {
+        "event_id": event_id,
+        "organizer_id": str(event.get("organizer_id", "")),
+        "vip_name": payload.vip_name.strip(),
+        "vip_email": payload.vip_email.strip().lower(),
+        "hotel_name": payload.hotel_name.strip(),
+        "hotel_address": payload.hotel_address,
+        "check_in_date": payload.check_in_date,
+        "check_out_date": payload.check_out_date,
+        "room_type": payload.room_type,
+        "notes": payload.notes,
+        "status": "confirmed",
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await vip_hotel_reservation_collection.insert_one(doc)
+    doc["_id"] = result.inserted_id
+
+    # Send VIP notification email (best-effort)
+    try:
+        from app.services.email_service import EmailService
+        event_title = event.get("title", "the event")
+        event_date = str(event.get("start_date", ""))
+        EmailService.send_generic_email(
+            recipient_email=payload.vip_email.strip(),
+            subject=f"Your VIP Hotel Reservation – {event_title}",
+            body=(
+                f"Dear {payload.vip_name.strip()},\n\n"
+                f"We are pleased to confirm your VIP hotel reservation for {event_title}.\n\n"
+                f"Hotel: {payload.hotel_name.strip()}\n"
+                + (f"Address: {payload.hotel_address}\n" if payload.hotel_address else "")
+                + f"Check-in: {payload.check_in_date}\n"
+                f"Check-out: {payload.check_out_date}\n"
+                + (f"Room Type: {payload.room_type}\n" if payload.room_type else "")
+                + (f"\nNotes: {payload.notes}\n" if payload.notes else "")
+                + f"\nEvent Date: {event_date}\n\n"
+                "If you have any questions, please contact the event organizer.\n\n"
+                "Global Connect Ethiopia"
+            ),
+        )
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("VIP email failed for %s: %s", payload.vip_email, exc)
+
+    return _serialize_vip_reservation(doc)
+
+
+@router.get("/{event_id}/vip-reservations")
+async def list_vip_reservations(
+    event_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """List all VIP hotel reservations for an event (organizer only)."""
+    await _get_owned_event_or_403(event_id, current_user)
+    docs = await vip_hotel_reservation_collection.find({"event_id": event_id}).to_list(length=200)
+    return [_serialize_vip_reservation(d) for d in docs]
+
+
+@router.delete("/{event_id}/vip-reservations/{reservation_id}", status_code=204)
+async def cancel_vip_reservation(
+    event_id: str,
+    reservation_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Cancel (delete) a VIP hotel reservation."""
+    await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(reservation_id, field_name="reservation id")
+    result = await vip_hotel_reservation_collection.delete_one({"_id": oid, "event_id": event_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="VIP reservation not found")
+
+
+# ─── Phase 4: Event Cloning ───────────────────────────────────────────────────
+
+class EventCloneResponse(BaseModel):
+    new_event_id: str
+    message: str
+
+
+@router.post("/{event_id}/clone", response_model=EventCloneResponse, status_code=201)
+async def clone_event(
+    event_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Clone an event as a draft: copies budget categories (zero allocations),
+    schedule templates, and tasks into a new draft event for the same organizer."""
+    event = await _get_owned_event_or_403(event_id, current_user)
+
+    now = utc_now()
+
+    # Build draft fields (strip runtime state, keep template fields)
+    clone_fields = {
+        "organizer_id": event.get("organizer_id"),
+        "proposal_id": event.get("proposal_id"),
+        "permit_id": None,
+        "permit_number": None,
+        "title": f"{event.get('title', 'Unnamed')} (Copy)",
+        "description": event.get("description"),
+        "category": event.get("category"),
+        "location": event.get("location"),
+        "capacity": event.get("capacity"),
+        "start_date": None,
+        "end_date": None,
+        "visibility": event.get("visibility", "private"),
+        "booking_required": event.get("booking_required", False),
+        "vip_list": [],
+        "program_schedule_summary": event.get("program_schedule_summary"),
+        "requires_permit": event.get("requires_permit", True),
+        "status": EventStatus.DRAFT,
+        "venue_status": "not_started",
+        "booking_status": "disabled",
+        "booking_opens_at": None,
+        "booking_closes_at": None,
+        "allow_waitlist": event.get("allow_waitlist", False),
+        "required_attendee_fields": event.get("required_attendee_fields", []),
+        "booked_count": 0,
+        "remaining_slots": int(event.get("capacity") or 0),
+        "survey_status": SurveyStatus.NOT_STARTED,
+        "final_report_status": FinalReportStatus.NOT_STARTED,
+        "budget_currency": event.get("budget_currency", "ETB"),
+        # Clone budget categories with zero actual costs
+        "budget_items": [
+            {
+                "name": item.get("name", ""),
+                "estimated_cost": 0,
+                "actual_cost": None,
+                "notes": item.get("notes"),
+            }
+            for item in event.get("budget_items", [])
+        ],
+        "budget_total_estimated": 0,
+        "office_assignments": None,
+        "published_at": None,
+        "live_started_at": None,
+        "completed_at": None,
+        "archived_at": None,
+        "cloned_from_event_id": event_id,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    new_event_result = await event_collection.insert_one(clone_fields)
+    new_event_id = str(new_event_result.inserted_id)
+
+    # Clone schedule items as templates
+    schedule_items = await event_schedule_collection.find({"event_id": event_id}).to_list(length=500)
+    if schedule_items:
+        cloned_schedules = [
+            {
+                "event_id": new_event_id,
+                "session_title": item.get("session_title", ""),
+                "description": item.get("description"),
+                "start_time": item.get("start_time"),
+                "end_time": item.get("end_time"),
+                "speaker_id": None,
+                "room_location": item.get("room_location"),
+                "is_ai_suggestion": False,
+                "created_at": now,
+                "updated_at": now,
+            }
+            for item in schedule_items
+        ]
+        await event_schedule_collection.insert_many(cloned_schedules)
+
+    # Clone tasks as open templates (clear assignee)
+    tasks = await event_task_collection.find({"event_id": event_id}).to_list(length=500)
+    if tasks:
+        cloned_tasks = [
+            {
+                "event_id": new_event_id,
+                "title": t.get("title", ""),
+                "description": t.get("description"),
+                "assignee_user_id": None,
+                "assignee_email": None,
+                "due_date": None,
+                "priority": t.get("priority", "medium"),
+                "status": "open",
+                "payout_amount": t.get("payout_amount"),
+                "created_at": now,
+                "updated_at": now,
+            }
+            for t in tasks
+        ]
+        await event_task_collection.insert_many(cloned_tasks)
+
+    return EventCloneResponse(
+        new_event_id=new_event_id,
+        message=f"Event cloned successfully. {len(schedule_items)} schedule items and {len(tasks)} task templates were copied."
+    )

@@ -14,12 +14,16 @@ from app.schemas.user import (
     UserCreate,
     UserLogin,
     UserResponse,
+    TeamMemberRegister,
+    PhoneOtpSendRequest,
+    PhoneOtpVerifyRequest,
 )
 from app.models.roles import UserRole, normalize_role, to_user_role
 from app.core.config import settings
 from app.core import security
 from app.db.mongodb import organizer_collection, session_collection, user_collection
 from app.services.email_service import EmailDeliveryError, EmailService
+from app.services.marketplace_mvp import ensure_wallet
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -464,5 +468,135 @@ async def verify_email_otp(payload: OtpVerifyRequest):
         "token_type": "bearer",
         "user_id": str(user["_id"]),
         "role": user.get("role", "attendee"),
+    }
+
+
+@router.post("/team/register")
+async def team_member_register(user_in: TeamMemberRegister):
+    logger.info("Team member register request for %s", user_in.phone_number)
+    existing_user = await user_collection.find_one({"phone_number": user_in.phone_number})
+    if existing_user and existing_user.get("phone_verified"):
+        raise HTTPException(status_code=400, detail="Phone number already registered and verified.")
+        
+    hashed_password = security.get_password_hash(user_in.password)
+    otp_payload = _build_otp_payload()
+    
+    new_user = {
+        "full_name": user_in.full_name,
+        "phone_number": user_in.phone_number,
+        "email": f"{user_in.phone_number}@team.local", # placeholder
+        "password_hash": hashed_password,
+        "role": UserRole.TEAM_MEMBER.value,
+        "is_active": False,
+        "phone_verified": False,
+        "email_verified": False,
+        "auth_otp": otp_payload,
+        "updated_at": datetime.now(timezone.utc),
+    }
+    
+    if hasattr(user_collection, "update_one"):
+        await user_collection.update_one(
+            {"phone_number": user_in.phone_number},
+            {"$set": new_user},
+            upsert=True,
+        )
+    else:
+        existing = await user_collection.find_one({"phone_number": user_in.phone_number})
+        if existing:
+            try:
+                existing.update(new_user)
+            except Exception:
+                await user_collection.insert_one({**new_user})
+        else:
+            await user_collection.insert_one(new_user)
+            
+    saved_user = await user_collection.find_one({"phone_number": user_in.phone_number})
+    
+    # Send SMS (simulated in logs)
+    logger.info("Simulated SMS OTP to %s: %s", user_in.phone_number, otp_payload["code"])
+    
+    return _otp_response_payload(
+        message="Team member registered. Simulated OTP sent to phone.",
+        otp_payload=otp_payload,
+    ) | {"user_id": str(saved_user["_id"]) if saved_user else None}
+
+
+@router.post("/team/phone-otp", response_model=OtpSendResponse)
+async def send_phone_otp(payload: PhoneOtpSendRequest):
+    logger.info("Resend Phone OTP for %s", payload.phone_number)
+    user = await user_collection.find_one({"phone_number": payload.phone_number})
+    if user and user.get("phone_verified", False):
+        raise HTTPException(status_code=400, detail="Phone number is already verified")
+
+    otp_payload = _build_otp_payload()
+    await user_collection.update_one(
+        {"phone_number": payload.phone_number},
+        {
+            "$set": {"auth_otp": otp_payload, "updated_at": datetime.now(timezone.utc)},
+            "$setOnInsert": {
+                "phone_number": payload.phone_number,
+                "role": UserRole.TEAM_MEMBER.value,
+                "is_active": False,
+                "phone_verified": False,
+                "email_verified": False
+            },
+        },
+        upsert=True,
+    )
+    logger.info("Simulated SMS OTP to %s: %s", payload.phone_number, otp_payload["code"])
+    
+    return _otp_response_payload(
+        message="Simulated OTP sent to phone.",
+        otp_payload=otp_payload,
+    )
+
+
+@router.post("/team/verify-phone-otp", response_model=OtpVerifyResponse)
+async def verify_phone_otp(payload: PhoneOtpVerifyRequest):
+    logger.info("Phone OTP verification for %s", payload.phone_number)
+    user = await user_collection.find_one({"phone_number": payload.phone_number})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    otp_data = user.get("auth_otp")
+    if not otp_data:
+        raise HTTPException(status_code=400, detail="OTP not generated")
+
+    attempts = int(otp_data.get("attempts", 0))
+    if attempts >= settings.OTP_ATTEMPT_LIMIT:
+        raise HTTPException(status_code=429, detail="OTP attempts exceeded")
+
+    expires_at = _parse_expiry(otp_data.get("expires_at"))
+    if expires_at is None or datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="OTP expired.")
+
+    if otp_data.get("code") != payload.otp_code.strip():
+        await user_collection.update_one(
+            {"phone_number": payload.phone_number},
+            {"$set": {"auth_otp.attempts": attempts + 1}},
+        )
+        raise HTTPException(status_code=400, detail="Invalid OTP code")
+
+    await user_collection.update_one(
+        {"phone_number": payload.phone_number},
+        {"$set": {"phone_verified": True, "is_active": True, "auth_otp.verified": True, "auth_otp.code": None}},
+    )
+    
+    # Auto-provision wallet
+    user_id_str = str(user["_id"])
+    await ensure_wallet(user_id_str)
+    
+    access_token = security.create_access_token(
+        subject=user_id_str,
+        role=user.get("role", UserRole.TEAM_MEMBER.value),
+    )
+
+    return {
+        "message": "Phone verified successfully. Wallet provisioned.",
+        "email_verified": True, # For frontend compatibility
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": user_id_str,
+        "role": user.get("role", UserRole.TEAM_MEMBER.value),
     }
 
