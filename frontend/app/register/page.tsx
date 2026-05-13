@@ -15,6 +15,17 @@ export default function RegistrationForm() {
     role: "",
     password: "",
   });
+
+  // Pre-select role if provided in URL
+  useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const roleParam = params.get("role");
+      if (roleParam === "organizer" || roleParam === "vendor" || roleParam === "attendee" || roleParam === "team_member") {
+        setFormData(prev => ({ ...prev, role: roleParam }));
+      }
+    }
+  });
   const [passwordStrength, setPasswordStrength] = useState("Weak");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -32,7 +43,7 @@ export default function RegistrationForm() {
     }
   };
 
-  const handleRoleSelect = (role: "organizer" | "vendor" | "attendee") => {
+  const handleRoleSelect = (role: "organizer" | "vendor" | "attendee" | "team_member") => {
     setFormData((prev) => ({
       ...prev,
       role: role,
@@ -261,6 +272,21 @@ export default function RegistrationForm() {
                   <h4 className="font-bold text-slate-800 mb-1">Attendee</h4>
                   <p className="text-sm text-slate-600">
                     Explore and network with others
+                  </p>
+                </div>
+
+                {/* Team Member Card */}
+                <div
+                  onClick={() => handleRoleSelect("team_member")}
+                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                    formData.role === "team_member"
+                      ? "border-[#062E22] bg-amber-50 ring-2 ring-amber-200"
+                      : "border-slate-200 hover:border-amber-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <h4 className="font-bold text-slate-800 mb-1">Team Member</h4>
+                  <p className="text-sm text-slate-600">
+                    Join an event team and complete tasks
                   </p>
                 </div>
               </div>

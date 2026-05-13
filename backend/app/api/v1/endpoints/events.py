@@ -1133,9 +1133,8 @@ async def create_team_invitation(
     doc["_id"] = result.inserted_id
 
     try:
-        from app.services.email_service import ResendEmailService
+        from app.services.email_service import EmailService
         from app.core.config import settings
-        import asyncio
 
         frontend_url = getattr(settings, "FRONTEND_ORIGIN", "http://localhost:3000")
         if not frontend_url:
@@ -1145,13 +1144,16 @@ async def create_team_invitation(
         inviter_name = current_user.get("full_name") or current_user.get("email") or "An Organizer"
         event_name = event.get("title") or "A Professional Event"
 
-        asyncio.get_event_loop().run_in_executor(
-            None,
-            ResendEmailService.send_team_invitation_email,
-            doc["email"],
-            event_name,
-            inviter_name,
-            invite_link,
+        EmailService.send_generic_email(
+            recipient_email=doc["email"],
+            subject=f"Invitation to join {event_name}",
+            body=(
+                f"Hello,\n\n"
+                f"{inviter_name} has invited you to join the team for '{event_name}' as a {payload.assigned_role}.\n\n"
+                f"Please click the link below to accept the invitation and register your account:\n"
+                f"{invite_link}\n\n"
+                "Global Connect Ethiopia"
+            )
         )
     except Exception as e:
         import logging

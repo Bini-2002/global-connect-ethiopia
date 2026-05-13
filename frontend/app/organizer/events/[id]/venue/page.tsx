@@ -69,6 +69,7 @@ export default function EventVenuePage() {
   const [loadingReservations, setLoadingReservations] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchCity, setSearchCity] = useState('');
   const [searchResults, setSearchResults] = useState<VenueListingSearchResponse[]>([]);
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
