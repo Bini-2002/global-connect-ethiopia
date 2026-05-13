@@ -4,6 +4,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
+from pydantic import BaseModel, Field, EmailStr
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pymongo import ReturnDocument

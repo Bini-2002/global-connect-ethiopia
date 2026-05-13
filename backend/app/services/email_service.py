@@ -101,20 +101,24 @@ class ResendEmailService:
                     },
                     method="POST",
                 )
-                return response_json.get("id")
-        except error.HTTPError as exc:
-            details = exc.read().decode("utf-8", errors="replace")
-            logger.error(
-                "Resend HTTP error while sending OTP to %s: %s",
-                recipient_email,
-                details,
-            )
-            raise EmailDeliveryError(
-                f"Resend API error ({exc.code}): {details}"
-            ) from exc
-        except (error.URLError, TimeoutError) as exc:
-            logger.error("Resend request failed for %s: %s", recipient_email, exc)
-            raise EmailDeliveryError(f"Resend request failed: {exc}") from exc
+                try:
+                    with request.urlopen(req, timeout=10) as resp:
+                        response_json = json.loads(resp.read().decode("utf-8"))
+                        logger.info("OTP email sent via Resend to %s: %s", recipient_email, response_json.get("id"))
+                        return response_json.get("id")
+                except error.HTTPError as exc:
+                    details = exc.read().decode("utf-8", errors="replace")
+                    logger.error(
+                        "Resend HTTP error while sending OTP to %s: %s",
+                        recipient_email,
+                        details,
+                    )
+                    raise EmailDeliveryError(
+                        f"Resend API error ({exc.code}): {details}"
+                    ) from exc
+                except (error.URLError, TimeoutError) as exc:
+                    logger.error("Resend request failed for %s: %s", recipient_email, exc)
+                    raise EmailDeliveryError(f"Resend request failed: {exc}") from exc
 
 
 class SmtpEmailService:

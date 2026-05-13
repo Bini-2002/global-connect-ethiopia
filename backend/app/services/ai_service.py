@@ -78,23 +78,96 @@ class AIService:
         else:
             try:
                 model = genai.GenerativeModel('gemini-2.5-flash')
+
+                # ── Per-event-type expert prompts ──────────────────────────
+                EVENT_TYPE_PROMPTS: dict[str, str] = {
+                    "conference": (
+                        "You are an expert conference planner. Design a professional multi-track conference schedule.\n"
+                        "Include: Registration & Networking, Opening Keynote (high-profile speaker), 2-3 breakout/panel sessions per half-day, "
+                        "sponsored lunch break with sponsor showcase, afternoon sessions with Q&A, Closing Remarks, and optional Evening Networking Dinner.\n"
+                        "Each session should feel like a real international conference — include specific track names such as Innovation Track, Policy Track, Technology Track."
+                    ),
+                    "wedding": (
+                        "You are an expert wedding coordinator. Design a detailed, elegant wedding day timeline.\n"
+                        "Include: Bridal party preparation & photography, Guest arrival & seating, Processional & Ceremony, Ring exchange & vows, "
+                        "Recessional & cocktail hour with canapés, Receiving line or photo sessions, Grand entrance into reception hall, "
+                        "Welcome toast by parents, Multi-course dinner service, First dance, Parent dances, Bouquet toss, Cake cutting, "
+                        "Open dancing, Last dance & grand exit. Add cultural Ethiopian traditions if the event type suggests it.\n"
+                        "Tone should be warm, joyful, and formal."
+                    ),
+                    "trade_fair": (
+                        "You are an expert trade fair and exhibition organizer. Design a commercial B2B trade fair schedule.\n"
+                        "Include: VIP early access hour, Official opening ceremony with ribbon cutting, Exhibition hall open to public, "
+                        "Hourly exhibitor spotlight presentations (15 min each), Business matchmaking sessions, Product demonstration slots, "
+                        "Press briefing hour, Industry panel discussion, Networking lunch, Afternoon investor pitch competition, "
+                        "Award ceremony for best exhibitor, Closing ceremony & official end time.\n"
+                        "Focus on maximizing exhibitor visibility and buyer-seller interactions."
+                    ),
+                    "cultural_festival": (
+                        "You are an expert cultural festival programmer. Design a vibrant multi-day cultural festival schedule.\n"
+                        "Include: Opening procession & cultural flag ceremony, Traditional music & dance performances (with artist names as placeholders), "
+                        "Cultural food market hours, Craft and art exhibition tours, Children's cultural activity zones, "
+                        "Main stage headline performances (afternoon & evening), Film screening or storytelling session, "
+                        "Inter-cultural dialogue panel, Traditional cooking demonstration, Closing bonfire/ceremony with community gather.\n"
+                        "Reflect Ethiopian cultural richness — mention timkat, coffee ceremony, or similar traditions where appropriate."
+                    ),
+                    "corporate_workshop": (
+                        "You are an expert corporate L&D facilitator. Design a focused corporate workshop agenda.\n"
+                        "Include: Welcome & icebreaker activity, Pre-assessment or knowledge check, Module 1: Theory presentation, "
+                        "Group discussion & case study, Coffee break with informal networking, Module 2: Hands-on workshop exercise, "
+                        "Team presentation of findings, Expert feedback session, Lunch & informal Q&A, Module 3: Advanced application, "
+                        "Role-playing scenario exercise, Debrief and lessons learned, Action planning worksheet, Closing evaluation & certificates.\n"
+                        "Keep it practical — each session should have a clear learning objective."
+                    ),
+                }
+
+                # Normalize event type and pick the matching prompt
+                normalized = constraints.event_type.lower().replace(" ", "_").replace("-", "_")
+                type_prompt = None
+                for key in EVENT_TYPE_PROMPTS:
+                    if key in normalized or normalized in key:
+                        type_prompt = EVENT_TYPE_PROMPTS[key]
+                        break
+                if not type_prompt:
+                    # Fallback for any other event type
+                    type_prompt = (
+                        "You are an expert event planner. Design a professional and detailed event schedule. "
+                        "Include a logical flow from registration through main programming to closing."
+                    )
+
                 prompt = (
-                    f"Create an hour-by-hour schedule for an event.\n"
+                    f"{type_prompt}\n\n"
                     f"Event Type: {constraints.event_type}\n"
-                    f"Duration: {constraints.duration_days} days\n"
-                    f"Start Time: {constraints.start_time}\n"
-                    f"Respond strictly in JSON format with a list of items. Each item must have: "
-                    f"title, start_time (HH:MM format), end_time (HH:MM format), category, and description."
+                    f"Duration: {constraints.duration_days} day(s)\n"
+                    f"Start Time: {constraints.start_time}\n\n"
+                    f"Rules:\n"
+                    f"- Generate all sessions for all {constraints.duration_days} day(s)\n"
+                    f"- Use realistic time blocks (30 min minimum per session)\n"
+                    f"- All times must be in HH:MM 24-hour format\n"
+                    f"- End time of each session must be after its start time\n"
+                    f"- Sessions must not overlap\n"
+                    f"- Include breaks (coffee, lunch) as separate items\n\n"
+                    f"Respond ONLY with a valid JSON array. No prose, no markdown fences. "
+                    f"Each item must have exactly these keys: title, start_time, end_time, category, description.\n"
+                    f"Example: [{{\"title\":\"Registration\",\"start_time\":\"08:30\",\"end_time\":\"09:00\","
+                    f"\"category\":\"Logistics\",\"description\":\"Attendee check-in and badge collection\"}}]"
                 )
+
                 response = model.generate_content(prompt)
                 response_text = response.text.strip()
+                # Strip markdown fences if Gemini wraps output
                 if response_text.startswith("```json"):
                     response_text = response_text[7:]
+                if response_text.startswith("```"):
+                    response_text = response_text[3:]
                 if response_text.endswith("```"):
                     response_text = response_text[:-3]
-                
+                response_text = response_text.strip()
+
                 try:
                     data = json.loads(response_text)
+                    if not isinstance(data, list):
+                        raise ValueError("Expected a JSON array")
                     generated_items = []
                     for idx, item in enumerate(data):
                         generated_items.append(
@@ -102,16 +175,17 @@ class AIService:
                                 title=item.get("title", "Session"),
                                 start_time=item.get("start_time", "00:00"),
                                 end_time=item.get("end_time", "01:00"),
-                                category=item.get("category", ""),
+                                category=item.get("category", "General"),
                                 description=item.get("description", ""),
                                 order_index=idx,
-                                is_ai_suggestion=True
+                                is_ai_suggestion=True,
+                                applied=False,
                             )
                         )
-                except json.JSONDecodeError:
-                    raise Exception("Malformed AI output")
+                except (json.JSONDecodeError, ValueError):
+                    raise Exception("Malformed AI output — could not parse schedule JSON")
             except Exception as e:
-                logger.error(f"Gemini API error: {e}")
+                logger.error(f"Gemini scheduler error: {e}")
                 raise e
 
         # Store draft
