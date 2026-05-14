@@ -733,12 +733,15 @@ async def list_events(
     query: dict = {}
     
     if role == UserRole.ORGANIZER:
-        query["organizer_id"] = parse_object_id(current_user["id"], field_name="organizer id")
+        user_oid = parse_object_id(current_user["id"], field_name="organizer id")
+        query["organizer_id"] = {"$in": [user_oid, str(user_oid)]}
     elif role == UserRole.TEAM_MEMBER:
         # Find events where this user is an active team member
+        user_oid = parse_object_id(current_user["id"], field_name="user id")
         memberships = await event_team_member_collection.find({
             "$or": [
-                {"user_id": parse_object_id(current_user["id"], field_name="user id")}, 
+                {"user_id": user_oid}, 
+                {"user_id": str(user_oid)},
                 {"email": {"$regex": f"^{current_user.get('email')}$", "$options": "i"}}
             ],
             "status": "active"
@@ -747,7 +750,8 @@ async def list_events(
         # Also check tasks assigned to them as a fallback
         tasks = await event_task_collection.find({
             "$or": [
-                {"assignee_user_id": parse_object_id(current_user["id"], field_name="assignee id")},
+                {"assignee_user_id": user_oid},
+                {"assignee_user_id": str(user_oid)},
                 {"assignee_email": {"$regex": f"^{current_user.get('email')}$", "$options": "i"}}
             ]
         }).to_list(length=500)
@@ -762,7 +766,8 @@ async def list_events(
             
         query["_id"] = {"$in": [parse_object_id(eid, field_name="event id") for eid in event_ids if eid]}
     elif role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ATTENDEE}:
-        query["organizer_id"] = parse_object_id(current_user["id"], field_name="organizer id")
+        user_oid = parse_object_id(current_user["id"], field_name="organizer id")
+        query["organizer_id"] = {"$in": [user_oid, str(user_oid)]}
 
     if role == UserRole.ATTENDEE:
         allowed_statuses = [EventStatus.PUBLISHED, EventStatus.PRIVATE_PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED]

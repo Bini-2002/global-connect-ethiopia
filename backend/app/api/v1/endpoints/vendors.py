@@ -16,6 +16,7 @@ from app.schemas.vendor import (
     VendorStatusResponse,
     VendorVerificationResponse,
 )
+from app.services.marketplace import parse_object_id
 from app.services.marketplace_mvp import get_vendor_detail, list_verified_vendors
 from app.services.object_storage import ObjectStorageService
 
@@ -167,8 +168,10 @@ async def create_or_update_vendor_business_details(
         },
     }
 
-    user_oid = ObjectId(current_user["id"])
-    existing = await vendor_collection.find_one({"user_id": user_oid})
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    existing = await vendor_collection.find_one({
+        "$or": [{"user_id": user_oid}, {"user_id": str(user_oid)}]
+    })
 
     if existing:
         await vendor_collection.update_one(
@@ -219,7 +222,10 @@ async def create_or_update_vendor_business_details(
 async def get_vendor_review_summary(current_user: dict = Depends(get_current_user_allow_inactive)):
     _require_vendor(current_user)
 
-    vendor = await vendor_collection.find_one({"user_id": ObjectId(current_user["id"])})
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    vendor = await vendor_collection.find_one({
+        "$or": [{"user_id": user_oid}, {"user_id": str(user_oid)}]
+    })
     if not vendor or not vendor.get("step_2"):
         raise HTTPException(status_code=404, detail="Vendor business details not found")
 
@@ -253,7 +259,10 @@ async def submit_vendor_for_verification(
             detail="Both declarations must be accepted before submission",
         )
 
-    vendor = await vendor_collection.find_one({"user_id": ObjectId(current_user["id"])})
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    vendor = await vendor_collection.find_one({
+        "$or": [{"user_id": user_oid}, {"user_id": str(user_oid)}]
+    })
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor record not found")
 
@@ -354,7 +363,10 @@ async def submit_vendor_for_verification(
 async def get_vendor_verification_status(current_user: dict = Depends(get_current_user_allow_inactive)):
     _require_vendor(current_user)
 
-    vendor = await vendor_collection.find_one({"user_id": ObjectId(current_user["id"])})
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    vendor = await vendor_collection.find_one({
+        "$or": [{"user_id": user_oid}, {"user_id": str(user_oid)}]
+    })
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor record not found")
 
@@ -381,7 +393,10 @@ async def get_vendor_verification_status(current_user: dict = Depends(get_curren
 
 @router.get("/portal/summary", response_model=VendorPortalSummaryResponse)
 async def get_vendor_portal_summary(current_user: dict = Depends(get_current_user)):
-    vendor = await vendor_collection.find_one({"user_id": ObjectId(current_user["id"])})
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    vendor = await vendor_collection.find_one({
+        "$or": [{"user_id": user_oid}, {"user_id": str(user_oid)}]
+    })
     _require_vendor(current_user)
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor record not found")

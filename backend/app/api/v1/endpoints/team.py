@@ -18,7 +18,7 @@ from app.db.mongodb import (
     user_collection,
 )
 from app.models.roles import UserRole, normalize_role
-from app.services.marketplace_mvp import ensure_wallet
+from app.services.marketplace_mvp import ensure_wallet, parse_object_id
 
 router = APIRouter()
 
@@ -53,9 +53,11 @@ async def team_dashboard(current_user: dict = Depends(get_current_user)):
 
     # Get tasks assigned to this team member
     email = current_user.get("email")
+    user_oid = parse_object_id(user_id, field_name="user id")
     tasks_cursor = event_task_collection.find({
         "$or": [
             {"assignee_user_id": user_id},
+            {"assignee_user_id": user_oid},
             {"assignee_email": email}
         ]
     })
@@ -84,7 +86,7 @@ async def team_dashboard(current_user: dict = Depends(get_current_user)):
     
     # Recent transactions
     tx_docs = await transaction_collection.find(
-        {"user_id": user_id},
+        {"user_id": {"$in": [user_id, user_oid]}},
         sort=[("created_at", -1)],
     ).to_list(length=20)
 

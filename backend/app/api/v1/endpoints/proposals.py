@@ -366,7 +366,13 @@ async def submit_proposal(
 @router.get("/", response_model=List[ProposalResponse])
 async def list_my_proposals(current_user: dict = Depends(get_current_user)):
     _require_organizer(current_user)
-    cursor = proposal_collection.find({"organizer_id": str(current_user["_id"])})
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    cursor = proposal_collection.find({
+        "$or": [
+            {"organizer_id": user_oid},
+            {"organizer_id": str(user_oid)}
+        ]
+    })
     proposals = await cursor.to_list(length=100)
 
     return [_to_response(p) for p in proposals]
