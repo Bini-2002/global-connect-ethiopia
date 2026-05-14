@@ -733,18 +733,36 @@ async def list_events(
     query: dict = {}
     
     if role == UserRole.ORGANIZER:
-        query["organizer_id"] = current_user["id"]
+        query["organizer_id"] = parse_object_id(current_user["id"])
     elif role == UserRole.TEAM_MEMBER:
         # Find events where this user is an active team member
         memberships = await event_team_member_collection.find({
-            "$or": [{"user_id": current_user["id"]}, {"email": current_user.get("email")}],
+            "$or": [
+                {"user_id": parse_object_id(current_user["id"])}, 
+                {"email": {"$regex": f"^{current_user.get('email')}$", "$options": "i"}}
+            ],
             "status": "active"
-        }).to_list(length=100)
-        event_ids = [m["event_id"] for m in memberships]
-        from app.db.mongodb import parse_object_id
+        }).to_list(length=200)
+        
+        # Also check tasks assigned to them as a fallback
+        tasks = await event_task_collection.find({
+            "$or": [
+                {"assignee_user_id": parse_object_id(current_user["id"])},
+                {"assignee_email": {"$regex": f"^{current_user.get('email')}$", "$options": "i"}}
+            ]
+        }).to_list(length=500)
+        
+        event_ids = set([m["event_id"] for m in memberships if m.get("event_id")])
+        for t in tasks:
+            if t.get("event_id"):
+                event_ids.add(t["event_id"])
+                
+        if not event_ids:
+            return []
+            
         query["_id"] = {"$in": [parse_object_id(eid) for eid in event_ids if eid]}
     elif role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ATTENDEE}:
-        query["organizer_id"] = current_user["id"]
+        query["organizer_id"] = parse_object_id(current_user["id"])
 
     if role == UserRole.ATTENDEE:
         allowed_statuses = [EventStatus.PUBLISHED, EventStatus.PRIVATE_PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED]

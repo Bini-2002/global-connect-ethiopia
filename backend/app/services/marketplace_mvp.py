@@ -134,33 +134,44 @@ async def get_vendor_service_records(vendor: dict) -> list[dict]:
     
     records = []
     for service in vendor_services:
-        records.append({
-            "id": str(service["_id"]),
-            "vendor_id": service.get("vendor_id"),
-            "vendor_user_id": service.get("vendor_user_id"),
-            "title": service.get("title"),
-            "description": service.get("description"),
-            "category": service.get("category"),
-            "price_min": float(service.get("price_min", 0)),
-            "price_max": float(service.get("price_max", 0)),
-            "pricing_type": service.get("pricing_type"),
-            "location": service.get("location"),
-            "images": _normalize_images(service.get("images", [])),
-            "availability": service.get("availability"),
-            "service_details": service.get("service_details"),
-            "tags": service.get("tags", []),
-            "is_active": bool(service.get("is_active", True)),
-            "created_at": service.get("created_at"),
-            "updated_at": service.get("updated_at"),
-        })
+        try:
+            records.append({
+                "id": str(service["_id"]),
+                "vendor_id": stringify_id(service.get("vendor_id")),
+                "vendor_user_id": stringify_id(service.get("vendor_user_id")),
+                "title": service.get("title") or "Untitled Service",
+                "description": service.get("description"),
+                "category": service.get("category"),
+                "price_min": float(service.get("price_min") or 0),
+                "price_max": float(service.get("price_max") or 0),
+                "pricing_type": service.get("pricing_type"),
+                "location": service.get("location"),
+                "images": _normalize_images(service.get("images", [])),
+                "availability": service.get("availability"),
+                "service_details": service.get("service_details"),
+                "tags": service.get("tags", []),
+                "is_active": bool(service.get("is_active", True)),
+                "created_at": service.get("created_at"),
+                "updated_at": service.get("updated_at"),
+            })
+        except Exception:
+            continue
     return records
 
 
-def vendor_is_verified(vendor: dict) -> bool:
+def vendor_is_verified(vendor: dict | None) -> bool:
+    if not vendor: return False
     return bool(vendor.get("is_verified") or vendor.get("verification_status") == "approved")
 
 
-async def serialize_vendor(vendor: dict) -> dict:
+async def serialize_vendor(vendor: dict | None) -> dict:
+    if not vendor: return {}
+    try:
+        rating_raw = vendor.get("rating")
+        rating = float(rating_raw) if rating_raw is not None and str(rating_raw).replace('.','',1).isdigit() else 0.0
+    except (ValueError, TypeError):
+        rating = 0.0
+
     return {
         "id": str(vendor["_id"]),
         "user_id": stringify_id(vendor.get("user_id")) or "",
@@ -168,7 +179,7 @@ async def serialize_vendor(vendor: dict) -> dict:
         "services": await get_vendor_services(vendor),
         "service_records": await get_vendor_service_records(vendor),
         "is_verified": vendor_is_verified(vendor),
-        "rating": float(vendor.get("rating", 0.0) or 0.0),
+        "rating": rating,
         "created_at": vendor.get("created_at") or utc_now(),
     }
 

@@ -244,22 +244,40 @@ export default function EventWorkspaceShell({
           </div>
 
           {error ? (
-            error.includes('ACCESS_DENIED') ? (
-              <div className="bg-[#062E22]/5 border border-[#062E22]/20 rounded-2xl p-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="w-16 h-16 bg-[#062E22]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <ShieldAlert className="w-8 h-8 text-[#062E22]" />
+            error === 'FORBIDDEN' ? (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300">
+                  <div className="p-8 text-center">
+                    <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <ShieldAlert className="w-10 h-10 text-amber-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-[#062E22]">Access Restricted</h2>
+                    <p className="text-slate-600 mt-4 leading-relaxed">
+                      You do not have the required permissions to access this specific module. 
+                      This section is reserved for event organizers and authorized administrators.
+                    </p>
+                    
+                    <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+                      <Link
+                        href={`/organizer/events/${event?.id}`}
+                        className="px-8 py-3 bg-[#062E22] text-white rounded-xl font-bold hover:bg-[#0a4a37] transition-all shadow-lg shadow-[#062E22]/20"
+                      >
+                        Return to Workspace
+                      </Link>
+                      <Link
+                        href="/team/dashboard"
+                        className="px-8 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all"
+                      >
+                        Team Dashboard
+                      </Link>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 px-8 py-4 border-t border-slate-100 flex justify-center">
+                    <p className="text-xs text-slate-400 font-medium italic">
+                      Professional Security Enforcement • Global Connect Ethiopia
+                    </p>
+                  </div>
                 </div>
-                <h2 className="text-xl font-bold text-[#062E22]">Access Restricted</h2>
-                <p className="text-slate-600 mt-2 max-w-md mx-auto">
-                  This section is reserved for event organizers and authorized personnel. 
-                  If you believe you should have access, please contact the event manager.
-                </p>
-                <Link
-                  href={`/organizer/events/${event.id}`}
-                  className="inline-flex items-center gap-2 mt-6 px-6 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition"
-                >
-                  Return to Dashboard
-                </Link>
               </div>
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">
