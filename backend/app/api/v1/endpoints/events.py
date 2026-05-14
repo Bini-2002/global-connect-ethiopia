@@ -1469,12 +1469,7 @@ async def approve_task(
 
     payout_amount = float(task.get("payout_amount") or 0.0)
     assignee_user_id = task.get("assignee_user_id")
-
     now = utc_now()
-    await event_task_collection.update_one(
-        {"_id": oid},
-        {"$set": {"status": "done", "updated_at": now}},
-    )
 
     # Auto-payout: debit organizer wallet, credit team member wallet
     if payout_amount > 0:
@@ -1486,61 +1481,75 @@ async def approve_task(
                 # Update task with the resolved ID for future reference
                 await event_task_collection.update_one({"_id": oid}, {"$set": {"assignee_user_id": assignee_user_id}})
 
-        if assignee_user_id:
-            organizer_id = str(event.get("organizer_id"))
-            organizer_wallet = await ensure_wallet(organizer_id)
-            
-            # Check balance
-            organizer_balance = float(organizer_wallet.get("balance", 0))
-            organizer_reserve = float(organizer_wallet.get("budget_reserve", 0))
-            
-            if organizer_balance + organizer_reserve >= payout_amount:
-                # Debit organizer
-                if organizer_balance >= payout_amount:
-                    await wallet_collection.update_one(
-                        {"_id": organizer_wallet["_id"]},
-                        {"$inc": {"balance": -payout_amount}, "$set": {"updated_at": now}},
-                    )
-                else:
-                    remaining = payout_amount - organizer_balance
-                    await wallet_collection.update_one(
-                        {"_id": organizer_wallet["_id"]},
-                        {"$set": {"balance": 0, "budget_reserve": organizer_reserve - remaining, "updated_at": now}},
-                    )
-                
-                # Credit team member wallet
-                tm_wallet = await ensure_wallet(assignee_user_id)
-                await wallet_collection.update_one(
-                    {"_id": tm_wallet["_id"]},
-                    {"$inc": {"balance": payout_amount}, "$set": {"updated_at": now}},
-                )
-                
-                # Log transactions
-                await log_transaction(
-                    user_id=organizer_id,
-                    transaction_type=TransactionType.WITHDRAWAL,
-                    amount=payout_amount,
-                    reference_id=oid,
-                    reference_type="task_payout",
-                    event_id=event["_id"],
-                    payment_method="wallet",
-                )
-                await log_transaction(
-                    user_id=assignee_user_id,
-                    transaction_type=TransactionType.DEPOSIT,
-                    amount=payout_amount,
-                    reference_id=oid,
-                    reference_type="task_payout",
-                    event_id=event["_id"],
-                    payment_method="wallet",
-                )
-                # Notify team member
-                await push_notification(
-                    recipient_id=assignee_user_id,
-                    notification_type="payment_received",
-                    message=f"Your task '{task['title']}' was approved! ETB {payout_amount:,.2f} has been credited to your wallet.",
-                    related_entity={"type": "task", "id": task_id},
-                )
+        if not assignee_user_id:
+             raise HTTPException(status_code=400, detail="Cannot approve task: No assigned team member found to receive payout.")
+
+        organizer_id = str(event.get("organizer_id"))
+        organizer_wallet = await ensure_wallet(organizer_id)
+        
+        # Check balance
+        organizer_balance = float(organizer_wallet.get("balance", 0))
+        organizer_reserve = float(organizer_wallet.get("budget_reserve", 0))
+        
+        if organizer_balance + organizer_reserve < payout_amount:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Insufficient funds in organizer wallet (Available: ETB {organizer_balance + organizer_reserve}). Please top up before approving payouts."
+            )
+
+        # Debit organizer
+        if organizer_balance >= payout_amount:
+            await wallet_collection.update_one(
+                {"_id": organizer_wallet["_id"]},
+                {"$inc": {"balance": -payout_amount}, "$set": {"updated_at": now}},
+            )
+        else:
+            remaining = payout_amount - organizer_balance
+            await wallet_collection.update_one(
+                {"_id": organizer_wallet["_id"]},
+                {"$set": {"balance": 0, "budget_reserve": organizer_reserve - remaining, "updated_at": now}},
+            )
+        
+        # Credit team member wallet
+        tm_wallet = await ensure_wallet(assignee_user_id)
+        await wallet_collection.update_one(
+            {"_id": tm_wallet["_id"]},
+            {"$inc": {"balance": payout_amount}, "$set": {"updated_at": now}},
+        )
+        
+        # Log transactions
+        await log_transaction(
+            user_id=organizer_id,
+            transaction_type=TransactionType.WITHDRAWAL,
+            amount=payout_amount,
+            reference_id=oid,
+            reference_type="task_payout",
+            event_id=event["_id"],
+            payment_method="wallet",
+        )
+        await log_transaction(
+            user_id=assignee_user_id,
+            transaction_type=TransactionType.DEPOSIT,
+            amount=payout_amount,
+            reference_id=oid,
+            reference_type="task_payout",
+            event_id=event["_id"],
+            payment_method="wallet",
+        )
+        
+        # Notify team member
+        await push_notification(
+            recipient_id=assignee_user_id,
+            notification_type="task_payout",
+            message=f"You received a payout of ETB {payout_amount} for task '{task['title']}'.",
+            related_entity={"type": "task", "id": task_id, "event_id": event_id},
+        )
+
+    # Finally mark as done
+    await event_task_collection.update_one(
+        {"_id": oid},
+        {"$set": {"status": "done", "updated_at": now}},
+    )
 
     updated = await event_task_collection.find_one({"_id": oid})
     return _serialize_task(updated)
