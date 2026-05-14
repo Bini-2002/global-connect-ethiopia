@@ -2719,7 +2719,7 @@ async def clone_event(
         "required_attendee_fields": event.get("required_attendee_fields", []),
         "booked_count": 0,
         "remaining_slots": int(event.get("capacity") or 0),
-        "survey_status": SurveyStatus.NOT_STARTED,
+        "survey_status": SurveyStatus.NOT_SENT,
         "final_report_status": FinalReportStatus.NOT_STARTED,
         "budget_currency": event.get("budget_currency", "ETB"),
         # Clone budget categories with zero actual costs
