@@ -49,7 +49,7 @@ def _utc_now() -> datetime:
 async def _ticket_revenue(event_id: ObjectId, payment_method: str | None) -> dict:
     """Sum confirmed ticket purchases for an event."""
     match: dict = {
-        "event_id": event_id,
+        "event_id": {"$in": [event_id, str(event_id)]},
         "status": {"$in": ["confirmed", "paid"]},
     }
     if payment_method:
@@ -74,7 +74,7 @@ async def _vendor_fee_revenue(event_id: ObjectId | None, payment_method: str | N
     # First get contract ids for the event
     contract_filter: dict = {}
     if event_id:
-        contract_filter["event_id"] = event_id
+        contract_filter["event_id"] = {"$in": [event_id, str(event_id)]}
 
     contract_ids = [
         c["_id"]
@@ -109,7 +109,7 @@ async def _sponsorship_revenue(event_id: ObjectId | None, payment_method: str | 
         "reference_type": "sponsorship",
     }
     if event_id:
-        tx_match["event_id"] = event_id
+        tx_match["event_id"] = {"$in": [event_id, str(event_id)]}
     if payment_method:
         tx_match["payment_method"] = payment_method
 
@@ -152,13 +152,15 @@ async def get_event_revenue(
             allowed = True
     elif role == UserRole.VENDOR.value:
         # vendor who has a paid contract on this event
-        vendor = await vendor_collection.find_one(
-            {"user_id": _parse_oid(current_user["id"])}
-        )
+        vendor = await vendor_collection.find_one({
+            "$or": [{"user_id": _parse_oid(current_user["id"])}, {"user_id": str(current_user["id"])}]
+        })
         if vendor:
-            existing = await contract_collection.find_one(
-                {"event_id": event_oid, "vendor_id": vendor["_id"], "status": {"$in": ["COMPLETED", "PAID"]}}
-            )
+            existing = await contract_collection.find_one({
+                "event_id": {"$in": [event_oid, str(event_oid)]},
+                "vendor_id": {"$in": [vendor["_id"], str(vendor["_id"])]},
+                "status": {"$in": ["COMPLETED", "PAID"]}
+            })
             if existing:
                 allowed = True
 

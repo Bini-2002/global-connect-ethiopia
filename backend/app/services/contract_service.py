@@ -44,7 +44,16 @@ class ContractService:
         return float(value)
 
     async def _serialize_contract(self, contract: dict) -> dict:
-        vendor = await getattr(_marketplace_mvp, "vendor_collection", vendor_collection).find_one({"_id": contract["vendor_id"]})
+        vendor_id = contract.get("vendor_id")
+        vendor = None
+        if vendor_id:
+            try:
+                oid = _marketplace_mvp.parse_object_id(str(vendor_id), field_name="vendor_id")
+                vendor = await getattr(_marketplace_mvp, "vendor_collection", vendor_collection).find_one({
+                    "$or": [{"_id": oid}, {"_id": str(oid)}]
+                })
+            except Exception:
+                pass
         return {
             "id": str(contract["_id"]),
             "request_id": str(contract["request_id"]),

@@ -32,10 +32,8 @@ PENDING_FOR_REVIEW = "pending_for_review"
 
 
 def _to_oid(vendor_id: str) -> ObjectId:
-    try:
-        return ObjectId(vendor_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid vendor ID")
+    from app.services.marketplace import parse_object_id
+    return parse_object_id(vendor_id, field_name="vendor ID")
 
 
 def _ocr_tier(score: int | None) -> str:

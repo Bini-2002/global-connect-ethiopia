@@ -397,7 +397,10 @@ async def get_vendor_or_404(vendor_id: str) -> dict:
 
 async def get_current_vendor_or_403(current_user: dict) -> dict:
     require_role(current_user, UserRole.VENDOR)
-    vendor = await vendor_collection.find_one({"user_id": parse_object_id(current_user["id"], field_name="user id")})
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    vendor = await vendor_collection.find_one({
+        "$or": [{"user_id": user_oid}, {"user_id": str(user_oid)}]
+    })
     if not vendor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor profile not found.")
     return vendor

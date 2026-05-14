@@ -57,15 +57,17 @@ class ContractRepository:
         return await self.collection.find_one(query)
 
     async def list_by_organizer(self, organizer_id: str, *, limit: int = 500) -> list[dict]:
+        oid = _coerce_object_id(organizer_id)
         cursor = self.collection.find(
-            {"organizer_id": _coerce_object_id(organizer_id)},
+            {"$or": [{"organizer_id": oid}, {"organizer_id": str(oid)}]},
             sort=[("created_at", -1)],
         )
         return await cursor.to_list(length=limit)
 
     async def list_by_vendor(self, vendor_id: str, *, limit: int = 500) -> list[dict]:
+        oid = _coerce_object_id(vendor_id)
         cursor = self.collection.find(
-            {"vendor_id": _coerce_object_id(vendor_id)},
+            {"$or": [{"vendor_id": oid}, {"vendor_id": str(oid)}]},
             sort=[("created_at", -1)],
         )
         return await cursor.to_list(length=limit)
