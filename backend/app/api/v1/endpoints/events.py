@@ -40,7 +40,7 @@ from app.models.event_states import (
     SurveyStatus,
 )
 from app.models.proposal_states import ProposalStatus
-from app.models.roles import UserRole, to_user_role
+from app.models.roles import UserRole, to_user_role, normalize_role
 from app.models.supported_event_types import normalize_supported_event_type
 from app.schemas.event import (
     AnnouncementCreate,
@@ -138,6 +138,8 @@ def _to_utc_datetime(value: datetime | None) -> datetime | None:
 
 
 def _event_base_response(document: dict) -> dict:
+    from app.services.marketplace import utc_now
+    now = utc_now()
     budget_items = _serialize_budget_items(document.get("budget_items"))
     try:
         capacity = int(document.get("capacity") or 0)
@@ -151,15 +153,15 @@ def _event_base_response(document: dict) -> dict:
     booking_status = _resolve_booking_status(document)
     return {
         "id": str(document["_id"]),
-        "organizer_id": str(document["organizer_id"]),
-        "proposal_id": document["proposal_id"],
+        "organizer_id": str(document.get("organizer_id", "")),
+        "proposal_id": str(document.get("proposal_id", "")),
         "permit_id": document.get("permit_id"),
         "permit_number": document.get("permit_number"),
-        "title": document["title"],
+        "title": document.get("title", "Untitled Event"),
         "description": document.get("description"),
         "category": document.get("category"),
         "location": document.get("location"),
-        "capacity": document.get("capacity"),
+        "capacity": capacity,
         "start_date": document.get("start_date"),
         "end_date": document.get("end_date"),
         "visibility": document.get("visibility", "public"),
@@ -180,15 +182,16 @@ def _event_base_response(document: dict) -> dict:
         "survey_status": document.get("survey_status", SurveyStatus.NOT_SENT),
         "final_report_status": document.get("final_report_status", FinalReportStatus.NOT_STARTED),
         "budget_currency": document.get("budget_currency", "ETB"),
-        "budget_items": budget_items,
         "budget_amount": float(document.get("budget_amount", 0.0)),
+        "budget_balance": float(document.get("budget_balance", 0.0)),
+        "budget_items": budget_items,
         "office_assignments": document.get("office_assignments"),
         "published_at": document.get("published_at"),
         "live_started_at": document.get("live_started_at"),
         "completed_at": document.get("completed_at"),
         "archived_at": document.get("archived_at"),
-        "created_at": document["created_at"],
-        "updated_at": document["updated_at"],
+        "created_at": document.get("created_at") or now,
+        "updated_at": document.get("updated_at") or now,
     }
 
 
@@ -207,33 +210,37 @@ def _serialize_schedule(document: dict) -> dict:
         "updated_at": document["updated_at"],
     }
 def _serialize_invitation(document: dict) -> dict:
+    from app.services.marketplace import utc_now
+    now = utc_now()
     return {
         "id": str(document["_id"]),
-        "event_id": document["event_id"],
-        "email": document["email"],
-        "assigned_role": document["assigned_role"],
+        "event_id": str(document.get("event_id", "")),
+        "email": document.get("email", ""),
+        "assigned_role": document.get("assigned_role", "Team Member"),
         "display_name": document.get("display_name"),
-        "invited_by_user_id": document["invited_by_user_id"],
-        "status": document["status"],
-        "token": document["token"],
-        "created_at": document["created_at"],
-        "updated_at": document["updated_at"],
+        "invited_by_user_id": str(document.get("invited_by_user_id", "")),
+        "status": document.get("status", "pending"),
+        "token": document.get("token", ""),
+        "created_at": document.get("created_at") or now,
+        "updated_at": document.get("updated_at") or now,
         "accepted_at": document.get("accepted_at"),
     }
 
 
 def _serialize_member(document: dict) -> dict:
+    from app.services.marketplace import utc_now
+    now = utc_now()
     return {
         "id": str(document["_id"]),
-        "event_id": document["event_id"],
-        "user_id": document.get("user_id"),
-        "email": document["email"],
+        "event_id": str(document.get("event_id", "")),
+        "user_id": str(document.get("user_id")) if document.get("user_id") else None,
+        "email": document.get("email", ""),
         "full_name": document.get("full_name"),
-        "assigned_role": document["assigned_role"],
-        "status": document["status"],
-        "joined_at": document.get("joined_at"),
-        "created_at": document["created_at"],
-        "updated_at": document["updated_at"],
+        "assigned_role": document.get("assigned_role", "Team Member"),
+        "status": document.get("status", "active"),
+        "joined_at": document.get("joined_at") or document.get("created_at") or now,
+        "created_at": document.get("created_at") or now,
+        "updated_at": document.get("updated_at") or now,
     }
 
 
@@ -1470,11 +1477,23 @@ async def approve_task(
     )
 
     # Auto-payout: debit organizer wallet, credit team member wallet
-    if payout_amount > 0 and assignee_user_id:
-        organizer_wallet = await wallet_collection.find_one({"user_id": str(event.get("organizer_id"))})
-        if organizer_wallet:
+    if payout_amount > 0:
+        # Resolve assignee_user_id if missing but email is present
+        if not assignee_user_id and task.get("assignee_email"):
+            target_user = await user_collection.find_one({"email": task["assignee_email"].strip().lower()})
+            if target_user:
+                assignee_user_id = str(target_user["_id"])
+                # Update task with the resolved ID for future reference
+                await event_task_collection.update_one({"_id": oid}, {"$set": {"assignee_user_id": assignee_user_id}})
+
+        if assignee_user_id:
+            organizer_id = str(event.get("organizer_id"))
+            organizer_wallet = await ensure_wallet(organizer_id)
+            
+            # Check balance
             organizer_balance = float(organizer_wallet.get("balance", 0))
             organizer_reserve = float(organizer_wallet.get("budget_reserve", 0))
+            
             if organizer_balance + organizer_reserve >= payout_amount:
                 # Debit organizer
                 if organizer_balance >= payout_amount:
@@ -1488,15 +1507,17 @@ async def approve_task(
                         {"_id": organizer_wallet["_id"]},
                         {"$set": {"balance": 0, "budget_reserve": organizer_reserve - remaining, "updated_at": now}},
                     )
-                # Provision and credit team member wallet
+                
+                # Credit team member wallet
                 tm_wallet = await ensure_wallet(assignee_user_id)
                 await wallet_collection.update_one(
                     {"_id": tm_wallet["_id"]},
                     {"$inc": {"balance": payout_amount}, "$set": {"updated_at": now}},
                 )
+                
                 # Log transactions
                 await log_transaction(
-                    user_id=str(event.get("organizer_id")),
+                    user_id=organizer_id,
                     transaction_type=TransactionType.WITHDRAWAL,
                     amount=payout_amount,
                     reference_id=oid,

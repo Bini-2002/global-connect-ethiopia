@@ -318,7 +318,7 @@ async def serialize_contract(contract: dict) -> dict:
 
 async def ensure_wallet(user_id: Any) -> dict:
     # Handle both string and ObjectId user_ids
-    user_oid = parse_object_id(user_id, field_name="user id")
+    user_oid = parse_object_id(str(user_id), field_name="user id")
     wallet = await wallet_collection.find_one({
         "$or": [
             {"user_id": user_oid},
@@ -330,9 +330,7 @@ async def ensure_wallet(user_id: Any) -> dict:
 
     now = utc_now()
     payload = {
-        "user_id": normalized_user_id,
-        "vendor_user_id": normalized_user_id,
-        "vendor_id": normalized_user_id,
+        "user_id": user_oid,
         "balance": 0.0,
         "locked_balance": 0.0,
         "budget_balance": 0.0,

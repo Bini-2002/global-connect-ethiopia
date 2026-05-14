@@ -12,6 +12,7 @@ from app.models.proposal_states import ProposalStatus
 from app.models.roles import UserRole
 from app.models.supported_event_types import normalize_supported_event_type
 from app.schemas.proposal import ProposalCreate, ProposalResponse, ProposalUpdate
+from app.services.marketplace import parse_object_id
 from app.services.object_storage import ObjectStorageService
 from app.services.review_offices import resolve_review_office
 
@@ -31,7 +32,7 @@ def _to_response(proposal: dict) -> dict:
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
     
-    return {
+    response = {
         "id": str(proposal["_id"]),
         "organizer_id": str(proposal.get("organizer_id", "")),
         "event_id": str(proposal.get("event_id")) if proposal.get("event_id") else None,
@@ -66,6 +67,23 @@ def _to_response(proposal: dict) -> dict:
         "created_at": proposal.get("created_at") or proposal.get("updated_at") or now,
         "updated_at": proposal.get("updated_at") or proposal.get("created_at") or now,
     }
+
+    # Ensure nested objects have required timestamps for Pydantic validation
+    if response.get("organizer_updates"):
+        for update in response["organizer_updates"]:
+            if not update.get("created_at"):
+                update["created_at"] = response["created_at"]
+                
+    if response.get("review_decisions"):
+        for decision in response["review_decisions"]:
+            if not decision.get("decided_at"):
+                decision["decided_at"] = response["updated_at"]
+                
+    if response.get("security_assignment"):
+        if not response["security_assignment"].get("assigned_at"):
+            response["security_assignment"]["assigned_at"] = response["updated_at"]
+
+    return response
 
 
 async def _build_office_assignments(
@@ -369,16 +387,30 @@ async def submit_proposal(
 @router.get("/", response_model=List[ProposalResponse])
 async def list_my_proposals(current_user: dict = Depends(get_current_user)):
     _require_organizer(current_user)
-    user_oid = parse_object_id(current_user["id"], field_name="user id")
-    cursor = proposal_collection.find({
-        "$or": [
-            {"organizer_id": user_oid},
-            {"organizer_id": str(user_oid)}
-        ]
-    })
-    proposals = await cursor.to_list(length=100)
+    try:
+        user_oid = parse_object_id(current_user["id"], field_name="user id")
+        cursor = proposal_collection.find({
+            "$or": [
+                {"organizer_id": user_oid},
+                {"organizer_id": str(user_oid)}
+            ]
+        })
+        proposals_docs = await cursor.to_list(length=100)
 
-    return [_to_response(p) for p in proposals]
+        results = []
+        for p in proposals_docs:
+            try:
+                results.append(_to_response(p))
+            except Exception as e:
+                print(f"Error serializing proposal {p.get('_id')}: {str(e)}")
+                # Skip broken proposals instead of 500ing
+                continue
+        return results
+    except Exception as e:
+        import traceback
+        print(f"CRITICAL ERROR in list_my_proposals: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{proposal_id}", response_model=ProposalResponse)

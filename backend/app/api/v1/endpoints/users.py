@@ -11,39 +11,56 @@ router = APIRouter()
 
 @router.get("/me", response_model=ProfileResponse)
 async def get_my_profile(current_user: dict = Depends(get_current_user)):
-
-    profile = await profile_collection.find_one(
-        {"user_id": ObjectId(current_user["id"])}
-    )
-
-    if not profile:
-        # Lazy initialization: Create profile if it doesn't exist
-        now = datetime.now(timezone.utc)
-        new_profile = {
-            "user_id": ObjectId(current_user["id"]),
-            "role": current_user.get("role", "attendee"),
-            "bio": None,
-            "phone": None,
-            "address": None,
-            "extra_data": {},
-            "created_at": now,
-            "updated_at": now,
-        }
-        result = await profile_collection.insert_one(new_profile)
-        profile = await profile_collection.find_one({"_id": result.inserted_id})
-
-    profile["id"] = str(profile["_id"])
-    profile["user_id"] = str(profile["user_id"])
-    profile["name"] = current_user.get("full_name")
-    if profile["name"] is None:
-        user = await user_collection.find_one(
-            {"_id": ObjectId(current_user["id"])},
-            {"full_name": 1}
+    try:
+        profile = await profile_collection.find_one(
+            {"user_id": ObjectId(current_user["id"])}
         )
-        profile["name"] = user.get("full_name") if user else None
 
-    profile["email"] = current_user.get("email")
-    return profile
+        if not profile:
+            # Lazy initialization: Create profile if it doesn't exist
+            now = datetime.now(timezone.utc)
+            new_profile = {
+                "user_id": ObjectId(current_user["id"]),
+                "role": current_user.get("role", "attendee"),
+                "bio": None,
+                "phone": None,
+                "address": None,
+                "extra_data": {},
+                "created_at": now,
+                "updated_at": now,
+            }
+            result = await profile_collection.insert_one(new_profile)
+            profile = await profile_collection.find_one({"_id": result.inserted_id})
+
+        profile["id"] = str(profile["_id"])
+        profile["user_id"] = str(profile["user_id"])
+        
+        # Always use the role from the authenticated JWT — it's already normalized
+        profile["role"] = current_user.get("role", profile.get("role", "attendee"))
+        
+        profile["name"] = current_user.get("full_name")
+        if profile["name"] is None:
+            user = await user_collection.find_one(
+                {"_id": ObjectId(current_user["id"])},
+                {"full_name": 1}
+            )
+            profile["name"] = user.get("full_name") if user else None
+
+        profile["email"] = current_user.get("email")
+        
+        # Defensive for legacy profiles without timestamps
+        now = datetime.now(timezone.utc)
+        if not profile.get("created_at"):
+            profile["created_at"] = now
+        if not profile.get("updated_at"):
+            profile["updated_at"] = now
+            
+        return profile
+    except Exception as e:
+        import traceback
+        print(f"CRITICAL ERROR in get_my_profile: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/me", response_model=ProfileResponse)
@@ -109,6 +126,13 @@ async def update_my_profile(
         updated_profile["name"] = user.get("full_name") if user else None
 
     updated_profile["email"] = current_user.get("email")
+    
+    # Defensive for legacy profiles
+    if "created_at" not in updated_profile or updated_profile["created_at"] is None:
+        updated_profile["created_at"] = now
+    if "updated_at" not in updated_profile or updated_profile["updated_at"] is None:
+        updated_profile["updated_at"] = now
+        
     return updated_profile
 
 

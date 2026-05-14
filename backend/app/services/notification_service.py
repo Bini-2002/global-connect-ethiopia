@@ -82,7 +82,13 @@ async def list_notifications_for_user(
     unread_only: bool = False,
     limit: int = 50,
 ) -> list[dict]:
-    query: dict = {"recipient_id": _parse_oid(current_user["id"])}
+    user_oid = _parse_oid(current_user["id"], field="user id")
+    query: dict = {
+        "$or": [
+            {"recipient_id": user_oid},
+            {"recipient_id": str(user_oid)}
+        ]
+    }
     if unread_only:
         query["read_status"] = False
     docs = (
@@ -90,7 +96,16 @@ async def list_notifications_for_user(
         .find(query, sort=[("created_at", -1)])
         .to_list(length=limit)
     )
-    return [_serialize(d) for d in docs]
+    
+    now = _utc_now()
+    serialized = []
+    for d in docs:
+        item = _serialize(d)
+        if not item.get("created_at"):
+            item["created_at"] = now
+        serialized.append(item)
+        
+    return serialized
 
 
 async def mark_notification_read(

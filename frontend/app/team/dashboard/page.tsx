@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Timer,
   Banknote,
+  X,
 } from 'lucide-react';
 import { api } from '@/app/lib/api';
 import { logout } from '@/app/lib/auth';
@@ -77,6 +78,10 @@ export default function TeamDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState<string | null>(null);
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [payoutRef, setPayoutRef] = useState('');
+  const [withdrawing, setWithdrawing] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -109,6 +114,29 @@ export default function TeamDashboardPage() {
       alert(e instanceof Error ? e.message : 'Failed to submit task');
     } finally {
       setSubmitting(null);
+    }
+  };
+
+  const handleWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) return;
+    
+    setWithdrawing(true);
+    try {
+      await api.post('/wallet/withdrawals', {
+        amount: parseFloat(withdrawAmount),
+        payout_method: 'chapa',
+        payout_reference: payoutRef,
+      });
+      setIsWithdrawModalOpen(false);
+      setWithdrawAmount('');
+      setPayoutRef('');
+      await loadDashboard();
+      alert('Withdrawal request submitted successfully!');
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Failed to process withdrawal');
+    } finally {
+      setWithdrawing(false);
     }
   };
 
@@ -289,6 +317,13 @@ export default function TeamDashboardPage() {
                   ETB {wallet.pending_withdrawal_balance.toLocaleString('en-ET', { maximumFractionDigits: 2 })} pending
                 </p>
               )}
+              <button
+                onClick={() => setIsWithdrawModalOpen(true)}
+                disabled={wallet.balance <= 0}
+                className="mt-6 w-full py-3 bg-white text-[#062E22] font-bold rounded-xl hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Withdraw Funds
+              </button>
             </div>
 
             {/* Recent transactions */}
@@ -317,6 +352,61 @@ export default function TeamDashboardPage() {
           </div>
         </div>
       </main>
+
+      {/* Withdraw Modal */}
+      {isWithdrawModalOpen && (
+        <div className="fixed inset-0 bg-[#062E22]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-[#062E22]">Withdraw Funds</h3>
+              <button onClick={() => setIsWithdrawModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <form onSubmit={handleWithdraw} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Amount (ETB)</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  max={wallet.balance}
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#062E22] focus:ring-4 focus:ring-[#062E22]/5 outline-none transition font-medium"
+                />
+                <p className="mt-1 text-[11px] text-slate-500">Maximum available: ETB {wallet.balance.toLocaleString()}</p>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Chapa / Bank Reference</label>
+                <input
+                  type="text"
+                  required
+                  value={payoutRef}
+                  onChange={(e) => setPayoutRef(e.target.value)}
+                  placeholder="Enter your account or reference"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#062E22] focus:ring-4 focus:ring-[#062E22]/5 outline-none transition"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={withdrawing || !withdrawAmount || parseFloat(withdrawAmount) > wallet.balance}
+                className="w-full py-4 bg-[#062E22] text-white font-bold rounded-2xl hover:bg-[#0a4a37] transition shadow-lg shadow-[#062E22]/20 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {withdrawing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Request Withdrawal'
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
