@@ -28,11 +28,14 @@ def _require_organizer(current_user: dict) -> None:
 
 
 def _to_response(proposal: dict) -> dict:
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    
     return {
         "id": str(proposal["_id"]),
-        "organizer_id": proposal["organizer_id"],
-        "event_id": proposal.get("event_id"),
-        "title": proposal["title"],
+        "organizer_id": str(proposal.get("organizer_id", "")),
+        "event_id": str(proposal.get("event_id")) if proposal.get("event_id") else None,
+        "title": proposal.get("title", "Untitled Proposal"),
         "description": proposal.get("description"),
         "event_type": proposal.get("event_type"),
         "location": proposal.get("location"),
@@ -59,9 +62,9 @@ def _to_response(proposal: dict) -> dict:
         "police_notification_id": proposal.get("police_notification_id"),
         "rejection_reason": proposal.get("rejection_reason"),
         "change_request_note": proposal.get("change_request_note"),
-        "status": proposal["status"],
-        "created_at": proposal["created_at"],
-        "updated_at": proposal["updated_at"],
+        "status": proposal.get("status", ProposalStatus.DRAFT),
+        "created_at": proposal.get("created_at") or proposal.get("updated_at") or now,
+        "updated_at": proposal.get("updated_at") or proposal.get("created_at") or now,
     }
 
 

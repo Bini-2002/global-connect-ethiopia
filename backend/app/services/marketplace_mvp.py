@@ -256,11 +256,19 @@ async def serialize_request(request_doc: dict) -> dict:
     organizer_id = request_doc.get("organizer_id")
     organizer_name = await get_user_display_name(organizer_id) if organizer_id else "Unknown Organizer"
     
+    event_title = None
+    if request_doc.get("event_id"):
+        event = await event_collection.find_one({"_id": parse_object_id(request_doc["event_id"], field_name="event id")})
+        if event:
+            event_title = event.get("title")
+    
     return {
         "id": str(request_doc["_id"]),
         "organizer_id": stringify_id(organizer_id) or "",
+        "created_by_id": stringify_id(request_doc.get("created_by_id")),
         "vendor_id": stringify_id(vendor_id) or "",
         "event_id": stringify_id(request_doc.get("event_id")),
+        "event_title": event_title,
         "description": request_doc.get("description", ""),
         "status": request_doc.get("status", RequestStatus.REQUESTED.value),
         "messages": [
@@ -292,6 +300,7 @@ async def serialize_contract(contract: dict) -> dict:
         "id": str(contract["_id"]),
         "request_id": stringify_id(contract.get("request_id")) or "",
         "organizer_id": stringify_id(organizer_id) or "",
+        "created_by_id": stringify_id(contract.get("created_by_id")),
         "vendor_id": stringify_id(vendor_id) or "",
         "price": float(contract.get("price", 0.0)),
         "status": contract.get("status", ContractStatus.AGREED.value),
@@ -308,8 +317,14 @@ async def serialize_contract(contract: dict) -> dict:
 
 
 async def ensure_wallet(user_id: Any) -> dict:
-    normalized_user_id = user_id if isinstance(user_id, ObjectId) else parse_object_id(str(user_id), field_name="user id")
-    wallet = await wallet_collection.find_one({"user_id": normalized_user_id})
+    # Handle both string and ObjectId user_ids
+    user_oid = parse_object_id(user_id, field_name="user id")
+    wallet = await wallet_collection.find_one({
+        "$or": [
+            {"user_id": user_oid},
+            {"user_id": str(user_oid)}
+        ]
+    })
     if wallet:
         return wallet
 

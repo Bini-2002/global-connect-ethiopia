@@ -139,8 +139,14 @@ def _to_utc_datetime(value: datetime | None) -> datetime | None:
 
 def _event_base_response(document: dict) -> dict:
     budget_items = _serialize_budget_items(document.get("budget_items"))
-    capacity = document.get("capacity") or 0
-    booked_count = int(document.get("booked_count", 0))
+    try:
+        capacity = int(document.get("capacity") or 0)
+    except (ValueError, TypeError):
+        capacity = 0
+    try:
+        booked_count = int(document.get("booked_count", 0))
+    except (ValueError, TypeError):
+        booked_count = 0
     remaining_slots = max(capacity - booked_count, 0) if capacity else 0
     booking_status = _resolve_booking_status(document)
     return {
@@ -417,6 +423,12 @@ async def _get_owned_event_or_403(event_id: str, current_user: dict) -> dict:
     if str(event.get("organizer_id")) == str(current_user["id"]):
         return event
     
+    # Flexible matching for organizer_id
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    event_org_id = event.get("organizer_id")
+    if event_org_id and (str(event_org_id) == str(user_oid)):
+        return event
+    
     # Allow Team Members who are active for this event
     normalized_role = normalize_role(current_user.get("role"))
     if normalized_role == UserRole.TEAM_MEMBER.value or role == UserRole.TEAM_MEMBER:
@@ -427,9 +439,14 @@ async def _get_owned_event_or_403(event_id: str, current_user: dict) -> dict:
 
 
 async def _get_booking_or_404(event_id: str, booking_id: str) -> dict:
-    booking = await ticket_purchase_collection.find_one(
-        {"_id": parse_object_id(booking_id, field_name="booking id"), "event_id": event_id}
-    )
+    booking_oid = parse_object_id(booking_id, field_name="booking id")
+    booking = await ticket_purchase_collection.find_one({
+        "$or": [
+            {"_id": booking_oid, "event_id": event_id},
+            {"_id": str(booking_oid), "event_id": event_id},
+            {"_id": booking_oid, "event_id": parse_object_id(event_id, field_name="event id")},
+        ]
+    })
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     return booking
@@ -549,8 +566,16 @@ def _resolve_booking_status(event: dict, *, now: datetime | None = None) -> Book
     if closes_at and closes_at <= current_time:
         return BookingStatus.CLOSED
 
-    capacity = int(event.get("capacity") or 0)
-    booked_count = int(event.get("booked_count", 0))
+    try:
+        capacity = int(event.get("capacity") or 0)
+    except (ValueError, TypeError):
+        capacity = 0
+        
+    try:
+        booked_count = int(event.get("booked_count", 0))
+    except (ValueError, TypeError):
+        booked_count = 0
+        
     if capacity and booked_count >= capacity:
         return BookingStatus.FULL
 

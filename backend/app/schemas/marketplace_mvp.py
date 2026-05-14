@@ -47,8 +47,10 @@ class RequestNegotiationCreate(BaseModel):
 class MarketplaceRequestResponse(BaseModel):
     id: str
     organizer_id: str
+    created_by_id: str | None = None
     vendor_id: str
     event_id: str | None = None
+    event_title: str | None = None
     description: str
     status: RequestStatus
     messages: list[NegotiationMessageResponse] = []
