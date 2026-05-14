@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   CheckSquare,
@@ -223,7 +224,16 @@ export default function TeamDashboardPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-[#062E22] truncate">{task.title}</p>
                         {task.event_title && (
-                          <p className="text-xs text-slate-400 mt-0.5">{task.event_title}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-xs text-slate-400">{task.event_title}</p>
+                            <span className="text-slate-300">•</span>
+                            <Link
+                              href={`/organizer/events/${task.event_id}`}
+                              className="text-[11px] text-[#062E22] hover:underline font-bold"
+                            >
+                              Open Workspace
+                            </Link>
+                          </div>
                         )}
                         {task.description && (
                           <p className="text-sm text-slate-500 mt-2 line-clamp-2">{task.description}</p>

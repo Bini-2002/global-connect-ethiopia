@@ -21,7 +21,13 @@ from app.schemas.user import (
 from app.models.roles import UserRole, normalize_role, to_user_role
 from app.core.config import settings
 from app.core import security
-from app.db.mongodb import organizer_collection, session_collection, user_collection
+from app.db.mongodb import (
+    organizer_collection,
+    session_collection,
+    user_collection,
+    event_team_invitation_collection,
+    event_team_member_collection
+)
 from app.services.email_service import EmailDeliveryError, EmailService
 from app.services.marketplace_mvp import ensure_wallet
 
@@ -251,6 +257,7 @@ async def register(user_in: UserCreate):
         "role": user_in.role,
         "is_active": skips_otp,
         "email_verified": skips_otp,
+        "invite_token": user_in.invite_token,
         "updated_at": datetime.now(timezone.utc),
     }
     if otp_payload is not None:
@@ -454,6 +461,35 @@ async def verify_email_otp(payload: OtpVerifyRequest):
         {"email": payload.email},
         {"$set": {"email_verified": True, "is_active": True, "auth_otp.verified": True, "auth_otp.code": None}},
     )
+
+    # Auto-accept invitation if invite_token exists
+    invite_token = user.get("invite_token")
+    if invite_token:
+        invitation = await event_team_invitation_collection.find_one({"token": invite_token, "status": "pending"})
+        if invitation:
+            now = datetime.now(timezone.utc)
+            # Create or update team member record
+            await event_team_member_collection.update_one(
+                {"event_id": invitation["event_id"], "email": payload.email.strip().lower()},
+                {
+                    "$set": {
+                        "user_id": str(user["_id"]),
+                        "email": payload.email.strip().lower(),
+                        "full_name": user.get("full_name"),
+                        "assigned_role": invitation["assigned_role"],
+                        "status": "active",
+                        "joined_at": now,
+                        "updated_at": now,
+                    }
+                },
+                upsert=True
+            )
+            # Mark invitation as accepted
+            await event_team_invitation_collection.update_one(
+                {"_id": invitation["_id"]},
+                {"$set": {"status": "accepted", "accepted_at": now, "updated_at": now}}
+            )
+            logger.info("Auto-accepted invitation for %s for event %s", payload.email, invitation["event_id"])
 
     access_token = security.create_access_token(
         subject=str(user["_id"]),

@@ -88,6 +88,7 @@ export default function RegistrationForm() {
         email: formData.email,
         role: formData.role,
         password: formData.password,
+        invite_token: typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite_token") : null,
       });
 
       if (response.user_id) {

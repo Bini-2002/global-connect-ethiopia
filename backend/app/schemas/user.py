@@ -10,6 +10,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
     role: UserRole = UserRole.ATTENDEE
+    invite_token: Optional[str] = None
 
 
     @field_validator('password')

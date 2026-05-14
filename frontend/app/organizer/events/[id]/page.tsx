@@ -113,6 +113,13 @@ export default function OrganizerEventDetailPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [cloning, setCloning] = useState(false);
 
+  const role = typeof window !== 'undefined' ? localStorage.getItem('role') : 'organizer';
+  const isTeamMember = role === 'team_member';
+
+  const displayedCards = isTeamMember
+    ? workspaceCards.filter((c) => c.title === 'Venue Reservation' || c.title === 'Task Tracker')
+    : workspaceCards;
+
   const handleClone = async () => {
     if (!event) return;
     setCloning(true);
@@ -157,50 +164,54 @@ export default function OrganizerEventDetailPage() {
       >
         Open Proposal
       </Link>
-      {event.status === 'draft' ? (
-        <button
-          onClick={() => void handleAction('publish')}
-          disabled={!!actionLoading}
-          className="px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50"
-        >
-          {actionLoading === 'publish' ? 'Publishing...' : 'Publish Event'}
-        </button>
-      ) : null}
-      {event.status === 'published' || event.status === 'private_published' ? (
-        <button
-          onClick={() => void handleAction('start')}
-          disabled={!!actionLoading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50"
-        >
-          {actionLoading === 'start' ? 'Starting...' : 'Start Live'}
-        </button>
-      ) : null}
-      {event.status === 'live' || event.status === 'published' || event.status === 'private_published' ? (
-        <button
-          onClick={() => void handleAction('complete')}
-          disabled={!!actionLoading}
-          className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50"
-        >
-          {actionLoading === 'complete' ? 'Completing...' : 'Mark Complete'}
-        </button>
-      ) : null}
-      {event.status === 'completed' ? (
-        <button
-          onClick={() => void handleAction('archive')}
-          disabled={!!actionLoading}
-          className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition disabled:opacity-50"
-        >
-          {actionLoading === 'archive' ? 'Archiving...' : 'Archive'}
-        </button>
-      ) : null}
-      <button
-        onClick={() => void handleClone()}
-        disabled={cloning || !!actionLoading}
-        className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
-      >
-        {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-        {cloning ? 'Cloning…' : 'Clone Event'}
-      </button>
+      {!isTeamMember && (
+        <>
+          {event.status === 'draft' ? (
+            <button
+              onClick={() => void handleAction('publish')}
+              disabled={!!actionLoading}
+              className="px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50"
+            >
+              {actionLoading === 'publish' ? 'Publishing...' : 'Publish Event'}
+            </button>
+          ) : null}
+          {event.status === 'published' || event.status === 'private_published' ? (
+            <button
+              onClick={() => void handleAction('start')}
+              disabled={!!actionLoading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+            >
+              {actionLoading === 'start' ? 'Starting...' : 'Start Live'}
+            </button>
+          ) : null}
+          {event.status === 'live' || event.status === 'published' || event.status === 'private_published' ? (
+            <button
+              onClick={() => void handleAction('complete')}
+              disabled={!!actionLoading}
+              className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50"
+            >
+              {actionLoading === 'complete' ? 'Completing...' : 'Mark Complete'}
+            </button>
+          ) : null}
+          {event.status === 'completed' ? (
+            <button
+              onClick={() => void handleAction('archive')}
+              disabled={!!actionLoading}
+              className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition disabled:opacity-50"
+            >
+              {actionLoading === 'archive' ? 'Archiving...' : 'Archive'}
+            </button>
+          ) : null}
+          <button
+            onClick={() => void handleClone()}
+            disabled={cloning || !!actionLoading}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+          >
+            {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+            {cloning ? 'Cloning…' : 'Clone Event'}
+          </button>
+        </>
+      )}
     </>
   ) : null;
 
@@ -326,15 +337,15 @@ export default function OrganizerEventDetailPage() {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4 mt-5">
-              {workspaceCards.map((card) => {
-                const Icon = card.icon;
-                return (
-                  <Link
-                    key={card.title}
-                    href={card.href(event.id)}
-                    className="group rounded-2xl border border-slate-200 p-5 hover:bg-slate-50 transition"
-                  >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {displayedCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <Link
+                  key={card.title}
+                  href={card.href(event.id)}
+                  className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md hover:border-[#062E22] transition-all"
+                >
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <div className="w-11 h-11 rounded-2xl bg-[#062E22]/10 text-[#062E22] flex items-center justify-center">

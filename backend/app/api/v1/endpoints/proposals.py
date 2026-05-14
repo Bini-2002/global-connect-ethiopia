@@ -22,8 +22,9 @@ storage_service = ObjectStorageService()
 
 def _require_organizer(current_user: dict) -> None:
     from app.models.roles import normalize_role
-    if normalize_role(current_user.get("role")) != UserRole.ORGANIZER.value:
-        raise HTTPException(status_code=403, detail="Only organizers can access proposals")
+    role = normalize_role(current_user.get("role"))
+    if role not in {UserRole.ORGANIZER.value, UserRole.TEAM_MEMBER.value}:
+        raise HTTPException(status_code=403, detail="Only organizers and team members can access proposals")
 
 
 def _to_response(proposal: dict) -> dict:

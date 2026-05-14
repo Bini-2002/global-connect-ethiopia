@@ -412,9 +412,18 @@ async def _get_event_or_404(event_id: str) -> dict:
 async def _get_owned_event_or_403(event_id: str, current_user: dict) -> dict:
     event = await _get_event_or_404(event_id)
     role = to_user_role(current_user.get("role"))
-    if role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN} and str(event.get("organizer_id")) != str(current_user["id"]):
-        raise HTTPException(status_code=403, detail="You do not own this event")
-    return event
+    if role in {UserRole.ADMIN, UserRole.SUPER_ADMIN}:
+        return event
+    if str(event.get("organizer_id")) == str(current_user["id"]):
+        return event
+    
+    # Allow Team Members who are active for this event
+    normalized_role = normalize_role(current_user.get("role"))
+    if normalized_role == UserRole.TEAM_MEMBER.value or role == UserRole.TEAM_MEMBER:
+        await _ensure_team_access(event, current_user)
+        return event
+        
+    raise HTTPException(status_code=403, detail="You do not have access to this event")
 
 
 async def _get_booking_or_404(event_id: str, booking_id: str) -> dict:
@@ -443,16 +452,76 @@ async def _ensure_team_access(event: dict, current_user: dict) -> None:
         return
     if str(event.get("organizer_id")) == str(current_user["id"]):
         return
+    user_id = str(current_user.get("id") or current_user.get("_id") or "")
+    email = (current_user.get("email") or "").strip().lower()
+    
     member = await event_team_member_collection.find_one(
         {
             "event_id": str(event["_id"]),
             "$or": [
-                {"user_id": current_user["id"]},
-                {"email": current_user.get("email")},
+                {"user_id": user_id},
+                {"email": email},
             ],
             "status": "active",
         }
     )
+    
+    if not member:
+        # Check for pending invitation to auto-accept
+        invitation = await event_team_invitation_collection.find_one({
+            "event_id": str(event["_id"]),
+            "email": email,
+            "status": "pending"
+        })
+        if invitation:
+            now = utc_now()
+            await event_team_member_collection.update_one(
+                {"event_id": invitation["event_id"], "email": email},
+                {
+                    "$set": {
+                        "user_id": user_id,
+                        "email": email,
+                        "full_name": current_user.get("full_name"),
+                        "assigned_role": invitation["assigned_role"],
+                        "status": "active",
+                        "joined_at": now,
+                        "updated_at": now,
+                    }
+                },
+                upsert=True
+            )
+            await event_team_invitation_collection.update_one(
+                {"_id": invitation["_id"]},
+                {"$set": {"status": "accepted", "accepted_at": now, "updated_at": now}}
+            )
+            # Re-fetch member
+            member = await event_team_member_collection.find_one({"event_id": str(event["_id"]), "user_id": user_id})
+
+    if not member:
+        # Fallback: check if they are assigned a task in this event
+        task = await event_task_collection.find_one({
+            "event_id": str(event["_id"]),
+            "$or": [{"assignee_user_id": user_id}, {"assignee_email": email}]
+        })
+        if task:
+            now = utc_now()
+            await event_team_member_collection.update_one(
+                {"event_id": str(event["_id"]), "email": email},
+                {
+                    "$set": {
+                        "user_id": user_id,
+                        "email": email,
+                        "full_name": current_user.get("full_name"),
+                        "assigned_role": "team_member",
+                        "status": "active",
+                        "joined_at": now,
+                        "updated_at": now,
+                    }
+                },
+                upsert=True
+            )
+            member = await event_team_member_collection.find_one({"event_id": str(event["_id"]), "user_id": user_id})
+
     if not member:
         raise HTTPException(status_code=403, detail="You do not have access to this event")
 
@@ -662,8 +731,18 @@ async def list_events(
 ):
     role = to_user_role(current_user.get("role"))
     query: dict = {}
+    
     if role == UserRole.ORGANIZER:
         query["organizer_id"] = current_user["id"]
+    elif role == UserRole.TEAM_MEMBER:
+        # Find events where this user is an active team member
+        memberships = await event_team_member_collection.find({
+            "$or": [{"user_id": current_user["id"]}, {"email": current_user.get("email")}],
+            "status": "active"
+        }).to_list(length=100)
+        event_ids = [m["event_id"] for m in memberships]
+        from app.db.mongodb import parse_object_id
+        query["_id"] = {"$in": [parse_object_id(eid) for eid in event_ids if eid]}
     elif role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ATTENDEE}:
         query["organizer_id"] = current_user["id"]
 

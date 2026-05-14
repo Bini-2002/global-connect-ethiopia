@@ -52,7 +52,13 @@ async def team_dashboard(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
 
     # Get tasks assigned to this team member
-    tasks_cursor = event_task_collection.find({"assignee_user_id": user_id})
+    email = current_user.get("email")
+    tasks_cursor = event_task_collection.find({
+        "$or": [
+            {"assignee_user_id": user_id},
+            {"assignee_email": email}
+        ]
+    })
     all_tasks = await tasks_cursor.to_list(length=200)
 
     # Enrich with event titles

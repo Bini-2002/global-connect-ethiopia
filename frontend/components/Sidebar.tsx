@@ -147,6 +147,8 @@ const navItems: Record<string, SidebarItem[]> = {
   ],
   team_member: [
     { label: 'My Dashboard', href: '/team/dashboard', icon: <HomeIcon className="w-5 h-5" /> },
+    { label: 'Assigned Events', href: '/organizer/events', icon: <CalendarIcon className="w-5 h-5" /> },
+    { label: 'Vendors', href: '/organizer/vendors', icon: <BuildingOfficeIcon className="w-5 h-5" /> },
     { label: 'Notifications', href: '/notifications', icon: <BellIcon className="w-5 h-5" /> },
     { label: 'Profile', href: '/profile/team', icon: <UserIcon className="w-5 h-5" /> },
   ],
