@@ -384,11 +384,16 @@ async def get_current_vendor_or_403(current_user: dict) -> dict:
 
 async def get_current_organizer_or_403(current_user: dict) -> dict | None:
     role = normalize_role(current_user.get("role"))
+    user_id = current_user.get("id") or current_user.get("_id")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User ID not found.")
+        
     if role == UserRole.TEAM_MEMBER.value:
         # Team members can act as organizers for marketplace requests
-        return {"user_id": parse_object_id(current_user["id"], field_name="user id"), "is_team_member": True}
+        return {"user_id": parse_object_id(str(user_id), field_name="user id"), "is_team_member": True}
+    
     require_role(current_user, UserRole.ORGANIZER)
-    return await organizer_collection.find_one({"user_id": parse_object_id(current_user["id"], field_name="user id")})
+    return await organizer_collection.find_one({"user_id": parse_object_id(str(user_id), field_name="user id")})
 
 
 async def list_verified_vendors() -> list[dict]:
@@ -412,15 +417,22 @@ async def create_request(current_user: dict, *, vendor_id: str, event_id: str | 
     if not vendor_is_verified(vendor):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only verified vendors can receive requests.")
 
-    organizer_id = parse_object_id(current_user["id"], field_name="user id")
+    # The 'organizer_id' in the request document should be the actual event owner
+    # so it appears on the organizer's dashboard.
+    request_organizer_id = parse_object_id(current_user["id"], field_name="user id")
     event_object_id: ObjectId | None = None
     if event_id:
         event_object_id = parse_object_id(event_id, field_name="event id")
         event = await event_collection.find_one({"_id": event_object_id})
         if not event:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found.")
+        
+        # Use the event's actual owner as the organizer_id for the marketplace request
+        request_organizer_id = parse_object_id(str(event["organizer_id"]), field_name="organizer id")
+        
         # Check if user is organizer or has team access
-        is_owner = ids_match(event.get("organizer_id"), organizer_id)
+        current_user_id = parse_object_id(current_user["id"], field_name="user id")
+        is_owner = ids_match(event.get("organizer_id"), current_user_id)
         if not is_owner:
             # Check team access fallback
             from app.api.v1.endpoints.events import _ensure_team_access
@@ -431,7 +443,8 @@ async def create_request(current_user: dict, *, vendor_id: str, event_id: str | 
 
     now = utc_now()
     document = {
-        "organizer_id": organizer_id,
+        "organizer_id": request_organizer_id,
+        "created_by_id": parse_object_id(current_user["id"], field_name="creator id"), # Track who actually sent it
         "vendor_id": vendor["_id"],
         "event_id": event_object_id,
         "description": description.strip(),
@@ -455,8 +468,18 @@ async def get_request_or_404(request_id: str) -> dict:
 async def assert_request_access(request_doc: dict, current_user: dict) -> None:
     role = normalize_role(current_user.get("role"))
     current_user_id = parse_object_id(current_user["id"], field_name="user id")
-    if role == UserRole.ORGANIZER.value and ids_match(request_doc["organizer_id"], current_user_id):
+    if role in {UserRole.ORGANIZER.value, UserRole.TEAM_MEMBER.value} and ids_match(request_doc["organizer_id"], current_user_id):
         return
+        
+    # Allow team members who have access to the event associated with the request
+    if role == UserRole.TEAM_MEMBER.value and request_doc.get("event_id"):
+        from app.api.v1.endpoints.events import _get_event_or_404, _ensure_team_access
+        try:
+            event = await _get_event_or_404(str(request_doc["event_id"]))
+            await _ensure_team_access(event, current_user)
+            return
+        except Exception:
+            pass
     if role == UserRole.VENDOR.value:
         vendor = await get_current_vendor_or_403(current_user)
         if ids_match(request_doc["vendor_id"], vendor["_id"]):
@@ -466,7 +489,41 @@ async def assert_request_access(request_doc: dict, current_user: dict) -> None:
 
 async def list_requests_for_user(current_user: dict) -> list[dict]:
     role = normalize_role(current_user.get("role"))
-    if role in {UserRole.ORGANIZER.value, UserRole.TEAM_MEMBER.value}:
+    if role == UserRole.TEAM_MEMBER.value:
+        # Team members see requests for events they have access to, 
+        # or requests they personally created.
+        user_id_obj = parse_object_id(current_user["id"], field_name="user id")
+        email = (current_user.get("email") or "").strip().lower()
+        
+        # 1. Get events where they are a team member
+        member_cursor = event_team_member_collection.find({
+            "$or": [{"user_id": str(user_id_obj)}, {"email": email}],
+            "status": "active"
+        })
+        member_events = await member_cursor.to_list(length=1000)
+        event_ids = [parse_object_id(str(m["event_id"]), field_name="event id") for m in member_events if m.get("event_id")]
+        
+        # 2. Get events where they have tasks
+        task_cursor = event_task_collection.find({
+            "$or": [{"assignee_user_id": str(user_id_obj)}, {"assignee_email": email}]
+        })
+        task_events = await task_cursor.to_list(length=1000)
+        for t in task_events:
+            if t.get("event_id"):
+                try:
+                    eid = parse_object_id(str(t["event_id"]), field_name="event id")
+                    if eid not in event_ids:
+                        event_ids.append(eid)
+                except Exception:
+                    continue
+
+        query = {
+            "$or": [
+                {"event_id": {"$in": event_ids}},
+                {"created_by_id": user_id_obj}
+            ]
+        }
+    elif role == UserRole.ORGANIZER.value:
         query = {"organizer_id": parse_object_id(current_user["id"], field_name="user id")}
     elif role == UserRole.VENDOR.value:
         vendor = await get_current_vendor_or_403(current_user)
