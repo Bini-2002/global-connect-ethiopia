@@ -802,7 +802,8 @@ async def list_events(
         query["organizer_id"] = {"$in": [user_oid, str(user_oid)]}
 
     if role == UserRole.ATTENDEE:
-        allowed_statuses = [EventStatus.PUBLISHED, EventStatus.PRIVATE_PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED]
+        allowed_statuses = [EventStatus.PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED]
+        query["visibility"] = "public"
         if status_filter:
             if status_filter not in allowed_statuses:
                 raise HTTPException(status_code=400, detail="Attendees can only filter published or active events")
