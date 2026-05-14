@@ -372,6 +372,10 @@ async def get_current_vendor_or_403(current_user: dict) -> dict:
 
 
 async def get_current_organizer_or_403(current_user: dict) -> dict | None:
+    role = normalize_role(current_user.get("role"))
+    if role == UserRole.TEAM_MEMBER.value:
+        # Team members can act as organizers for marketplace requests
+        return {"user_id": parse_object_id(current_user["id"], field_name="user id"), "is_team_member": True}
     require_role(current_user, UserRole.ORGANIZER)
     return await organizer_collection.find_one({"user_id": parse_object_id(current_user["id"], field_name="user id")})
 
@@ -444,7 +448,7 @@ async def assert_request_access(request_doc: dict, current_user: dict) -> None:
 
 async def list_requests_for_user(current_user: dict) -> list[dict]:
     role = normalize_role(current_user.get("role"))
-    if role == UserRole.ORGANIZER.value:
+    if role in {UserRole.ORGANIZER.value, UserRole.TEAM_MEMBER.value}:
         query = {"organizer_id": parse_object_id(current_user["id"], field_name="user id")}
     elif role == UserRole.VENDOR.value:
         vendor = await get_current_vendor_or_403(current_user)

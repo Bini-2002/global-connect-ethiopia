@@ -244,9 +244,28 @@ export default function EventWorkspaceShell({
           </div>
 
           {error ? (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">
-              {error}
-            </div>
+            error.includes('ACCESS_DENIED') ? (
+              <div className="bg-[#062E22]/5 border border-[#062E22]/20 rounded-2xl p-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="w-16 h-16 bg-[#062E22]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <ShieldAlert className="w-8 h-8 text-[#062E22]" />
+                </div>
+                <h2 className="text-xl font-bold text-[#062E22]">Access Restricted</h2>
+                <p className="text-slate-600 mt-2 max-w-md mx-auto">
+                  This section is reserved for event organizers and authorized personnel. 
+                  If you believe you should have access, please contact the event manager.
+                </p>
+                <Link
+                  href={`/organizer/events/${event.id}`}
+                  className="inline-flex items-center gap-2 mt-6 px-6 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition"
+                >
+                  Return to Dashboard
+                </Link>
+              </div>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">
+                {error}
+              </div>
+            )
           ) : null}
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3">

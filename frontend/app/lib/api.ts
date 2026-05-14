@@ -81,6 +81,9 @@ async function executeRequest<T>(
   }
 
   if (!res.ok) {
+    if (res.status === 403) {
+      throw new Error('ACCESS_DENIED: You do not have permission to access this resource. Please contact the administrator.');
+    }
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(
       typeof err.detail === 'string'
