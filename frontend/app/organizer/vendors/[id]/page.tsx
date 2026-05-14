@@ -244,11 +244,9 @@ export default function OrganizerVendorDetailPage() {
                     >
                       <option value="">{eventsLoading ? 'Loading events...' : 'Select an event...'}</option>
                       {!eventsLoading && events.length === 0 && <option value="">No events available</option>}
-                      {events.map((event) => (
                         <option key={event.id} value={event.id}>
-                          {event.title} ({event.date})
+                          {event.title} — {event.event_type} ({event.date})
                         </option>
-                      ))}
                     </select>
                   </div>
 

@@ -419,8 +419,15 @@ async def create_request(current_user: dict, *, vendor_id: str, event_id: str | 
         event = await event_collection.find_one({"_id": event_object_id})
         if not event:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found.")
-        if not ids_match(event.get("organizer_id"), organizer_id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only request vendors for your own events.")
+        # Check if user is organizer or has team access
+        is_owner = ids_match(event.get("organizer_id"), organizer_id)
+        if not is_owner:
+            # Check team access fallback
+            from app.api.v1.endpoints.events import _ensure_team_access
+            try:
+                await _ensure_team_access(event, current_user)
+            except HTTPException:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have permission to create requests for this event.")
 
     now = utc_now()
     document = {
