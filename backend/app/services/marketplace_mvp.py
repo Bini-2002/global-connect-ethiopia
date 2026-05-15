@@ -762,6 +762,45 @@ async def deposit_to_wallet(current_user: dict, *, amount: float) -> dict:
     return serialize_wallet(updated)
 
 
+async def withdraw_from_wallet(current_user: dict, *, amount: float) -> dict:
+    from app.services.chapa_service import initiate_chapa_transfer
+    import uuid
+
+    wallet = await ensure_wallet(current_user["id"])
+    if float(wallet.get("balance", 0.0)) < float(amount):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Insufficient wallet balance for withdrawal.")
+        
+    # Generate a unique reference for this transfer
+    reference_id = f"tx-wd-{uuid.uuid4().hex[:10]}"
+    
+    # 1. Initiate Chapa Transfer FIRST. If it fails, an HTTPException is thrown and balance isn't deducted.
+    await initiate_chapa_transfer(
+        amount=float(amount),
+        reference=reference_id,
+        account_name=current_user.get("full_name", "Test User"),
+        # We use a placeholder account and bank code since we don't have user bank details in the DB yet
+    )
+
+    now = utc_now()
+    updated = await wallet_collection.find_one_and_update(
+        {"_id": wallet["_id"], "balance": {"$gte": float(amount)}},
+        {
+            "$inc": {"balance": -float(amount)},
+            "$set": {"updated_at": now},
+        },
+        return_document=ReturnDocument.AFTER,
+    )
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Insufficient wallet balance or concurrent update.")
+
+    await log_transaction(
+        user_id=current_user["id"],
+        transaction_type=TransactionType.WITHDRAWAL,
+        amount=float(amount),
+    )
+    return serialize_wallet(updated)
+
+
 async def list_wallet_transactions(current_user: dict) -> list[dict]:
     user_id = parse_object_id(current_user["id"], field_name="user id")
     items = await transaction_collection.find({"user_id": user_id}, sort=[("created_at", -1)]).to_list(length=500)
