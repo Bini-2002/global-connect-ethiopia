@@ -31,6 +31,7 @@ type EventWorkspaceTab =
   | 'booking'
   | 'announcements'
   | 'operations'
+  | 'vip-reservations'
   | 'wrap-up';
 
 interface EventWorkspaceShellProps {
@@ -60,6 +61,7 @@ const tabConfigs: TabConfig[] = [
   { id: 'booking', label: 'Booking', icon: Tickets, href: (eventId) => `/organizer/events/${eventId}/booking` },
   { id: 'announcements', label: 'Announcements', icon: Megaphone, href: (eventId) => `/organizer/events/${eventId}/announcements` },
   { id: 'operations', label: 'Operations', icon: ShieldAlert, href: (eventId) => `/organizer/events/${eventId}/operations` },
+  { id: 'vip-reservations', label: 'VIP Hotels', icon: Landmark, href: (eventId) => `/organizer/events/${eventId}/vip-reservations` },
   { id: 'wrap-up', label: 'Wrap-Up', icon: FileBarChart2, href: (eventId) => `/organizer/events/${eventId}/wrap-up` },
 ];
 
