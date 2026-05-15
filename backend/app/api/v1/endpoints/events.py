@@ -3,6 +3,7 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timedelta
 from io import BytesIO
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -30,6 +31,8 @@ from app.db.mongodb import (
     user_collection,
     venue_reservation_collection,
     verification_letter_collection,
+    wallet_collection,
+    vip_reservation_collection,
 )
 from app.models.event_states import (
     BookingStatus,
@@ -81,9 +84,18 @@ from app.schemas.event import (
     VenueReservationCreate,
     VenueReservationResponse,
     VenueSearchResponse,
+    VipReservationCreate,
+    VipReservationResponse,
 )
-from app.services.marketplace import parse_object_id, utc_now
+from app.services.marketplace_mvp import (
+    ensure_wallet,
+    log_transaction,
+    parse_object_id,
+    utc_now,
+)
+from app.models.marketplace import TransactionType
 from app.services.qr_codes import generate_booking_pass_png_bytes, generate_qr_png_bytes
+from app.services.email_service import ResendEmailService
 
 router = APIRouter()
 
@@ -118,11 +130,11 @@ def _event_base_response(document: dict) -> dict:
     booking_status = _resolve_booking_status(document)
     return {
         "id": str(document["_id"]),
-        "organizer_id": str(document["organizer_id"]),
-        "proposal_id": document["proposal_id"],
+        "organizer_id": str(document.get("organizer_id", "")),
+        "proposal_id": document.get("proposal_id"),
         "permit_id": document.get("permit_id"),
         "permit_number": document.get("permit_number"),
-        "title": document["title"],
+        "title": document.get("title", "Untitled Event"),
         "description": document.get("description"),
         "category": document.get("category"),
         "location": document.get("location"),
@@ -153,8 +165,8 @@ def _event_base_response(document: dict) -> dict:
         "live_started_at": document.get("live_started_at"),
         "completed_at": document.get("completed_at"),
         "archived_at": document.get("archived_at"),
-        "created_at": document["created_at"],
-        "updated_at": document["updated_at"],
+        "created_at": document.get("created_at"),
+        "updated_at": document.get("updated_at"),
     }
 
 
@@ -236,6 +248,7 @@ def _serialize_task(document: dict) -> dict:
         "due_date": document.get("due_date"),
         "priority": document.get("priority", "medium"),
         "status": document.get("status", "open"),
+        "payout_amount": document.get("payout_amount"),
         "created_at": document["created_at"],
         "updated_at": document["updated_at"],
     }
@@ -440,13 +453,19 @@ def _derive_event_category(proposal: dict) -> str | None:
 
 
 def _resolve_booking_status(event: dict, *, now: datetime | None = None) -> BookingStatus:
-    current_time = now or utc_now()
+    # Ensure current_time is naive for comparison with MongoDB naive datetimes
+    raw_now = now or utc_now()
+    current_time = raw_now.replace(tzinfo=None) if raw_now.tzinfo else raw_now
+    
     if not event.get("booking_required"):
         return BookingStatus.DISABLED
 
     closes_at = event.get("booking_closes_at")
-    if closes_at and closes_at <= current_time:
-        return BookingStatus.CLOSED
+    if closes_at:
+        # Normalize closes_at to naive if it's aware (unlikely from Mongo but safe)
+        closes_at_naive = closes_at.replace(tzinfo=None) if closes_at.tzinfo else closes_at
+        if closes_at_naive <= current_time:
+            return BookingStatus.CLOSED
 
     capacity = int(event.get("capacity") or 0)
     booked_count = int(event.get("booked_count", 0))
@@ -454,8 +473,11 @@ def _resolve_booking_status(event: dict, *, now: datetime | None = None) -> Book
         return BookingStatus.FULL
 
     opens_at = event.get("booking_opens_at")
-    if opens_at and opens_at > current_time:
-        return BookingStatus.CLOSED
+    if opens_at:
+        # Normalize opens_at to naive if it's aware
+        opens_at_naive = opens_at.replace(tzinfo=None) if opens_at.tzinfo else opens_at
+        if opens_at_naive > current_time:
+            return BookingStatus.CLOSED
 
     return BookingStatus.OPEN
 
@@ -536,7 +558,11 @@ async def _execute_announcement_delivery(event: dict, announcement: dict, *, now
 
 
 @router.post("/from-proposal/{proposal_id}", response_model=EventCreateFromProposalResponse, status_code=201)
-async def create_event_from_proposal(proposal_id: str, current_user: dict = Depends(get_current_user)):
+async def create_event_from_proposal(
+    proposal_id: str,
+    visibility: Literal["public", "private"] = "public",
+    current_user: dict = Depends(get_current_user)
+):
     _require_role(current_user, UserRole.ORGANIZER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
 
     proposal = await proposal_collection.find_one({"_id": parse_object_id(proposal_id, field_name="proposal id")})
@@ -570,7 +596,7 @@ async def create_event_from_proposal(proposal_id: str, current_user: dict = Depe
         "capacity": proposal.get("expected_attendees"),
         "start_date": proposal.get("start_date"),
         "end_date": proposal.get("end_date"),
-        "visibility": "public",
+        "visibility": visibility,
         "booking_required": False,
         "vip_list": [],
         "program_schedule_summary": proposal.get("program_overview"),
@@ -642,6 +668,10 @@ async def list_events(
             query["status"] = status_filter
         else:
             query["status"] = {"$in": allowed_statuses}
+        
+        # Public events show up for everyone and private ones stay hidden from general listing
+        # We use $ne: "private" to also include older events where visibility is not set (null/missing)
+        query["visibility"] = {"$ne": "private"}
     elif status_filter:
         query["status"] = status_filter
 
@@ -725,6 +755,86 @@ async def publish_event(event_id: str, current_user: dict = Depends(get_current_
     if not updated:
         raise HTTPException(status_code=404, detail="Event not found")
     return _event_base_response(updated)
+
+
+@router.post("/{event_id}/clone", response_model=EventResponse, status_code=201)
+async def clone_event(
+    event_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Scenario F: Event Cloning (Templates)
+    Duplicates an event's core details, tasks, and schedule items into a new Draft.
+    """
+    # 1. Get original event
+    original_event = await _get_owned_event_or_403(event_id, current_user)
+    
+    # 2. Prepare new event document
+    now = utc_now()
+    new_event_doc = original_event.copy()
+    
+    # Clean up IDs and operational fields
+    if "_id" in new_event_doc:
+        del new_event_doc["_id"]
+    
+    new_event_doc.update({
+        "title": f"{original_event.get('title', 'Untitled')} (Copy)",
+        "status": EventStatus.DRAFT.value,
+        "created_at": now,
+        "updated_at": now,
+        "published_at": None,
+        "live_started_at": None,
+        "completed_at": None,
+        "archived_at": None,
+        # Templates usually reset the timeline but keep the structure
+        "start_date": None,
+        "end_date": None,
+        "booking_opens_at": None,
+        "booking_closes_at": None,
+        "booked_count": 0,
+        # Operational statuses reset
+        "venue_status": VenueReservationStatus.PENDING.value,
+        "survey_status": SurveyStatus.NOT_SENT.value,
+        "final_report_status": FinalReportStatus.NOT_STARTED.value,
+    })
+    
+    # Insert new event
+    result = await event_collection.insert_one(new_event_doc)
+    new_id = str(result.inserted_id)
+    new_event_doc["_id"] = result.inserted_id
+    
+    # 3. Clone Tasks (reset assignees and status)
+    original_tasks = await event_task_collection.find({"event_id": event_id}).to_list(length=1000)
+    for task in original_tasks:
+        new_task = task.copy()
+        if "_id" in new_task:
+            del new_task["_id"]
+        new_task.update({
+            "event_id": new_id,
+            "status": "pending",
+            "assignee_user_id": None,
+            "completed_at": None,
+            "created_at": now,
+            "updated_at": now,
+        })
+        await event_task_collection.insert_one(new_task)
+        
+    # 4. Clone Schedule Items (reset times)
+    original_schedule = await event_schedule_collection.find({"event_id": event_id}).to_list(length=1000)
+    for item in original_schedule:
+        new_item = item.copy()
+        if "_id" in new_item:
+            del new_item["_id"]
+        new_item.update({
+            "event_id": new_id,
+            "start_time": None,
+            "end_time": None,
+            "created_at": now,
+            "updated_at": now,
+        })
+        await event_schedule_collection.insert_one(new_item)
+        
+    return _event_base_response(new_event_doc)
 
 
 @router.post("/{event_id}/start-live", response_model=EventResponse)
@@ -1179,6 +1289,17 @@ async def list_event_tasks(event_id: str, current_user: dict = Depends(get_curre
     return [_serialize_task(item) for item in docs]
 
 
+@router.get("/tasks/my", response_model=list[EventTaskResponse])
+async def list_my_tasks(current_user: dict = Depends(get_current_user)):
+    email = current_user.get("email")
+    query = {"$or": [{"assignee_user_id": current_user["id"]}]}
+    if email:
+        query["$or"].append({"assignee_email": email.strip().lower()})
+    
+    docs = await event_task_collection.find(query, sort=[("created_at", -1)]).to_list(length=300)
+    return [_serialize_task(item) for item in docs]
+
+
 @router.post("/{event_id}/tasks", response_model=EventTaskResponse, status_code=201)
 async def create_event_task(
     event_id: str,
@@ -1189,10 +1310,106 @@ async def create_event_task(
     await _ensure_team_access(event, current_user)
     now = utc_now()
     doc = payload.model_dump()
+    
+    # Try to link to user_id if email is provided
+    if not doc.get("assignee_user_id") and doc.get("assignee_email"):
+        target_user = await user_collection.find_one({"email": doc["assignee_email"].strip().lower()})
+        if target_user:
+            doc["assignee_user_id"] = str(target_user["_id"])
+
     doc.update({"event_id": event_id, "status": "open", "created_at": now, "updated_at": now})
     result = await event_task_collection.insert_one(doc)
     doc["_id"] = result.inserted_id
     return _serialize_task(doc)
+
+
+@router.post("/{event_id}/tasks/{task_id}/approve-and-pay", response_model=EventTaskResponse)
+async def approve_and_pay_task(
+    event_id: str,
+    task_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    event = await _get_event_or_404(event_id)
+    # Only organizer can pay
+    if str(event["organizer_id"]) != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the event organizer can approve and pay tasks.")
+
+    task_oid = parse_object_id(task_id, field_name="task id")
+    task = await event_task_collection.find_one({"_id": task_oid, "event_id": event_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    current_status = task.get("status", "open")
+    if current_status == "done":
+        raise HTTPException(status_code=400, detail="Task is already completed.")
+    if current_status != "pending_approval":
+        raise HTTPException(
+            status_code=400,
+            detail="The team member must first submit the task for approval before you can approve and pay."
+        )
+
+    payout = float(task.get("payout_amount") or 0.0)
+    if payout <= 0:
+        # Just mark as done if no payout
+        updated = await event_task_collection.find_one_and_update(
+            {"_id": task_oid},
+            {"$set": {"status": "done", "updated_at": utc_now()}},
+            return_document=ReturnDocument.AFTER
+        )
+        return _serialize_task(updated)
+
+    # Auto-link if registered after task creation
+    assignee_id = task.get("assignee_user_id")
+    if not assignee_id and task.get("assignee_email"):
+        target_user = await user_collection.find_one({"email": task["assignee_email"].strip().lower()})
+        if target_user:
+            assignee_id = str(target_user["_id"])
+            await event_task_collection.update_one({"_id": task_oid}, {"$set": {"assignee_user_id": assignee_id}})
+
+    if not assignee_id:
+        raise HTTPException(status_code=400, detail="Cannot pay unassigned task. Please ensure the team member has registered.")
+
+    # Process Payout
+    organizer_wallet = await ensure_wallet(current_user["id"])
+    member_wallet = await ensure_wallet(assignee_id)
+    now = utc_now()
+
+    # 1. Deduct from Organizer
+    org_result = await wallet_collection.update_one(
+        {"_id": organizer_wallet["_id"], "balance": {"$gte": payout}},
+        {"$inc": {"balance": -payout}, "$set": {"updated_at": now}}
+    )
+    if org_result.modified_count != 1:
+        raise HTTPException(status_code=400, detail="Insufficient funds in organizer wallet.")
+
+    # 2. Credit to Team Member
+    await wallet_collection.update_one(
+        {"_id": member_wallet["_id"]},
+        {"$inc": {"balance": payout}, "$set": {"updated_at": now}}
+    )
+
+    # 3. Log Transactions
+    await log_transaction(
+        user_id=current_user["id"],
+        transaction_type=TransactionType.TASK_PAYOUT,
+        amount=payout,
+        reference_id=task_oid
+    )
+    await log_transaction(
+        user_id=assignee_id,
+        transaction_type=TransactionType.TASK_PAYOUT,
+        amount=payout,
+        reference_id=task_oid
+    )
+
+    # 4. Mark Task as Done
+    updated = await event_task_collection.find_one_and_update(
+        {"_id": task_oid},
+        {"$set": {"status": "done", "updated_at": now}},
+        return_document=ReturnDocument.AFTER
+    )
+    return _serialize_task(updated)
+
 
 
 @router.patch("/{event_id}/tasks/{task_id}", response_model=EventTaskResponse)
@@ -1203,21 +1420,62 @@ async def update_event_task(
     current_user: dict = Depends(get_current_user),
 ):
     event = await _get_event_or_404(event_id)
-    await _ensure_team_access(event, current_user)
-    update_data = payload.model_dump(exclude_none=True)
-    if not update_data:
-        task = await event_task_collection.find_one({"_id": parse_object_id(task_id, field_name="task id"), "event_id": event_id})
-        if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
-        return _serialize_task(task)
-
-    update_data["updated_at"] = utc_now()
-    oid = parse_object_id(task_id, field_name="task id")
-    await event_task_collection.update_one({"_id": oid, "event_id": event_id}, {"$set": update_data})
-    task = await event_task_collection.find_one({"_id": oid, "event_id": event_id})
+    task_oid = parse_object_id(task_id, field_name="task id")
+    task = await event_task_collection.find_one({"_id": task_oid, "event_id": event_id})
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    return _serialize_task(task)
+
+    # Determine who can update what:
+    # - Organizer/Admin: full update
+    # - Assigned team member (by user_id or email): can only update status
+    role = to_user_role(current_user.get("role"))
+    is_organizer_or_admin = role in {UserRole.ADMIN, UserRole.SUPER_ADMIN} or str(event.get("organizer_id")) == str(current_user["id"])
+    is_assignee = (
+        str(task.get("assignee_user_id") or "") == str(current_user["id"])
+        or (task.get("assignee_email") or "").strip().lower() == (current_user.get("email") or "").strip().lower()
+    )
+
+    if not is_organizer_or_admin and not is_assignee:
+        # Fall back: check if they are a formal team member of this event
+        member = await event_team_member_collection.find_one({
+            "event_id": str(event["_id"]),
+            "$or": [
+                {"user_id": current_user["id"]},
+                {"email": current_user.get("email")},
+            ],
+            "status": "active",
+        })
+        if not member:
+            raise HTTPException(status_code=403, detail="You do not have permission to update this task")
+
+    update_data = payload.model_dump(exclude_none=True)
+    if not update_data:
+        return _serialize_task(task)
+
+    # If caller is only an assignee (not organizer/admin), restrict to status changes only
+    if not is_organizer_or_admin and is_assignee:
+        allowed_keys = {"status"}
+        forbidden = set(update_data.keys()) - allowed_keys
+        if forbidden:
+            raise HTTPException(status_code=403, detail="Team members can only update task status")
+        # Restrict which statuses assignees can set
+        if "status" in update_data and update_data["status"] not in {"in_progress", "pending_approval"}:
+            raise HTTPException(status_code=403, detail="You can only set status to 'in_progress' or 'pending_approval'")
+
+    # Try to link to user_id if assignee_email is being updated (organizer only)
+    if is_organizer_or_admin and update_data.get("assignee_email"):
+        target_user = await user_collection.find_one({"email": update_data["assignee_email"].strip().lower()})
+        if target_user:
+            update_data["assignee_user_id"] = str(target_user["_id"])
+        else:
+            update_data["assignee_user_id"] = None
+
+    update_data["updated_at"] = utc_now()
+    await event_task_collection.update_one({"_id": task_oid, "event_id": event_id}, {"$set": update_data})
+    updated = await event_task_collection.find_one({"_id": task_oid, "event_id": event_id})
+    if not updated:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return _serialize_task(updated)
 
 
 @router.get("/{event_id}/booking", response_model=EventResponse)
@@ -1245,19 +1503,22 @@ async def update_booking_settings(
     }
     required_attendee_fields = _normalize_required_attendee_fields(payload.required_attendee_fields)
     next_status = _resolve_booking_status(provisional_event)
+    
+    set_data = {
+        "booking_required": payload.booking_required,
+        "booking_opens_at": payload.booking_opens_at,
+        "booking_closes_at": payload.booking_closes_at,
+        "allow_waitlist": False,
+        "required_attendee_fields": required_attendee_fields,
+        "booking_status": next_status,
+        "updated_at": utc_now(),
+    }
+    if payload.visibility:
+        set_data["visibility"] = payload.visibility
+
     await event_collection.update_one(
         {"_id": event["_id"]},
-        {
-            "$set": {
-                "booking_required": payload.booking_required,
-                "booking_opens_at": payload.booking_opens_at,
-                "booking_closes_at": payload.booking_closes_at,
-                "allow_waitlist": False,
-                "required_attendee_fields": required_attendee_fields,
-                "booking_status": next_status,
-                "updated_at": utc_now(),
-            }
-        },
+        {"$set": set_data},
     )
     updated = await event_collection.find_one({"_id": event["_id"]})
     if not updated:
@@ -1300,10 +1561,9 @@ async def create_booking(
 ):
     _require_role(current_user, UserRole.ATTENDEE)
     event = await _get_event_or_404(event_id)
-    if event.get("visibility") != "public":
-        raise HTTPException(status_code=400, detail="Bookings are only available for public events")
-    if event.get("status") not in {EventStatus.PUBLISHED, EventStatus.LIVE}:
-        raise HTTPException(status_code=400, detail="Bookings can only be created for public published or live events")
+    # Allow bookings for both public and private events (if they have the link)
+    if event.get("status") not in {EventStatus.PUBLISHED, EventStatus.PRIVATE_PUBLISHED, EventStatus.LIVE}:
+        raise HTTPException(status_code=400, detail="Bookings can only be created for published or live events")
     if not event.get("booking_required"):
         raise HTTPException(status_code=400, detail="This event does not use advance booking")
     now = utc_now()
@@ -1368,8 +1628,7 @@ async def create_booking(
         {
             "_id": event["_id"],
             "booking_required": True,
-            "visibility": "public",
-            "status": {"$in": [EventStatus.PUBLISHED, EventStatus.LIVE]},
+            "status": {"$in": [EventStatus.PUBLISHED, EventStatus.PRIVATE_PUBLISHED, EventStatus.LIVE]},
             "booked_count": booked_count,
         },
         {"$set": {"booking_status": next_booking_status, "updated_at": now}, "$inc": {"booked_count": payload.slots_requested}},
@@ -1846,3 +2105,68 @@ async def update_final_report(
     if not updated:
         raise HTTPException(status_code=404, detail="Final report not found")
     return _serialize_final_report(updated)
+def _serialize_vip_reservation(document: dict) -> dict:
+    return {
+        "id": str(document["_id"]),
+        "event_id": document["event_id"],
+        "vip_name": document["vip_name"],
+        "hotel_name": document["hotel_name"],
+        "vip_email": document.get("vip_email"),
+        "notes": document.get("notes"),
+        "created_at": document["created_at"],
+    }
+
+
+@router.get("/{event_id}/vip-reservations", response_model=list[VipReservationResponse])
+async def list_vip_reservations(
+    event_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    event = await _get_owned_event_or_403(event_id, current_user)
+    docs = await vip_reservation_collection.find({"event_id": event_id}, sort=[("created_at", -1)]).to_list(length=200)
+    return [_serialize_vip_reservation(doc) for doc in docs]
+
+
+@router.post("/{event_id}/vip-reservations", response_model=VipReservationResponse, status_code=201)
+async def create_vip_reservation(
+    event_id: str,
+    payload: VipReservationCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    import logging
+    event = await _get_owned_event_or_403(event_id, current_user)
+    
+    doc = payload.model_dump()
+    now = utc_now()
+    doc.update({
+        "event_id": event_id,
+        "created_at": now,
+    })
+    
+    result = await vip_reservation_collection.insert_one(doc)
+    doc["_id"] = result.inserted_id
+
+    # Send confirmation email to VIP if email is provided
+    if payload.vip_email:
+        ResendEmailService.send_vip_reservation_email(
+            recipient_email=payload.vip_email,
+            vip_name=payload.vip_name,
+            hotel_name=payload.hotel_name,
+            event_name=event.get("title", "the event"),
+            notes=payload.notes
+        )
+
+    return _serialize_vip_reservation(doc)
+
+
+@router.delete("/{event_id}/vip-reservations/{reservation_id}", status_code=204)
+async def delete_vip_reservation(
+    event_id: str,
+    reservation_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    event = await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(reservation_id, field_name="reservation id")
+    result = await vip_reservation_collection.delete_one({"_id": oid, "event_id": event_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="VIP reservation not found")

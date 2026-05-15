@@ -31,6 +31,7 @@ venue_reservation_collection = db.venue_reservations
 event_team_invitation_collection = db.event_team_invitations
 event_team_member_collection = db.event_team_members
 event_task_collection = db.event_tasks
+vip_reservation_collection = db.vip_reservations
 ticket_type_collection = db.ticket_types
 ticket_purchase_collection = db.ticket_purchases
 badge_collection = db.badges

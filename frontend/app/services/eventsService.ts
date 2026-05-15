@@ -47,7 +47,9 @@ import {
   VenueReservationRecord,
   VenueSearchResult,
   AiScheduleDraftResponse,
-  AiScheduleDraftItem
+  AiScheduleDraftItem,
+  VipReservationCreatePayload,
+  VipReservationRecord,
 } from '../types/event';
 
 function formatEventDate(startDate?: string | null, endDate?: string | null): string {
@@ -143,12 +145,16 @@ export const eventsService = {
     return api.patch<EventRecord>(`/events/${eventId}`, payload);
   },
 
+  cloneEvent: async (eventId: string): Promise<EventRecord> => {
+    return api.post<EventRecord>(`/events/${eventId}/clone`, {});
+  },
+
   getDiscoverableEvents: async (): Promise<EventRecord[]> => {
     return api.get<EventRecord[]>('/events/');
   },
 
-  createEventFromProposal: async (proposalId: string): Promise<EventCreateFromProposalResponse> => {
-    return api.post<EventCreateFromProposalResponse>(`/events/from-proposal/${proposalId}`);
+  createEventFromProposal: async (proposalId: string, visibility: 'public' | 'private' = 'public'): Promise<EventCreateFromProposalResponse> => {
+    return api.post<EventCreateFromProposalResponse>(`/events/from-proposal/${proposalId}?visibility=${visibility}`);
   },
 
   publishEvent: async (eventId: string): Promise<EventRecord> => {
@@ -477,6 +483,26 @@ export const eventsService = {
     payload: FinalReportUpdatePayload
   ): Promise<FinalReportRecord> => {
     return api.patch<FinalReportRecord>(`/events/${eventId}/final-report`, payload);
+  },
+
+  getMyTasks: async (): Promise<EventTaskRecord[]> => {
+    return api.get<EventTaskRecord[]>('/events/tasks/my');
+  },
+
+  approveAndPayTask: async (eventId: string, taskId: string): Promise<EventTaskRecord> => {
+    return api.post<EventTaskRecord>(`/events/${eventId}/tasks/${taskId}/approve-and-pay`, {});
+  },
+
+  listVipReservations: async (eventId: string): Promise<VipReservationRecord[]> => {
+    return api.get<VipReservationRecord[]>(`/events/${eventId}/vip-reservations`);
+  },
+
+  createVipReservation: async (eventId: string, payload: VipReservationCreatePayload): Promise<VipReservationRecord> => {
+    return api.post<VipReservationRecord>(`/events/${eventId}/vip-reservations`, payload);
+  },
+
+  deleteVipReservation: async (eventId: string, reservationId: string): Promise<void> => {
+    return api.delete<void>(`/events/${eventId}/vip-reservations/${reservationId}`);
   },
 };
 

@@ -179,3 +179,76 @@ class ResendEmailService:
                 return None
 
         return None
+
+    @classmethod
+    def send_vip_reservation_email(
+        cls, recipient_email: str, vip_name: str, hotel_name: str, event_name: str, notes: str = None
+    ) -> Optional[str]:
+        subject = f"Your VIP Hotel Reservation for {event_name}"
+        body_text = f"Dear {vip_name},\n\nWe are pleased to confirm your VIP hotel reservation at {hotel_name} for the upcoming event '{event_name}'.\n\n"
+        if notes:
+            body_text += f"Additional details:\n{notes}\n\n"
+        body_text += "We look forward to welcoming you.\n\nBest regards,\nThe Global Connect Ethiopia Team"
+
+        body_html = f"""
+        <p>Dear <strong>{vip_name}</strong>,</p>
+        <p>We are pleased to confirm your VIP hotel reservation at <strong>{hotel_name}</strong> for the upcoming event <strong>'{event_name}'</strong>.</p>
+        """
+        if notes:
+            body_html += f"<p><strong>Additional details:</strong><br>{notes}</p>"
+        body_html += "<p>We look forward to welcoming you.</p><p>Best regards,<br>The Global Connect Ethiopia Team</p>"
+
+        # --- Resend path ---
+        if settings.RESEND_ENABLED:
+            if not cls._is_configured():
+                logger.warning("Resend enabled but not configured. Falling back.")
+            else:
+                payload = {
+                    "from": settings.RESEND_FROM_EMAIL,
+                    "to": [recipient_email],
+                    "subject": subject,
+                    "text": body_text,
+                    "html": body_html,
+                }
+                req = request.Request(
+                    cls.API_URL,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={
+                        "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    method="POST",
+                )
+                try:
+                    logger.info("Sending VIP reservation via Resend to %s", recipient_email)
+                    with request.urlopen(req, timeout=10) as response:
+                        body = response.read().decode("utf-8")
+                        response_json = json.loads(body) if body else {}
+                        return response_json.get("id")
+                except Exception as exc:
+                    logger.error("Resend failed: %s. Trying SMTP fallback...", exc)
+
+        # --- SMTP fallback path ---
+        if settings.SMTP_ENABLED:
+            logger.info("Using SMTP to send VIP reservation to %s", recipient_email)
+            if not SMTPEmailService._is_configured():
+                logger.error("SMTP is not configured for fallback.")
+                return None
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = settings.SMTP_USERNAME
+            msg["To"] = recipient_email
+            msg.attach(MIMEText(body_text, "plain"))
+            msg.attach(MIMEText(body_html, "html"))
+            try:
+                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                    server.ehlo()
+                    server.starttls()
+                    server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+                    server.sendmail(settings.SMTP_USERNAME, recipient_email, msg.as_string())
+                return "smtp_sent"
+            except Exception as exc:
+                logger.error("SMTP error sending VIP reservation to %s: %s", recipient_email, exc)
+                return None
+
+        return None

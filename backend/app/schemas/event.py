@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.models.event_states import (
     BookingStatus,
@@ -141,7 +141,6 @@ class EventTeamMemberResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-
 class EventTaskCreate(BaseModel):
     title: str
     description: str | None = None
@@ -149,6 +148,7 @@ class EventTaskCreate(BaseModel):
     assignee_email: str | None = None
     due_date: datetime | None = None
     priority: Literal["low", "medium", "high"] = "medium"
+    payout_amount: float | None = Field(default=None, ge=0)
 
 
 class EventTaskUpdate(BaseModel):
@@ -158,7 +158,8 @@ class EventTaskUpdate(BaseModel):
     assignee_email: str | None = None
     due_date: datetime | None = None
     priority: Literal["low", "medium", "high"] | None = None
-    status: Literal["open", "in_progress", "done", "cancelled"] | None = None
+    status: Literal["open", "in_progress", "pending_approval", "done", "cancelled"] | None = None
+    payout_amount: float | None = Field(default=None, ge=0)
 
 
 class EventTaskResponse(BaseModel):
@@ -171,11 +172,13 @@ class EventTaskResponse(BaseModel):
     due_date: datetime | None = None
     priority: str
     status: str
+    payout_amount: float | None = None
     created_at: datetime
     updated_at: datetime
 
 
 class BookingSettingsUpdate(BaseModel):
+    visibility: Literal["public", "private"] | None = None
     booking_required: bool = True
     booking_opens_at: datetime | None = None
     booking_closes_at: datetime | None = None
@@ -436,3 +439,15 @@ class EventResponse(BaseModel):
     archived_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+class VipReservationCreate(BaseModel):
+    vip_name: str
+    hotel_name: str
+    vip_email: str | None = None
+    notes: str | None = None
+
+class VipReservationResponse(VipReservationCreate):
+    id: str
+    event_id: str
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)

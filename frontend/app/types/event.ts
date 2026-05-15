@@ -4,7 +4,7 @@ import { ProposalOfficeAssignments } from './proposal';
 
 export type EventUiStatus = 'LIVE' | 'PENDING' | 'COMPLETED' | 'UPCOMING' | 'CANCELLED' | 'ARCHIVED';
 export type EventTaskPriority = 'low' | 'medium' | 'high';
-export type EventTaskStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
+export type EventTaskStatus = 'open' | 'in_progress' | 'pending_approval' | 'done' | 'cancelled';
 export type EventAnnouncementChannel = 'in_app';
 export type EventIncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type EventIncidentStatus = 'open' | 'in_review' | 'resolved' | 'closed';
@@ -227,6 +227,19 @@ export interface VenueSearchResult {
   venues: VenueListingSearchResponse[];
 }
 
+export interface VipReservationCreatePayload {
+  vip_name: string;
+  hotel_name: string;
+  vip_email?: string;
+  notes?: string;
+}
+
+export interface VipReservationRecord extends VipReservationCreatePayload {
+  id: string;
+  event_id: string;
+  created_at: string;
+}
+
 /** Phase 2: creation now uses venue_listing_id instead of free-text */
 export interface VenueReservationCreatePayload {
   venue_listing_id: string;
@@ -336,6 +349,7 @@ export interface EventTaskCreatePayload {
   assignee_email?: string;
   due_date?: string;
   priority?: EventTaskPriority;
+  payout_amount?: number;
 }
 
 export interface EventTaskUpdatePayload {
@@ -346,6 +360,7 @@ export interface EventTaskUpdatePayload {
   due_date?: string;
   priority?: EventTaskPriority;
   status?: EventTaskStatus;
+  payout_amount?: number;
 }
 
 export interface EventTaskRecord {
@@ -358,11 +373,13 @@ export interface EventTaskRecord {
   due_date?: string | null;
   priority: EventTaskPriority;
   status: EventTaskStatus;
+  payout_amount?: number | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface BookingSettingsUpdatePayload {
+  visibility?: 'public' | 'private';
   booking_required: boolean;
   booking_opens_at?: string | null;
   booking_closes_at?: string | null;
