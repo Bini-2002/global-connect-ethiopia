@@ -10,7 +10,6 @@ from app.models.event_states import (
     EventStatus,
     FinalReportStatus,
     SurveyStatus,
-    VenueReservationStatus,
 )
 from app.schemas.proposal import ProposalOfficeAssignments
 
@@ -18,12 +17,12 @@ from app.schemas.proposal import ProposalOfficeAssignments
 class EventBudgetItem(BaseModel):
     id: str | None = None
     name: str
-    estimated_cost: float = Field(..., ge=0)
     actual_cost: float | None = Field(default=None, ge=0)
     notes: str | None = None
 
 
 class EventBudgetUpdate(BaseModel):
+    budget_amount: float = Field(..., ge=0)
     items: list[EventBudgetItem] = []
     currency: str = "ETB"
 
@@ -68,45 +67,64 @@ class EventAIDraftRequest(BaseModel):
     sessions_per_day: int = Field(default=4, ge=1, le=12)
 
 
-class VenueSearchResponse(BaseModel):
-    event_id: str
-    date_from: datetime | None = None
-    date_to: datetime | None = None
-    city: str | None = None
-    venues: list[dict]
+class TicketTypeCreate(BaseModel):
+    name: str
+    description: str | None = None
+    price: float = Field(..., ge=0)
+    quantity: int = Field(..., ge=1)
+    currency: str = "ETB"
+    sales_start: datetime | None = None
+    sales_end: datetime | None = None
+    seat_mode: Literal["general", "assigned"] = "general"
+    visibility: Literal["public", "private"] = "public"
+    is_active: bool = True
 
 
-class VenueReservationCreate(BaseModel):
-    venue_name: str
-    city: str
-    location: str | None = None
-    requested_start: datetime
-    requested_end: datetime
-    estimated_cost: float | None = Field(default=None, ge=0)
-    notes: str | None = None
+class TicketTypeUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    price: float | None = Field(default=None, ge=0)
+    quantity: int | None = Field(default=None, ge=1)
+    currency: str | None = None
+    sales_start: datetime | None = None
+    sales_end: datetime | None = None
+    seat_mode: Literal["general", "assigned"] | None = None
+    visibility: Literal["public", "private"] | None = None
+    is_active: bool | None = None
 
 
-class VenueReservationConfirmPayload(BaseModel):
-    confirmation_notes: str | None = None
-    final_cost: float | None = Field(default=None, ge=0)
-
-
-class VenueReservationResponse(BaseModel):
+class TicketTypeResponse(BaseModel):
     id: str
     event_id: str
-    venue_name: str
-    city: str
-    location: str | None = None
-    requested_start: datetime
-    requested_end: datetime
-    estimated_cost: float | None = None
-    final_cost: float | None = None
-    notes: str | None = None
-    confirmation_notes: str | None = None
-    status: VenueReservationStatus
+    name: str
+    description: str | None = None
+    price: float
+    quantity: int
+    sold_quantity: int = 0
+    reserved_quantity: int = 0
+    remaining_quantity: int = 0
+    currency: str = "ETB"
+    sales_start: datetime | None = None
+    sales_end: datetime | None = None
+    seat_mode: Literal["general", "assigned"] = "general"
+    visibility: Literal["public", "private"] = "public"
+    is_active: bool = True
     created_at: datetime
     updated_at: datetime
-    confirmed_at: datetime | None = None
+
+
+class TicketCheckoutRequest(BaseModel):
+    ticket_type_id: str
+    quantity: int = Field(default=1, ge=1, le=20)
+    attendee_name: str | None = None
+    attendee_email: str | None = None
+    notes: str | None = None
+    attendee_profile: dict[str, str] = {}
+
+
+class TicketPaymentConfirmRequest(BaseModel):
+    payment_reference_id: str | None = None
+    payment_method: str | None = None
 
 
 class EventTeamInvitationCreate(BaseModel):
@@ -421,6 +439,7 @@ class EventResponse(BaseModel):
     status: EventStatus
     venue_status: str
     booking_status: BookingStatus
+    ticketing_status: str = "disabled"
     booking_opens_at: datetime | None = None
     booking_closes_at: datetime | None = None
     allow_waitlist: bool = False
@@ -431,7 +450,7 @@ class EventResponse(BaseModel):
     final_report_status: FinalReportStatus
     budget_currency: str = "ETB"
     budget_items: list[EventBudgetItem] = []
-    budget_total_estimated: float = 0.0
+    budget_amount: float = 0.0
     office_assignments: ProposalOfficeAssignments | None = None
     published_at: datetime | None = None
     live_started_at: datetime | None = None

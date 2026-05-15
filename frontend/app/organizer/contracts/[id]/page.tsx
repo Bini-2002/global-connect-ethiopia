@@ -20,7 +20,7 @@ import {
 import { useMarketplaceContract, useWallet } from '@/app/hooks/useMarketplace';
 import marketplaceService from '@/app/services/marketplaceService';
 
-const lifecycleSteps = ['draft', 'pending_signatures', 'active', 'completed'] as const;
+const lifecycleSteps = ['draft', 'AGREED', 'FUNDED', 'COMPLETED', 'PAID'] as const;
 
 function SignaturePanel({
   label,
@@ -232,7 +232,7 @@ export default function OrganizerContractDetailPage() {
                       label="Organizer Signature"
                       signed={contract.signed_by_organizer}
                       signedAt={contract.signed_by_organizer_at}
-                      canSign={!contract.signed_by_organizer && (contract.status === 'draft' || contract.status === 'pending_signatures')}
+                      canSign={!contract.signed_by_organizer}
                       onSign={() => void handleSignAsOrganizer()}
                       loading={actionState === 'sign'}
                     />
@@ -262,14 +262,28 @@ export default function OrganizerContractDetailPage() {
 
                   <div className="mt-6 space-y-3">
                     {canFundContract(contract) ? (
-                      <button
-                        type="button"
-                        onClick={() => void runAction('fund')}
-                        disabled={actionState !== null}
-                        className="w-full rounded-xl bg-[#062E22] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0a4a37] disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {actionState === 'fund' ? 'Funding contract...' : 'Fund Contract'}
-                      </button>
+                      <>
+                        {wallet && (wallet.balance + (wallet.budget_balance || 0) < contract.amount) ? (
+                          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                            <p className="font-semibold">Insufficient funds</p>
+                            <p className="mt-1">
+                              Contract amount: {formatCurrency(contract.amount, contract.currency)}.<br/>
+                              Available balance: {formatCurrency(wallet.balance + (wallet.budget_balance || 0))}.
+                            </p>
+                            <Link href="/organizer/wallet" className="mt-3 inline-block font-semibold text-[#062E22] hover:underline">
+                              Top up wallet →
+                            </Link>
+                          </div>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => void runAction('fund')}
+                          disabled={actionState !== null || (wallet ? wallet.balance + (wallet.budget_balance || 0) < contract.amount : true)}
+                          className="w-full rounded-xl bg-[#062E22] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0a4a37] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {actionState === 'fund' ? 'Funding contract...' : 'Fund Contract'}
+                        </button>
+                      </>
                     ) : null}
 
                     {canReleaseContract(contract) ? (
@@ -279,7 +293,7 @@ export default function OrganizerContractDetailPage() {
                         disabled={actionState !== null}
                         className="w-full rounded-xl bg-[#EC5B13] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#d54f10] disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {actionState === 'release' ? 'Releasing payment...' : 'Release Payment'}
+                        {actionState === 'release' ? 'Releasing payment...' : 'Release Payment / Settle'}
                       </button>
                     ) : null}
 
@@ -298,13 +312,15 @@ export default function OrganizerContractDetailPage() {
                       <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                         {contract.status === 'draft'
                           ? 'Both parties must sign before the contract can be funded.'
-                          : contract.status === 'pending_signatures'
-                            ? 'Waiting for both signatures before this contract becomes active.'
-                            : contract.status === 'completed'
-                              ? 'This contract is fully settled.'
-                              : contract.status === 'cancelled'
-                                ? 'This contract has been cancelled.'
-                                : 'No organizer action is available right now.'}
+                          : contract.status === 'AGREED'
+                            ? 'Waiting for both signatures before this contract can be funded.'
+                            : contract.status === 'FUNDED'
+                              ? 'Contract is funded. Waiting for vendor to mark it completed.'
+                              : contract.status === 'PAID'
+                                ? 'This contract is fully settled and payment released.'
+                                : contract.status === 'CANCELLED'
+                                  ? 'This contract has been cancelled.'
+                                  : 'No organizer action is available right now.'}
                       </div>
                     ) : null}
                   </div>

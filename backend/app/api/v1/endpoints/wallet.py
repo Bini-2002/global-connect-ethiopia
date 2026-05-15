@@ -1,10 +1,24 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 from app.api.v1.deps import get_current_user
-from app.schemas.marketplace_mvp import TransactionResponse, WalletDepositCreate, WalletResponse
-from app.services.marketplace_mvp import deposit_to_wallet, get_wallet_for_user, list_wallet_transactions
+from app.schemas.marketplace_mvp import (
+    TransactionResponse,
+    WalletDepositCreate,
+    WalletResponse,
+    WithdrawalCreate,
+    WithdrawalResponse,
+)
+from app.services.marketplace_mvp import (
+    complete_withdrawal,
+    deposit_to_wallet,
+    get_wallet_for_user,
+    list_wallet_transactions,
+    list_wallet_withdrawals,
+    request_withdrawal,
+)
 
 router = APIRouter()
 

@@ -1,8 +1,14 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.config import settings
 
+# --- MOCK DB FALLBACK ---
+if getattr(settings, "USE_MOCK_DB", False):
+    from mongomock_motor import AsyncMongoMockClient as MockClient
+    client = MockClient()
+else:
+    client = AsyncIOMotorClient(settings.MONGODB_URL, serverSelectionTimeoutMS=2000)
+# ------------------------
 
-client = AsyncIOMotorClient(settings.MONGODB_URL)
 db = client[settings.DATABASE_NAME]
 
 # users collection
@@ -27,6 +33,7 @@ proposal_collection = db.proposals
 # post-approval event lifecycle collections
 event_collection = db.events
 event_schedule_collection = db.event_schedules
+venue_listing_collection = db.venue_listings
 venue_reservation_collection = db.venue_reservations
 event_team_invitation_collection = db.event_team_invitations
 event_team_member_collection = db.event_team_members
@@ -52,3 +59,17 @@ transaction_collection = db.transactions
 wallet_collection = db.wallets
 withdrawal_collection = db.withdrawals
 message_collection = db.messages
+
+# notifications collection
+notification_collection = db.notifications
+
+# VIP hotel reservations
+vip_hotel_reservation_collection = db.vip_hotel_reservations
+
+# AI collections
+ai_schedule_draft_collection = db.ai_schedule_drafts
+ai_schedule_draft_item_collection = db.ai_schedule_draft_items
+ai_chat_session_collection = db.ai_chat_sessions
+ai_chat_message_collection = db.ai_chat_messages
+ai_regulatory_rule_collection = db.ai_regulatory_rules
+ai_proposal_form_link_collection = db.ai_proposal_form_links

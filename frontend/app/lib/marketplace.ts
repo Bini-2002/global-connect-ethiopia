@@ -73,10 +73,11 @@ export function humanizeRequestStatus(status: RequestStatus): string {
 export function humanizeContractStatus(status: ContractStatus): string {
   const map: Record<ContractStatus, string> = {
     draft: 'Draft',
-    pending_signatures: 'Pending Signatures',
-    active: 'Active',
-    completed: 'Completed',
-    cancelled: 'Cancelled',
+    AGREED: 'Pending Signatures',
+    FUNDED: 'Funded (Active)',
+    COMPLETED: 'Work Completed',
+    PAID: 'Paid & Settled',
+    CANCELLED: 'Cancelled',
   };
   return map[status] ?? status;
 }
@@ -112,22 +113,22 @@ export function canAcceptRequest(request: MarketplaceRequestRecord): boolean {
 
 /** Phase 2: can fund only when active + escrow not yet locked */
 export function canFundContract(contract: MarketplaceContractRecord): boolean {
-  return contract.status === 'active' && contract.escrow_status === 'NONE';
+  return contract.status === 'AGREED' && contract.escrow_status === 'NONE' && isContractFullySigned(contract);
 }
 
 /** Phase 2: vendor marks work done when active + escrow locked */
 export function canMarkContractCompleted(contract: MarketplaceContractRecord): boolean {
-  return contract.status === 'active' && contract.escrow_status === 'LOCKED';
+  return contract.status === 'FUNDED' && contract.escrow_status === 'LOCKED';
 }
 
 /** Phase 2: organizer releases when active + escrow locked */
 export function canReleaseContract(contract: MarketplaceContractRecord): boolean {
-  return contract.status === 'active' && contract.escrow_status === 'LOCKED';
+  return contract.status === 'COMPLETED' && contract.escrow_status === 'LOCKED';
 }
 
 /** Phase 2: refund when active + escrow locked */
 export function canRefundContract(contract: MarketplaceContractRecord): boolean {
-  return contract.status === 'active' && contract.escrow_status === 'LOCKED';
+  return contract.status === 'FUNDED' && contract.escrow_status === 'LOCKED';
 }
 
 /** Phase 2: contract is fully signed when both parties have signed */

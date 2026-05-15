@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Literal
 
+from pydantic import BaseModel, Field, EmailStr
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pymongo import ReturnDocument
@@ -27,6 +28,7 @@ from app.db.mongodb import (
     permit_collection,
     police_notification_collection,
     proposal_collection,
+    ticket_type_collection,
     ticket_purchase_collection,
     user_collection,
     venue_reservation_collection,
@@ -39,10 +41,9 @@ from app.models.event_states import (
     EventStatus,
     FinalReportStatus,
     SurveyStatus,
-    VenueReservationStatus,
 )
 from app.models.proposal_states import ProposalStatus
-from app.models.roles import UserRole, to_user_role
+from app.models.roles import UserRole, to_user_role, normalize_role
 from app.models.supported_event_types import normalize_supported_event_type
 from app.schemas.event import (
     AnnouncementCreate,
@@ -80,8 +81,30 @@ from app.schemas.event import (
     IncidentCreate,
     IncidentResponse,
     IncidentUpdate,
-    VenueReservationConfirmPayload,
-    VenueReservationCreate,
+    TicketCheckoutRequest,
+    TicketPaymentConfirmRequest,
+    TicketTypeCreate,
+    TicketTypeResponse,
+    TicketTypeUpdate,
+)
+from app.schemas.ai import (
+    AiScheduleDraftCreate,
+    AiScheduleDraftResponse,
+    AiScheduleApplyRequest,
+    AiErrorResponse
+)
+from app.services.ai_service import AIService
+from app.schemas.venue_reservation import VenueReservationDepositUpdateRequest
+from app.services.venue_reservation_service import VenueReservationService
+from app.services.marketplace import parse_object_id, utc_now
+from app.services.marketplace_mvp import ensure_wallet, log_transaction
+from app.models.marketplace import TransactionType, TransactionStatus
+from app.services.notification_service import push_notification
+from app.services.qr_codes import generate_booking_pass_png_bytes, generate_qr_png_bytes
+from app.schemas.venue_reservation import (
+    VenueReservationCancelRequest,
+    VenueReservationCreateRequest,
+    VenueReservationOrganizerConfirmRequest,
     VenueReservationResponse,
     VenueSearchResponse,
     VipReservationCreate,
@@ -113,7 +136,6 @@ def _serialize_budget_items(items: list[dict] | None) -> list[dict]:
             {
                 "id": item.get("id"),
                 "name": item.get("name"),
-                "estimated_cost": float(item.get("estimated_cost", 0.0)),
                 "actual_cost": float(item["actual_cost"]) if item.get("actual_cost") is not None else None,
                 "notes": item.get("notes"),
             }
@@ -121,11 +143,26 @@ def _serialize_budget_items(items: list[dict] | None) -> list[dict]:
     return serialized
 
 
+def _to_utc_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def _event_base_response(document: dict) -> dict:
+    from app.services.marketplace import utc_now
+    now = utc_now()
     budget_items = _serialize_budget_items(document.get("budget_items"))
-    budget_total = sum(float(item.get("estimated_cost", 0.0)) for item in budget_items)
-    capacity = document.get("capacity") or 0
-    booked_count = int(document.get("booked_count", 0))
+    try:
+        capacity = int(document.get("capacity") or 0)
+    except (ValueError, TypeError):
+        capacity = 0
+    try:
+        booked_count = int(document.get("booked_count", 0))
+    except (ValueError, TypeError):
+        booked_count = 0
     remaining_slots = max(capacity - booked_count, 0) if capacity else 0
     booking_status = _resolve_booking_status(document)
     return {
@@ -138,7 +175,7 @@ def _event_base_response(document: dict) -> dict:
         "description": document.get("description"),
         "category": document.get("category"),
         "location": document.get("location"),
-        "capacity": document.get("capacity"),
+        "capacity": capacity,
         "start_date": document.get("start_date"),
         "end_date": document.get("end_date"),
         "visibility": document.get("visibility", "public"),
@@ -149,6 +186,7 @@ def _event_base_response(document: dict) -> dict:
         "status": document.get("status", EventStatus.DRAFT),
         "venue_status": document.get("venue_status", "not_started"),
         "booking_status": booking_status,
+        "ticketing_status": document.get("ticketing_status", "disabled"),
         "booking_opens_at": document.get("booking_opens_at"),
         "booking_closes_at": document.get("booking_closes_at"),
         "allow_waitlist": bool(document.get("allow_waitlist", False)),
@@ -158,8 +196,9 @@ def _event_base_response(document: dict) -> dict:
         "survey_status": document.get("survey_status", SurveyStatus.NOT_SENT),
         "final_report_status": document.get("final_report_status", FinalReportStatus.NOT_STARTED),
         "budget_currency": document.get("budget_currency", "ETB"),
+        "budget_amount": float(document.get("budget_amount", 0.0)),
+        "budget_balance": float(document.get("budget_balance", 0.0)),
         "budget_items": budget_items,
-        "budget_total_estimated": budget_total,
         "office_assignments": document.get("office_assignments"),
         "published_at": document.get("published_at"),
         "live_started_at": document.get("live_started_at"),
@@ -184,56 +223,38 @@ def _serialize_schedule(document: dict) -> dict:
         "created_at": document["created_at"],
         "updated_at": document["updated_at"],
     }
-
-
-def _serialize_venue_reservation(document: dict) -> dict:
-    return {
-        "id": str(document["_id"]),
-        "event_id": document["event_id"],
-        "venue_name": document["venue_name"],
-        "city": document["city"],
-        "location": document.get("location"),
-        "requested_start": document["requested_start"],
-        "requested_end": document["requested_end"],
-        "estimated_cost": document.get("estimated_cost"),
-        "final_cost": document.get("final_cost"),
-        "notes": document.get("notes"),
-        "confirmation_notes": document.get("confirmation_notes"),
-        "status": document["status"],
-        "created_at": document["created_at"],
-        "updated_at": document["updated_at"],
-        "confirmed_at": document.get("confirmed_at"),
-    }
-
-
 def _serialize_invitation(document: dict) -> dict:
+    from app.services.marketplace import utc_now
+    now = utc_now()
     return {
         "id": str(document["_id"]),
-        "event_id": document["event_id"],
-        "email": document["email"],
-        "assigned_role": document["assigned_role"],
+        "event_id": str(document.get("event_id", "")),
+        "email": document.get("email", ""),
+        "assigned_role": document.get("assigned_role", "Team Member"),
         "display_name": document.get("display_name"),
-        "invited_by_user_id": document["invited_by_user_id"],
-        "status": document["status"],
-        "token": document["token"],
-        "created_at": document["created_at"],
-        "updated_at": document["updated_at"],
+        "invited_by_user_id": str(document.get("invited_by_user_id", "")),
+        "status": document.get("status", "pending"),
+        "token": document.get("token", ""),
+        "created_at": document.get("created_at") or now,
+        "updated_at": document.get("updated_at") or now,
         "accepted_at": document.get("accepted_at"),
     }
 
 
 def _serialize_member(document: dict) -> dict:
+    from app.services.marketplace import utc_now
+    now = utc_now()
     return {
         "id": str(document["_id"]),
-        "event_id": document["event_id"],
-        "user_id": document.get("user_id"),
-        "email": document["email"],
+        "event_id": str(document.get("event_id", "")),
+        "user_id": str(document.get("user_id")) if document.get("user_id") else None,
+        "email": document.get("email", ""),
         "full_name": document.get("full_name"),
-        "assigned_role": document["assigned_role"],
-        "status": document["status"],
-        "joined_at": document.get("joined_at"),
-        "created_at": document["created_at"],
-        "updated_at": document["updated_at"],
+        "assigned_role": document.get("assigned_role", "Team Member"),
+        "status": document.get("status", "active"),
+        "joined_at": document.get("joined_at") or document.get("created_at") or now,
+        "created_at": document.get("created_at") or now,
+        "updated_at": document.get("updated_at") or now,
     }
 
 
@@ -393,15 +414,35 @@ async def _get_event_or_404(event_id: str) -> dict:
 async def _get_owned_event_or_403(event_id: str, current_user: dict) -> dict:
     event = await _get_event_or_404(event_id)
     role = to_user_role(current_user.get("role"))
-    if role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN} and str(event.get("organizer_id")) != str(current_user["id"]):
-        raise HTTPException(status_code=403, detail="You do not own this event")
-    return event
+    if role in {UserRole.ADMIN, UserRole.SUPER_ADMIN}:
+        return event
+    if str(event.get("organizer_id")) == str(current_user["id"]):
+        return event
+    
+    # Flexible matching for organizer_id
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    event_org_id = event.get("organizer_id")
+    if event_org_id and (str(event_org_id) == str(user_oid)):
+        return event
+    
+    # Allow Team Members who are active for this event
+    normalized_role = normalize_role(current_user.get("role"))
+    if normalized_role == UserRole.TEAM_MEMBER.value or role == UserRole.TEAM_MEMBER:
+        await _ensure_team_access(event, current_user)
+        return event
+        
+    raise HTTPException(status_code=403, detail="You do not have access to this event")
 
 
 async def _get_booking_or_404(event_id: str, booking_id: str) -> dict:
-    booking = await ticket_purchase_collection.find_one(
-        {"_id": parse_object_id(booking_id, field_name="booking id"), "event_id": event_id}
-    )
+    booking_oid = parse_object_id(booking_id, field_name="booking id")
+    booking = await ticket_purchase_collection.find_one({
+        "$or": [
+            {"_id": booking_oid, "event_id": event_id},
+            {"_id": str(booking_oid), "event_id": event_id},
+            {"_id": booking_oid, "event_id": parse_object_id(event_id, field_name="event id")},
+        ]
+    })
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     return booking
@@ -424,16 +465,76 @@ async def _ensure_team_access(event: dict, current_user: dict) -> None:
         return
     if str(event.get("organizer_id")) == str(current_user["id"]):
         return
+    user_id = str(current_user.get("id") or current_user.get("_id") or "")
+    email = (current_user.get("email") or "").strip().lower()
+    
     member = await event_team_member_collection.find_one(
         {
             "event_id": str(event["_id"]),
             "$or": [
-                {"user_id": current_user["id"]},
-                {"email": current_user.get("email")},
+                {"user_id": user_id},
+                {"email": email},
             ],
             "status": "active",
         }
     )
+    
+    if not member:
+        # Check for pending invitation to auto-accept
+        invitation = await event_team_invitation_collection.find_one({
+            "event_id": str(event["_id"]),
+            "email": email,
+            "status": "pending"
+        })
+        if invitation:
+            now = utc_now()
+            await event_team_member_collection.update_one(
+                {"event_id": invitation["event_id"], "email": email},
+                {
+                    "$set": {
+                        "user_id": user_id,
+                        "email": email,
+                        "full_name": current_user.get("full_name"),
+                        "assigned_role": invitation["assigned_role"],
+                        "status": "active",
+                        "joined_at": now,
+                        "updated_at": now,
+                    }
+                },
+                upsert=True
+            )
+            await event_team_invitation_collection.update_one(
+                {"_id": invitation["_id"]},
+                {"$set": {"status": "accepted", "accepted_at": now, "updated_at": now}}
+            )
+            # Re-fetch member
+            member = await event_team_member_collection.find_one({"event_id": str(event["_id"]), "user_id": user_id})
+
+    if not member:
+        # Fallback: check if they are assigned a task in this event
+        task = await event_task_collection.find_one({
+            "event_id": str(event["_id"]),
+            "$or": [{"assignee_user_id": user_id}, {"assignee_email": email}]
+        })
+        if task:
+            now = utc_now()
+            await event_team_member_collection.update_one(
+                {"event_id": str(event["_id"]), "email": email},
+                {
+                    "$set": {
+                        "user_id": user_id,
+                        "email": email,
+                        "full_name": current_user.get("full_name"),
+                        "assigned_role": "team_member",
+                        "status": "active",
+                        "joined_at": now,
+                        "updated_at": now,
+                    }
+                },
+                upsert=True
+            )
+            member = await event_team_member_collection.find_one({"event_id": str(event["_id"]), "user_id": user_id})
+
     if not member:
         raise HTTPException(status_code=403, detail="You do not have access to this event")
 
@@ -467,8 +568,16 @@ def _resolve_booking_status(event: dict, *, now: datetime | None = None) -> Book
         if closes_at_naive <= current_time:
             return BookingStatus.CLOSED
 
-    capacity = int(event.get("capacity") or 0)
-    booked_count = int(event.get("booked_count", 0))
+    try:
+        capacity = int(event.get("capacity") or 0)
+    except (ValueError, TypeError):
+        capacity = 0
+        
+    try:
+        booked_count = int(event.get("booked_count", 0))
+    except (ValueError, TypeError):
+        booked_count = 0
+        
     if capacity and booked_count >= capacity:
         return BookingStatus.FULL
 
@@ -604,6 +713,7 @@ async def create_event_from_proposal(
         "status": EventStatus.DRAFT,
         "venue_status": "not_started",
         "booking_status": BookingStatus.DISABLED,
+        "ticketing_status": "disabled",
         "booking_opens_at": None,
         "booking_closes_at": None,
         "allow_waitlist": False,
@@ -655,13 +765,47 @@ async def list_events(
 ):
     role = to_user_role(current_user.get("role"))
     query: dict = {}
+    
     if role == UserRole.ORGANIZER:
-        query["organizer_id"] = current_user["id"]
+        user_oid = parse_object_id(current_user["id"], field_name="organizer id")
+        query["organizer_id"] = {"$in": [user_oid, str(user_oid)]}
+    elif role == UserRole.TEAM_MEMBER:
+        # Find events where this user is an active team member
+        user_oid = parse_object_id(current_user["id"], field_name="user id")
+        memberships = await event_team_member_collection.find({
+            "$or": [
+                {"user_id": user_oid}, 
+                {"user_id": str(user_oid)},
+                {"email": {"$regex": f"^{current_user.get('email')}$", "$options": "i"}}
+            ],
+            "status": "active"
+        }).to_list(length=200)
+        
+        # Also check tasks assigned to them as a fallback
+        tasks = await event_task_collection.find({
+            "$or": [
+                {"assignee_user_id": user_oid},
+                {"assignee_user_id": str(user_oid)},
+                {"assignee_email": {"$regex": f"^{current_user.get('email')}$", "$options": "i"}}
+            ]
+        }).to_list(length=500)
+        
+        event_ids = set([m["event_id"] for m in memberships if m.get("event_id")])
+        for t in tasks:
+            if t.get("event_id"):
+                event_ids.add(t["event_id"])
+                
+        if not event_ids:
+            return []
+            
+        query["_id"] = {"$in": [parse_object_id(eid, field_name="event id") for eid in event_ids if eid]}
     elif role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ATTENDEE}:
-        query["organizer_id"] = current_user["id"]
+        user_oid = parse_object_id(current_user["id"], field_name="organizer id")
+        query["organizer_id"] = {"$in": [user_oid, str(user_oid)]}
 
     if role == UserRole.ATTENDEE:
-        allowed_statuses = [EventStatus.PUBLISHED, EventStatus.PRIVATE_PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED]
+        allowed_statuses = [EventStatus.PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED]
+        query["visibility"] = "public"
         if status_filter:
             if status_filter not in allowed_statuses:
                 raise HTTPException(status_code=400, detail="Attendees can only filter published or active events")
@@ -913,6 +1057,8 @@ async def update_event_budget(
     current_user: dict = Depends(get_current_user),
 ):
     event = await _get_owned_event_or_403(event_id, current_user)
+    previous_budget = float(event.get("budget_amount", 0.0))
+    delta = float(payload.budget_amount) - previous_budget
     items = []
     for item in payload.items:
         item_data = item.model_dump()
@@ -920,12 +1066,35 @@ async def update_event_budget(
             item_data["id"] = secrets.token_hex(8)
         items.append(item_data)
 
+    organizer_wallet = await ensure_wallet(current_user["id"])
+    if delta > 0:
+        wallet_result = await wallet_collection.update_one(
+            {"_id": organizer_wallet["_id"]},
+            {
+                "$inc": {"budget_balance": delta},
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        if wallet_result.modified_count != 1:
+            raise HTTPException(status_code=400, detail="Organizer wallet could not be updated")
+    elif delta < 0:
+        wallet_result = await wallet_collection.update_one(
+            {"_id": organizer_wallet["_id"], "budget_balance": {"$gte": abs(delta)}},
+            {
+                "$inc": {"budget_balance": delta},
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        if wallet_result.modified_count != 1:
+            raise HTTPException(status_code=400, detail="Insufficient reserved budget to reduce this allocation")
+
     await event_collection.update_one(
         {"_id": event["_id"]},
         {
             "$set": {
                 "budget_items": items,
                 "budget_currency": payload.currency,
+                "budget_amount": float(payload.budget_amount),
                 "updated_at": utc_now(),
             }
         },
@@ -1071,87 +1240,86 @@ async def update_schedule_item(
 async def search_venues(
     event_id: str,
     city: str | None = None,
+    q: str | None = None,
     current_user: dict = Depends(get_current_user),
 ):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    target_city = city or event.get("location") or "Addis Ababa"
-    venues = [
-        {"venue_name": f"{target_city} Convention Center", "city": target_city, "available": True, "estimated_cost": 120000},
-        {"venue_name": f"{target_city} Expo Hall", "city": target_city, "available": True, "estimated_cost": 90000},
-        {"venue_name": f"{target_city} Cultural Hall", "city": target_city, "available": False, "estimated_cost": 60000},
-    ]
-    return {
-        "event_id": event_id,
-        "date_from": event.get("start_date"),
-        "date_to": event.get("end_date"),
-        "city": target_city,
-        "venues": venues,
-    }
+    reservation_service = VenueReservationService()
+    return await reservation_service.search_venues_for_event(
+        event_id=event_id,
+        current_user=current_user,
+        city=city,
+    )
 
 
 @router.get("/{event_id}/venue-reservations", response_model=list[VenueReservationResponse])
 async def list_venue_reservations(event_id: str, current_user: dict = Depends(get_current_user)):
-    await _get_owned_event_or_403(event_id, current_user)
-    docs = await venue_reservation_collection.find({"event_id": event_id}, sort=[("created_at", -1)]).to_list(length=200)
-    return [_serialize_venue_reservation(item) for item in docs]
+    reservation_service = VenueReservationService()
+    return await reservation_service.list_event_reservations(
+        event_id=event_id,
+        current_user=current_user,
+    )
 
 
 @router.post("/{event_id}/venue-reservations", response_model=VenueReservationResponse, status_code=201)
 async def create_venue_reservation(
     event_id: str,
-    payload: VenueReservationCreate,
+    payload: VenueReservationCreateRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    now = utc_now()
-    doc = payload.model_dump()
-    doc.update(
-        {
-            "event_id": event_id,
-            "status": VenueReservationStatus.PENDING,
-            "final_cost": None,
-            "confirmation_notes": None,
-            "created_at": now,
-            "updated_at": now,
-            "confirmed_at": None,
-        }
+    reservation_service = VenueReservationService()
+    return await reservation_service.create_reservation_request(
+        event_id=event_id,
+        payload=payload,
+        current_user=current_user,
     )
-    result = await venue_reservation_collection.insert_one(doc)
-    doc["_id"] = result.inserted_id
-    await event_collection.update_one({"_id": event["_id"]}, {"$set": {"venue_status": "pending", "updated_at": now}})
-    return _serialize_venue_reservation(doc)
 
 
 @router.post("/{event_id}/venue-reservations/{reservation_id}/confirm", response_model=VenueReservationResponse)
 async def confirm_venue_reservation(
     event_id: str,
     reservation_id: str,
-    payload: VenueReservationConfirmPayload,
+    payload: VenueReservationOrganizerConfirmRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    oid = parse_object_id(reservation_id, field_name="reservation id")
-    now = utc_now()
-    await venue_reservation_collection.update_one(
-        {"_id": oid, "event_id": event_id},
-        {
-            "$set": {
-                "status": VenueReservationStatus.CONFIRMED,
-                "confirmation_notes": payload.confirmation_notes,
-                "final_cost": payload.final_cost,
-                "confirmed_at": now,
-                "updated_at": now,
-            }
-        },
+    reservation_service = VenueReservationService()
+    return await reservation_service.confirm_as_organizer(
+        event_id=event_id,
+        reservation_id=reservation_id,
+        payload=payload,
+        current_user=current_user,
     )
-    reservation = await venue_reservation_collection.find_one({"_id": oid, "event_id": event_id})
-    if not reservation:
-        raise HTTPException(status_code=404, detail="Venue reservation not found")
-    await event_collection.update_one(
-        {"_id": event["_id"]},
-        {"$set": {"venue_status": "confirmed", "location": reservation.get("venue_name"), "updated_at": now}},
+
+
+@router.post("/{event_id}/venue-reservations/{reservation_id}/cancel", response_model=VenueReservationResponse)
+async def cancel_venue_reservation(
+    event_id: str,
+    reservation_id: str,
+    payload: VenueReservationCancelRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    reservation_service = VenueReservationService()
+    return await reservation_service.cancel_as_organizer(
+        event_id=event_id,
+        reservation_id=reservation_id,
+        cancellation_notes=payload.cancellation_notes,
+        current_user=current_user,
     )
-    return _serialize_venue_reservation(reservation)
+
+
+@router.post("/{event_id}/venue-reservations/{reservation_id}/deposit", response_model=VenueReservationResponse)
+async def update_venue_reservation_deposit(
+    event_id: str,
+    reservation_id: str,
+    payload: VenueReservationDepositUpdateRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    reservation_service = VenueReservationService()
+    return await reservation_service.update_deposit_milestone(
+        event_id=event_id,
+        reservation_id=reservation_id,
+        payload=payload,
+        current_user=current_user,
+    )
 
 
 @router.get("/{event_id}/team/invitations", response_model=list[EventTeamInvitationResponse])
@@ -1186,9 +1354,8 @@ async def create_team_invitation(
     doc["_id"] = result.inserted_id
 
     try:
-        from app.services.email_service import ResendEmailService
+        from app.services.email_service import EmailService
         from app.core.config import settings
-        import asyncio
 
         frontend_url = getattr(settings, "FRONTEND_ORIGIN", "http://localhost:3000")
         if not frontend_url:
@@ -1198,13 +1365,16 @@ async def create_team_invitation(
         inviter_name = current_user.get("full_name") or current_user.get("email") or "An Organizer"
         event_name = event.get("title") or "A Professional Event"
 
-        asyncio.get_event_loop().run_in_executor(
-            None,
-            ResendEmailService.send_team_invitation_email,
-            doc["email"],
-            event_name,
-            inviter_name,
-            invite_link,
+        EmailService.send_generic_email(
+            recipient_email=doc["email"],
+            subject=f"Invitation to join {event_name}",
+            body=(
+                f"Hello,\n\n"
+                f"{inviter_name} has invited you to join the team for '{event_name}' as a {payload.assigned_role}.\n\n"
+                f"Please click the link below to accept the invitation and register your account:\n"
+                f"{invite_link}\n\n"
+                "Global Connect Ethiopia"
+            )
         )
     except Exception as e:
         import logging
@@ -1478,6 +1648,148 @@ async def update_event_task(
     return _serialize_task(updated)
 
 
+@router.post("/{event_id}/tasks/{task_id}/submit", response_model=EventTaskResponse)
+async def submit_task_for_approval(
+    event_id: str,
+    task_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Team member marks their task as pending approval."""
+    event = await _get_event_or_404(event_id)
+    oid = parse_object_id(task_id, field_name="task id")
+    task = await event_task_collection.find_one({"_id": oid, "event_id": event_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Only the assignee or any team member can submit
+    if task.get("assignee_user_id") and task["assignee_user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the assigned team member can submit this task.")
+    if task.get("status") not in ("open", "in_progress"):
+        raise HTTPException(status_code=400, detail="Only open or in-progress tasks can be submitted for approval.")
+
+    now = utc_now()
+    await event_task_collection.update_one(
+        {"_id": oid},
+        {"$set": {"status": "pending_approval", "updated_at": now}},
+    )
+
+    # Notify organizer
+    organizer_id = str(event.get("organizer_id", ""))
+    if organizer_id:
+        await push_notification(
+            recipient_id=organizer_id,
+            notification_type="task_pending_approval",
+            message=f"Team member {current_user.get('full_name', current_user['id'])} submitted task '{task['title']}' for approval.",
+            related_entity={"type": "task", "id": task_id, "event_id": event_id},
+        )
+
+    updated = await event_task_collection.find_one({"_id": oid})
+    return _serialize_task(updated)
+
+
+@router.post("/{event_id}/tasks/{task_id}/approve", response_model=EventTaskResponse)
+async def approve_task(
+    event_id: str,
+    task_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Organizer approves completed task → auto-payout to team member wallet."""
+    event = await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(task_id, field_name="task id")
+    task = await event_task_collection.find_one({"_id": oid, "event_id": event_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.get("status") != "pending_approval":
+        raise HTTPException(status_code=400, detail="Task is not pending approval.")
+
+    payout_amount = float(task.get("payout_amount") or 0.0)
+    assignee_user_id = task.get("assignee_user_id")
+    now = utc_now()
+
+    # Auto-payout: debit organizer wallet, credit team member wallet
+    if payout_amount > 0:
+        # Resolve assignee_user_id if missing but email is present
+        if not assignee_user_id and task.get("assignee_email"):
+            target_user = await user_collection.find_one({"email": task["assignee_email"].strip().lower()})
+            if target_user:
+                assignee_user_id = str(target_user["_id"])
+                # Update task with the resolved ID for future reference
+                await event_task_collection.update_one({"_id": oid}, {"$set": {"assignee_user_id": assignee_user_id}})
+
+        if not assignee_user_id:
+             raise HTTPException(status_code=400, detail="Cannot approve task: No assigned team member found to receive payout.")
+
+        organizer_id = str(event.get("organizer_id"))
+        organizer_wallet = await ensure_wallet(organizer_id)
+        
+        # Check balance
+        organizer_balance = float(organizer_wallet.get("balance", 0))
+        organizer_reserve = float(organizer_wallet.get("budget_reserve", 0))
+        
+        if organizer_balance + organizer_reserve < payout_amount:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Insufficient funds in organizer wallet (Available: ETB {organizer_balance + organizer_reserve}). Please top up before approving payouts."
+            )
+
+        # Debit organizer
+        if organizer_balance >= payout_amount:
+            await wallet_collection.update_one(
+                {"_id": organizer_wallet["_id"]},
+                {"$inc": {"balance": -payout_amount}, "$set": {"updated_at": now}},
+            )
+        else:
+            remaining = payout_amount - organizer_balance
+            await wallet_collection.update_one(
+                {"_id": organizer_wallet["_id"]},
+                {"$set": {"balance": 0, "budget_reserve": organizer_reserve - remaining, "updated_at": now}},
+            )
+        
+        # Credit team member wallet
+        tm_wallet = await ensure_wallet(assignee_user_id)
+        await wallet_collection.update_one(
+            {"_id": tm_wallet["_id"]},
+            {"$inc": {"balance": payout_amount}, "$set": {"updated_at": now}},
+        )
+        
+        # Log transactions
+        await log_transaction(
+            user_id=organizer_id,
+            transaction_type=TransactionType.WITHDRAWAL,
+            amount=payout_amount,
+            reference_id=oid,
+            reference_type="task_payout",
+            event_id=event["_id"],
+            payment_method="wallet",
+        )
+        await log_transaction(
+            user_id=assignee_user_id,
+            transaction_type=TransactionType.DEPOSIT,
+            amount=payout_amount,
+            reference_id=oid,
+            reference_type="task_payout",
+            event_id=event["_id"],
+            payment_method="wallet",
+        )
+        
+        # Notify team member
+        await push_notification(
+            recipient_id=assignee_user_id,
+            notification_type="task_payout",
+            message=f"You received a payout of ETB {payout_amount} for task '{task['title']}'.",
+            related_entity={"type": "task", "id": task_id, "event_id": event_id},
+        )
+
+    # Finally mark as done
+    await event_task_collection.update_one(
+        {"_id": oid},
+        {"$set": {"status": "done", "updated_at": now}},
+    )
+
+    updated = await event_task_collection.find_one({"_id": oid})
+    return _serialize_task(updated)
+
+
 @router.get("/{event_id}/booking", response_model=EventResponse)
 async def get_booking_settings(event_id: str, current_user: dict = Depends(get_current_user)):
     event = await _get_event_or_404(event_id)
@@ -1521,6 +1833,116 @@ async def update_booking_settings(
         {"$set": set_data},
     )
     updated = await event_collection.find_one({"_id": event["_id"]})
+    if not updated:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return _event_base_response(updated)
+
+
+@router.get("/{event_id}/ticket-types", response_model=list[TicketTypeResponse])
+async def list_ticket_types(event_id: str, current_user: dict = Depends(get_current_user)):
+    event = await _get_event_or_404(event_id)
+    await _ensure_team_access(event, current_user)
+    docs = await ticket_type_collection.find({"event_id": event_id}, sort=[("created_at", -1)]).to_list(length=200)
+    return [_serialize_ticket_type(doc) for doc in docs]
+
+
+@router.post("/{event_id}/ticket-types", response_model=TicketTypeResponse, status_code=201)
+async def create_ticket_type(event_id: str, payload: TicketTypeCreate, current_user: dict = Depends(get_current_user)):
+    event = await _get_event_or_404(event_id)
+    await _ensure_team_access(event, current_user)
+    now = utc_now()
+    doc = {
+        "event_id": event_id,
+        "name": payload.name.strip(),
+        "description": payload.description.strip() if payload.description else None,
+        "price": float(payload.price),
+        "quantity": int(payload.quantity),
+        "sold_quantity": 0,
+        "reserved_quantity": 0,
+        "currency": payload.currency,
+        "sales_start": payload.sales_start,
+        "sales_end": payload.sales_end,
+        "seat_mode": payload.seat_mode,
+        "visibility": payload.visibility,
+        "is_active": payload.is_active,
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await ticket_type_collection.insert_one(doc)
+    doc["_id"] = result.inserted_id
+    await event_collection.update_one({"_id": event["_id"]}, {"$set": {"ticketing_status": "configured", "updated_at": now}})
+    return _serialize_ticket_type(doc)
+
+
+@router.patch("/{event_id}/ticket-types/{ticket_type_id}", response_model=TicketTypeResponse)
+async def update_ticket_type(
+    event_id: str,
+    ticket_type_id: str,
+    payload: TicketTypeUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    event = await _get_event_or_404(event_id)
+    await _ensure_team_access(event, current_user)
+    ticket_type = await ticket_type_collection.find_one({"_id": parse_object_id(ticket_type_id, field_name="ticket type id"), "event_id": event_id})
+    if not ticket_type:
+        raise HTTPException(status_code=404, detail="Ticket type not found")
+
+    updates: dict[str, object] = {"updated_at": utc_now()}
+    if payload.name is not None:
+        updates["name"] = payload.name.strip()
+    if payload.description is not None:
+        updates["description"] = payload.description.strip() if payload.description else None
+    if payload.price is not None:
+        updates["price"] = float(payload.price)
+    if payload.quantity is not None:
+        sold_quantity = int(ticket_type.get("sold_quantity", 0))
+        reserved_quantity = int(ticket_type.get("reserved_quantity", 0))
+        if payload.quantity < sold_quantity + reserved_quantity:
+            raise HTTPException(status_code=400, detail="Quantity cannot be below sold plus reserved tickets")
+        updates["quantity"] = int(payload.quantity)
+    if payload.currency is not None:
+        updates["currency"] = payload.currency
+    if payload.sales_start is not None:
+        updates["sales_start"] = payload.sales_start
+    if payload.sales_end is not None:
+        updates["sales_end"] = payload.sales_end
+    if payload.seat_mode is not None:
+        updates["seat_mode"] = payload.seat_mode
+    if payload.visibility is not None:
+        updates["visibility"] = payload.visibility
+    if payload.is_active is not None:
+        updates["is_active"] = payload.is_active
+
+    await ticket_type_collection.update_one({"_id": ticket_type["_id"]}, {"$set": updates})
+    refreshed = await ticket_type_collection.find_one({"_id": ticket_type["_id"]})
+    if not refreshed:
+        raise HTTPException(status_code=404, detail="Ticket type not found")
+    return _serialize_ticket_type(refreshed)
+
+
+@router.post("/{event_id}/ticketing/activate", response_model=EventResponse)
+async def activate_ticketing(event_id: str, current_user: dict = Depends(get_current_user)):
+    event = await _get_owned_event_or_403(event_id, current_user)
+    now = utc_now()
+    updated = await event_collection.find_one_and_update(
+        {"_id": event["_id"]},
+        {"$set": {"ticketing_status": "sales_live", "updated_at": now}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return _event_base_response(updated)
+
+
+@router.post("/{event_id}/ticketing/deactivate", response_model=EventResponse)
+async def deactivate_ticketing(event_id: str, current_user: dict = Depends(get_current_user)):
+    event = await _get_owned_event_or_403(event_id, current_user)
+    now = utc_now()
+    updated = await event_collection.find_one_and_update(
+        {"_id": event["_id"]},
+        {"$set": {"ticketing_status": "sales_closed", "updated_at": now}},
+        return_document=ReturnDocument.AFTER,
+    )
     if not updated:
         raise HTTPException(status_code=404, detail="Event not found")
     return _event_base_response(updated)
@@ -1660,6 +2082,198 @@ async def create_booking(
     doc["booking_status"] = "confirmed"
     doc["qr_code"] = qr_code
     return _serialize_booking(doc, reserved_event)
+
+
+class ManualAttendeePayload(BaseModel):
+    attendee_name: str
+    attendee_email: str
+    notes: str | None = None
+
+
+@router.post("/{event_id}/attendees/manual", response_model=EventBookingResponse, status_code=201)
+async def register_manual_attendee(
+    event_id: str,
+    payload: ManualAttendeePayload,
+    current_user: dict = Depends(get_current_user),
+):
+    """Organizer manually registers an attendee by name/email.
+    Generates a confirmed booking + QR code and emails the booking link.
+    """
+    event = await _get_owned_event_or_403(event_id, current_user)
+
+    now = utc_now()
+    booking_ref = _generate_ticket_code("MAN")
+    qr_code = _generate_ticket_code("QR")
+
+    # Use a synthetic attendee_id derived from email for uniqueness
+    import hashlib
+    attendee_id = "manual:" + hashlib.sha256(
+        (event_id + payload.attendee_email.lower().strip()).encode()
+    ).hexdigest()[:24]
+
+    # Check for duplicate
+    existing = await ticket_purchase_collection.find_one(
+        {"event_id": event_id, "attendee_id": attendee_id}
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="This attendee is already registered for this event.")
+
+    doc = {
+        "event_id": event_id,
+        "active_booking_key": f"{event_id}:{attendee_id}",
+        "booking_reference": booking_ref,
+        "attendee_id": attendee_id,
+        "attendee_name": payload.attendee_name.strip(),
+        "attendee_email": payload.attendee_email.strip().lower(),
+        "slots_requested": 1,
+        "notes": payload.notes,
+        "attendee_profile": {},
+        "qr_code": qr_code,
+        "booking_status": "confirmed",
+        "check_in_status": "pending",
+        "checked_in_at": None,
+        "registered_by": str(current_user["id"]),
+        "registration_type": "manual",
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await ticket_purchase_collection.insert_one(doc)
+    doc["_id"] = result.inserted_id
+
+    # Increment booked count
+    await event_collection.update_one(
+        {"_id": event["_id"]},
+        {"$inc": {"booked_count": 1}, "$set": {"updated_at": now}},
+    )
+
+    # Send confirmation email (best-effort)
+    try:
+        from app.services.email_service import EmailService
+        booking_url = f"{__import__('os').getenv('FRONTEND_BASE_URL', 'http://localhost:3000')}/events/{event_id}/bookings/{str(doc['_id'])}"
+        EmailService.send_generic_email(
+            recipient_email=payload.attendee_email.strip(),
+            subject=f"Your Registration: {event.get('title', 'Event')}",
+            body=(
+                f"Hello {payload.attendee_name.strip()},\n\n"
+                f"You have been registered for {event.get('title', 'the event')}.\n\n"
+                f"Booking Reference: {booking_ref}\n"
+                f"QR Code: {qr_code}\n\n"
+                f"View your booking: {booking_url}\n\n"
+                "Please bring this reference to the event check-in.\n\n"
+                "Global Connect Ethiopia"
+            ),
+        )
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("Manual registration email failed for %s: %s", payload.attendee_email, exc)
+
+    updated_event = await event_collection.find_one({"_id": event["_id"]})
+    return _serialize_booking(doc, updated_event or event)
+
+
+@router.post("/{event_id}/tickets/checkout", response_model=EventBookingResponse, status_code=201)
+async def checkout_ticket(
+    event_id: str,
+    payload: TicketCheckoutRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    _require_role(current_user, UserRole.ATTENDEE)
+    event = await _get_event_or_404(event_id)
+    if event.get("visibility") != "public" or event.get("status") not in {EventStatus.PUBLISHED, EventStatus.LIVE}:
+        raise HTTPException(status_code=400, detail="Ticket sales are only available for public published or live events")
+
+    ticket_type = await ticket_type_collection.find_one({"_id": parse_object_id(payload.ticket_type_id, field_name="ticket type id"), "event_id": event_id})
+    if not ticket_type or not ticket_type.get("is_active", True):
+        raise HTTPException(status_code=404, detail="Ticket type not found")
+
+    now = utc_now()
+    sales_start = _to_utc_datetime(ticket_type.get("sales_start"))
+    sales_end = _to_utc_datetime(ticket_type.get("sales_end"))
+    if sales_start and sales_start > now:
+        raise HTTPException(status_code=400, detail="Ticket sales have not started yet")
+    if sales_end and sales_end <= now:
+        raise HTTPException(status_code=400, detail="Ticket sales have ended")
+
+    quantity = int(payload.quantity)
+    available_quantity = int(ticket_type.get("quantity", 0)) - int(ticket_type.get("sold_quantity", 0)) - int(ticket_type.get("reserved_quantity", 0))
+    if quantity > available_quantity:
+        raise HTTPException(status_code=409, detail="Not enough ticket inventory available")
+
+    attendee_profile = {str(key): str(value).strip() for key, value in (payload.attendee_profile or {}).items()}
+    doc = {
+        "event_id": event_id,
+        "ticket_type_id": str(ticket_type["_id"]),
+        "booking_reference": _generate_ticket_code("TKT"),
+        "attendee_id": current_user["id"],
+        "attendee_name": payload.attendee_name or current_user.get("full_name"),
+        "attendee_email": payload.attendee_email or current_user.get("email"),
+        "slots_requested": quantity,
+        "notes": payload.notes,
+        "attendee_profile": attendee_profile,
+        "qr_code": None,
+        "booking_status": "pending_payment",
+        "check_in_status": "pending",
+        "checked_in_at": None,
+        "payment_reference_id": None,
+        "payment_method": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await ticket_purchase_collection.insert_one(doc)
+    doc["_id"] = result.inserted_id
+    await ticket_type_collection.update_one(
+        {"_id": ticket_type["_id"]},
+        {"$inc": {"reserved_quantity": quantity}, "$set": {"updated_at": now}},
+    )
+    return _serialize_booking(doc, event)
+
+
+@router.post("/{event_id}/tickets/confirm-payment", response_model=EventBookingResponse)
+async def confirm_ticket_payment(
+    event_id: str,
+    payload: TicketPaymentConfirmRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    _require_role(current_user, UserRole.ATTENDEE)
+    event = await _get_event_or_404(event_id)
+    booking = await ticket_purchase_collection.find_one(
+        {"event_id": event_id, "attendee_id": current_user["id"], "booking_status": "pending_payment"}
+    )
+    if not booking:
+        raise HTTPException(status_code=404, detail="Pending ticket purchase not found")
+
+    ticket_type = await ticket_type_collection.find_one({"_id": parse_object_id(booking["ticket_type_id"], field_name="ticket type id"), "event_id": event_id})
+    if not ticket_type:
+        raise HTTPException(status_code=404, detail="Ticket type not found")
+
+    now = utc_now()
+    quantity = int(booking.get("slots_requested", 1))
+    qr_code = _generate_ticket_code("QR")
+    await ticket_purchase_collection.update_one(
+        {"_id": booking["_id"]},
+        {
+            "$set": {
+                "booking_status": "confirmed",
+                "check_in_status": "pending",
+                "qr_code": qr_code,
+                "payment_reference_id": payload.payment_reference_id,
+                "payment_method": payload.payment_method,
+                "updated_at": now,
+            }
+        },
+    )
+    await ticket_type_collection.update_one(
+        {"_id": ticket_type["_id"]},
+        {"$inc": {"reserved_quantity": -quantity, "sold_quantity": quantity}, "$set": {"updated_at": now}},
+    )
+    await event_collection.update_one(
+        {"_id": event["_id"]},
+        {"$inc": {"booked_count": quantity}, "$set": {"updated_at": now}},
+    )
+    updated = await ticket_purchase_collection.find_one({"_id": booking["_id"]})
+    if not updated:
+        raise HTTPException(status_code=404, detail="Ticket purchase not found")
+    return _serialize_booking(updated, await event_collection.find_one({"_id": event["_id"]}) or event)
 
 
 @router.get("/{event_id}/bookings/{booking_id}/qr-code")

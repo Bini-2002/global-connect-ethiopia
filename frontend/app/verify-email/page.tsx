@@ -124,7 +124,7 @@ function VerifyEmailPageContent() {
           ? '/organizer/register'
           : role === 'vendor'
           ? '/vendor/verification'
-          : ROLE_DASHBOARDS[role] || '/dashboard';
+          : ROLE_DASHBOARDS[role] || '/';
       setTimeout(() => router.push(dest), 1200);
     } catch {
       setError('Network error. Please try again.');

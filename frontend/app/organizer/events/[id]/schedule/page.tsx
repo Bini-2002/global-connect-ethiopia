@@ -183,8 +183,7 @@ export default function EventSchedulePage() {
             <div className="space-y-4 mt-4">
               <div>
                 <label className="text-sm font-medium text-slate-700">Event Type</label>
-                <input
-                  type="text"
+                <select
                   value={aiDraftSettings.event_type}
                   onChange={(eventValue) =>
                     setAiDraftSettings((current) => ({
@@ -192,9 +191,18 @@ export default function EventSchedulePage() {
                       event_type: eventValue.target.value,
                     }))
                   }
-                  className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                  placeholder="e.g. Tech Conference"
-                />
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
+                  title="Select event type for AI scheduling"
+                >
+                  <option value="">— Select event type —</option>
+                  <option value="conference">🎤 Conference</option>
+                  <option value="wedding">💍 Wedding</option>
+                  <option value="trade_fair">🏪 Trade Fair / Exhibition</option>
+                  <option value="cultural_festival">🎭 Cultural Festival</option>
+                  <option value="corporate_workshop">📋 Corporate Workshop</option>
+                  <option value={event?.category || 'other'}>🗂️ Use Event Category ({event?.category || 'custom'})</option>
+                </select>
+                <p className="mt-1 text-[11px] text-slate-400">AI uses specialized prompts per type.</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700">Duration (days)</label>

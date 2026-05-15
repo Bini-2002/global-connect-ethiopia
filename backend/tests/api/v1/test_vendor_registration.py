@@ -135,7 +135,7 @@ def setup_vendor_mocks(monkeypatch: pytest.MonkeyPatch):
         "is_active": True,
     }
 
-    app.dependency_overrides[vendors.get_current_user] = lambda: vendor_user
+    app.dependency_overrides[vendors.get_current_user_allow_inactive] = lambda: vendor_user
     app.dependency_overrides[admin_vendors.allow_admin] = lambda: admin_user
 
     yield {

@@ -31,7 +31,7 @@ export default function WalletCard({
         {action ? <div className="lg:min-w-[240px]">{action}</div> : null}
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
+      <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-[24px] bg-[#F5FBF8] p-5">
           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Available balance</p>
           <p className="mt-2 text-2xl font-bold text-[#062E22]">{formatCurrency(wallet.balance)}</p>
@@ -39,6 +39,16 @@ export default function WalletCard({
         <div className="rounded-[24px] bg-slate-100 p-5">
           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Locked in escrow</p>
           <p className="mt-2 text-2xl font-bold text-[#062E22]">{formatCurrency(wallet.locked_balance)}</p>
+        </div>
+        {(wallet.pending_withdrawal_balance ?? 0) > 0 && (
+          <div className="rounded-[24px] bg-amber-50 p-5 border border-amber-100">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-amber-600">Pending Withdrawal</p>
+            <p className="mt-2 text-2xl font-bold text-amber-900">{formatCurrency(wallet.pending_withdrawal_balance || 0)}</p>
+          </div>
+        )}
+        <div className="rounded-[24px] bg-indigo-50 p-5 border border-indigo-100">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-indigo-600">Budget Reserve</p>
+          <p className="mt-2 text-2xl font-bold text-indigo-900">{formatCurrency(wallet.balance + wallet.locked_balance)}</p>
         </div>
       </div>
 

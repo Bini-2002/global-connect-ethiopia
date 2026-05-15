@@ -12,6 +12,8 @@ import {
   EventBookingCreatePayload,
   EventBookingRecord,
   EventBudgetUpdatePayload,
+  TicketCheckoutRequest,
+  TicketPaymentConfirmRequest,
   EventCreateFromProposalResponse,
   EventListItem,
   EventRecord,
@@ -269,10 +271,32 @@ export const eventsService = {
     return api.patch<EventScheduleItemRecord>(`/events/${eventId}/schedule/${scheduleItemId}`, payload);
   },
 
+  getTicketTypes: async (eventId: string): Promise<TicketTypeRecord[]> => {
+    return api.get<TicketTypeRecord[]>(`/events/${eventId}/ticket-types`);
+  },
+
+  createTicketType: async (
+    eventId: string,
+    payload: TicketTypeCreatePayload
+  ): Promise<TicketTypeRecord> => {
+    return api.post<TicketTypeRecord>(`/events/${eventId}/ticket-types`, payload);
+  },
+
+  updateTicketType: async (
+    eventId: string,
+    ticketTypeId: string,
+    payload: TicketTypeUpdatePayload
+  ): Promise<TicketTypeRecord> => {
+    return api.patch<TicketTypeRecord>(`/events/${eventId}/ticket-types/${ticketTypeId}`, payload);
+  },
+
   /** Phase 2: search returns real venue listing records with `id` field */
-  searchEventVenues: async (eventId: string, city?: string): Promise<VenueSearchResult> => {
-    const query = city?.trim() ? `?city=${encodeURIComponent(city.trim())}` : '';
-    return api.get<VenueSearchResult>(`/events/${eventId}/venues/search${query}`);
+  searchEventVenues: async (eventId: string, city?: string, q?: string): Promise<VenueSearchResult> => {
+    const params = new URLSearchParams();
+    if (city?.trim()) params.set('city', city.trim());
+    if (q?.trim()) params.set('q', q.trim());
+    const query = params.toString();
+    return api.get<VenueSearchResult>(`/events/${eventId}/venues/search${query ? '?' + query : ''}`);
   },
 
   getVenueReservations: async (eventId: string): Promise<VenueReservationRecord[]> => {
@@ -388,6 +412,20 @@ export const eventsService = {
     payload: EventBookingCreatePayload
   ): Promise<EventBookingRecord> => {
     return api.post<EventBookingRecord>(`/events/${eventId}/bookings`, payload);
+  },
+
+  checkoutTicket: async (
+    eventId: string,
+    payload: TicketCheckoutRequest
+  ): Promise<EventBookingRecord> => {
+    return api.post<EventBookingRecord>(`/events/${eventId}/tickets/checkout`, payload);
+  },
+
+  confirmTicketPayment: async (
+    eventId: string,
+    payload: TicketPaymentConfirmRequest
+  ): Promise<EventBookingRecord> => {
+    return api.post<EventBookingRecord>(`/events/${eventId}/tickets/confirm-payment`, payload);
   },
 
   getBadges: async (eventId: string): Promise<BadgeRecord[]> => {

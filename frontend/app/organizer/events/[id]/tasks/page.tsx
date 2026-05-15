@@ -22,7 +22,7 @@ export default function EventTasksPage() {
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [creating, setCreating] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  
+
   // Quick Invite State
   const [isInviting, setIsInviting] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: '', role: 'Team Member' });
@@ -101,6 +101,23 @@ export default function EventTasksPage() {
       setError(err instanceof Error ? err.message : 'Failed to create task');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const approveTask = async (taskId: string) => {
+    if (!event) return;
+    try {
+      setUpdatingId(taskId);
+      setError(null);
+      const updated = await fetch(`/api/v1/events/${event.id}/tasks/${taskId}/approve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      }).then((r) => r.json());
+      setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, ...updated } : task)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve task');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -184,7 +201,7 @@ export default function EventTasksPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <h2 className="text-lg font-bold text-[#062E22]">Task Snapshot</h2>
-            <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-xs uppercase tracking-wide text-slate-400">Open</p>
                 <p className="text-xl font-bold text-[#062E22] mt-2">{groupedCounts.open}</p>
@@ -193,9 +210,13 @@ export default function EventTasksPage() {
                 <p className="text-xs uppercase tracking-wide text-slate-400">Working</p>
                 <p className="text-xl font-bold text-[#062E22] mt-2">{groupedCounts.inProgress}</p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Done</p>
-                <p className="text-xl font-bold text-[#062E22] mt-2">{groupedCounts.done}</p>
+              <div className="rounded-xl bg-purple-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-purple-400">Awaiting Approval</p>
+                <p className="text-xl font-bold text-purple-700 mt-2">{groupedCounts.pendingApproval}</p>
+              </div>
+              <div className="rounded-xl bg-emerald-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-emerald-500">Done</p>
+                <p className="text-xl font-bold text-emerald-700 mt-2">{groupedCounts.done}</p>
               </div>
             </div>
           </div>
@@ -243,7 +264,7 @@ export default function EventTasksPage() {
           <div>
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-slate-700">Assignee Email</label>
-              <button 
+              <button
                 onClick={() => setIsInviting(!isInviting)}
                 className="text-xs font-semibold text-[#062E22] hover:underline flex items-center gap-1"
               >
@@ -379,12 +400,11 @@ export default function EventTasksPage() {
                       <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${task.priority === 'high' ? 'bg-red-100 text-red-700' : task.priority === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>
                         {sentenceCase(task.priority)}
                       </span>
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        task.status === 'done' ? 'bg-emerald-100 text-emerald-700' :
-                        task.status === 'pending_approval' ? 'bg-amber-100 text-amber-700' :
-                        task.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${task.status === 'done' ? 'bg-emerald-100 text-emerald-700' :
+                          task.status === 'pending_approval' ? 'bg-amber-100 text-amber-700' :
+                            task.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                              'bg-slate-100 text-slate-700'
+                        }`}>
                         {task.status === 'pending_approval' ? '⏳ Pending Approval' : sentenceCase(task.status)}
                       </span>
                     </div>

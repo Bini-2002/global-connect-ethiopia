@@ -13,6 +13,7 @@ from app.db.mongodb import (
     organizer_collection,
     request_collection,
     transaction_collection,
+    withdrawal_collection,
     user_collection,
     vendor_collection,
     vendor_service_collection,
@@ -108,19 +109,87 @@ async def get_vendor_services(vendor: dict) -> list[str]:
             services.append(text)
     return services
 
+def _normalize_images(images: list[dict]) -> list[dict]:
+    normalized: list[dict] = []
+    for image in images:
+        if not image.get("url"):
+            continue
+        normalized.append(
+            {
+                "url": image["url"],
+                "storage_key": image.get("storage_key"),
+                "storage_provider": image.get("storage_provider"),
+                "content_type": image.get("content_type"),
+                "size_bytes": image.get("size_bytes"),
+                "uploaded_at": image.get("uploaded_at"),
+            }
+        )
+    return normalized
 
-def vendor_is_verified(vendor: dict) -> bool:
+async def get_vendor_service_records(vendor: dict) -> list[dict]:
+    vendor_services = await vendor_service_collection.find(
+        {"vendor_id": str(vendor["_id"]), "is_active": True},
+        sort=[("created_at", -1)],
+    ).to_list(length=20)
+    
+    records = []
+    for service in vendor_services:
+        try:
+            records.append({
+                "id": str(service["_id"]),
+                "vendor_id": stringify_id(service.get("vendor_id")),
+                "vendor_user_id": stringify_id(service.get("vendor_user_id")),
+                "title": service.get("title") or "Untitled Service",
+                "description": service.get("description"),
+                "category": service.get("category"),
+                "price_min": float(service.get("price_min") or 0),
+                "price_max": float(service.get("price_max") or 0),
+                "pricing_type": service.get("pricing_type"),
+                "location": service.get("location"),
+                "images": _normalize_images(service.get("images", [])),
+                "availability": service.get("availability"),
+                "service_details": service.get("service_details"),
+                "tags": service.get("tags", []),
+                "is_active": bool(service.get("is_active", True)),
+                "created_at": service.get("created_at"),
+                "updated_at": service.get("updated_at"),
+            })
+        except Exception:
+            continue
+    return records
+
+
+def vendor_is_verified(vendor: dict | None) -> bool:
+    if not vendor: return False
     return bool(vendor.get("is_verified") or vendor.get("verification_status") == "approved")
 
 
-async def serialize_vendor(vendor: dict) -> dict:
+def get_id_query(field_name: str, id_val: str | ObjectId | None) -> dict:
+    if not id_val:
+        return {field_name: None}
+    try:
+        oid = parse_object_id(id_val, field_name=field_name)
+        return {field_name: {"$in": [oid, str(oid)]}}
+    except Exception:
+        return {field_name: str(id_val)}
+
+
+async def serialize_vendor(vendor: dict | None) -> dict:
+    if not vendor: return {}
+    try:
+        rating_raw = vendor.get("rating")
+        rating = float(rating_raw) if rating_raw is not None and str(rating_raw).replace('.','',1).isdigit() else 0.0
+    except (ValueError, TypeError):
+        rating = 0.0
+
     return {
         "id": str(vendor["_id"]),
         "user_id": stringify_id(vendor.get("user_id")) or "",
         "business_name": get_vendor_business_name(vendor),
         "services": await get_vendor_services(vendor),
+        "service_records": await get_vendor_service_records(vendor),
         "is_verified": vendor_is_verified(vendor),
-        "rating": float(vendor.get("rating", 0.0) or 0.0),
+        "rating": rating,
         "created_at": vendor.get("created_at") or utc_now(),
     }
 
@@ -136,7 +205,7 @@ def get_current_amount(request_doc: dict) -> float | None:
 def serialize_transaction(transaction: dict) -> dict:
     return {
         "id": str(transaction["_id"]),
-        "user_id": stringify_id(transaction["user_id"]) or "",
+        "user_id": stringify_id(transaction.get("user_id")) or "",
         "type": transaction["type"],
         "amount": float(transaction["amount"]),
         "reference_id": stringify_id(transaction.get("reference_id")),
@@ -146,58 +215,101 @@ def serialize_transaction(transaction: dict) -> dict:
 
 
 def serialize_wallet(wallet: dict) -> dict:
+    if not wallet: return {}
     return {
-        "id": str(wallet["_id"]),
-        "user_id": stringify_id(wallet["user_id"]) or "",
+        "id": str(wallet.get("_id", "")),
+        "user_id": stringify_id(wallet.get("user_id")) or "",
         "balance": float(wallet.get("balance", 0.0)),
         "locked_balance": float(wallet.get("locked_balance", 0.0)),
-        "created_at": wallet["created_at"],
-        "updated_at": wallet["updated_at"],
+        "budget_balance": float(wallet.get("budget_balance", 0.0)),
+        "budget_spent_total": float(wallet.get("budget_spent_total", 0.0)),
+        "pending_withdrawal_balance": float(wallet.get("pending_withdrawal_balance", 0.0)),
+        "total_withdrawn": float(wallet.get("total_withdrawn", 0.0)),
+        "currency": wallet.get("currency", "ETB"),
+        "created_at": wallet.get("created_at") or utc_now(),
+        "updated_at": wallet.get("updated_at") or utc_now(),
+    }
+
+
+def serialize_withdrawal(withdrawal: dict) -> dict:
+    return {
+        "id": str(withdrawal["_id"]),
+        "wallet_id": stringify_id(withdrawal.get("wallet_id")) or "",
+        "user_id": stringify_id(withdrawal.get("user_id")) or "",
+        "amount": float(withdrawal["amount"]),
+        "status": withdrawal["status"],
+        "payout_method": withdrawal.get("payout_method"),
+        "payout_reference": withdrawal.get("payout_reference"),
+        "provider_reference": withdrawal.get("provider_reference"),
+        "notes": withdrawal.get("notes"),
+        "currency": withdrawal.get("currency", "ETB"),
+        "requested_at": withdrawal["requested_at"],
+        "updated_at": withdrawal["updated_at"],
+        "completed_at": withdrawal.get("completed_at"),
     }
 
 
 async def serialize_request(request_doc: dict) -> dict:
-    vendor = await vendor_collection.find_one({"_id": request_doc["vendor_id"]})
+    vendor_id = request_doc.get("vendor_id")
+    vendor = await vendor_collection.find_one({"_id": vendor_id}) if vendor_id else None
+    
+    organizer_id = request_doc.get("organizer_id")
+    organizer_name = await get_user_display_name(organizer_id) if organizer_id else "Unknown Organizer"
+    
+    event_title = None
+    if request_doc.get("event_id"):
+        event = await event_collection.find_one({"_id": parse_object_id(request_doc["event_id"], field_name="event id")})
+        if event:
+            event_title = event.get("title")
+    
     return {
         "id": str(request_doc["_id"]),
-        "organizer_id": stringify_id(request_doc["organizer_id"]) or "",
-        "vendor_id": stringify_id(request_doc["vendor_id"]) or "",
+        "organizer_id": stringify_id(organizer_id) or "",
+        "created_by_id": stringify_id(request_doc.get("created_by_id")),
+        "vendor_id": stringify_id(vendor_id) or "",
         "event_id": stringify_id(request_doc.get("event_id")),
-        "description": request_doc["description"],
-        "status": request_doc["status"],
+        "event_title": event_title,
+        "description": request_doc.get("description", ""),
+        "status": request_doc.get("status", RequestStatus.REQUESTED.value),
         "messages": [
             {
                 "sender_id": stringify_id(message.get("sender_id")) or "",
-                "type": message["type"],
-                "amount": float(message["amount"]),
+                "type": message.get("type", NegotiationMessageType.MESSAGE.value),
+                "amount": float(message.get("amount", 0.0)),
                 "message": message.get("message"),
-                "timestamp": message["timestamp"],
+                "timestamp": message.get("timestamp", utc_now()),
             }
             for message in request_doc.get("messages", [])
         ],
         "current_amount": get_current_amount(request_doc),
-        "organizer_name": await get_user_display_name(request_doc["organizer_id"]),
-        "vendor_business_name": get_vendor_business_name(vendor) if vendor else None,
-        "created_at": request_doc["created_at"],
-        "updated_at": request_doc.get("updated_at", request_doc["created_at"]),
+        "organizer_name": organizer_name,
+        "vendor_business_name": get_vendor_business_name(vendor) if vendor else "Unknown Vendor",
+        "created_at": request_doc.get("created_at") or utc_now(),
+        "updated_at": request_doc.get("updated_at") or request_doc.get("created_at") or utc_now(),
     }
 
 
 async def serialize_contract(contract: dict) -> dict:
-    vendor = await vendor_collection.find_one({"_id": contract["vendor_id"]})
+    vendor_id = contract.get("vendor_id")
+    vendor = await vendor_collection.find_one({"_id": vendor_id}) if vendor_id else None
+    
+    organizer_id = contract.get("organizer_id")
+    organizer_name = await get_user_display_name(organizer_id) if organizer_id else "Unknown Organizer"
+    
     return {
         "id": str(contract["_id"]),
-        "request_id": stringify_id(contract["request_id"]) or "",
-        "organizer_id": stringify_id(contract["organizer_id"]) or "",
-        "vendor_id": stringify_id(contract["vendor_id"]) or "",
-        "price": float(contract["price"]),
-        "status": contract["status"],
-        "escrow_status": contract["escrow_status"],
-        "payment_status": contract["payment_status"],
-        "organizer_name": await get_user_display_name(contract["organizer_id"]),
-        "vendor_business_name": get_vendor_business_name(vendor) if vendor else None,
-        "created_at": contract["created_at"],
-        "updated_at": contract["updated_at"],
+        "request_id": stringify_id(contract.get("request_id")) or "",
+        "organizer_id": stringify_id(organizer_id) or "",
+        "created_by_id": stringify_id(contract.get("created_by_id")),
+        "vendor_id": stringify_id(vendor_id) or "",
+        "price": float(contract.get("price", 0.0)),
+        "status": contract.get("status", ContractStatus.AGREED.value),
+        "escrow_status": contract.get("escrow_status", EscrowStatus.NONE.value),
+        "payment_status": contract.get("payment_status", PaymentStatus.PENDING.value),
+        "organizer_name": organizer_name,
+        "vendor_business_name": get_vendor_business_name(vendor) if vendor else "Unknown Vendor",
+        "created_at": contract.get("created_at") or utc_now(),
+        "updated_at": contract.get("updated_at") or contract.get("created_at") or utc_now(),
         "completed_at": contract.get("completed_at"),
         "funded_at": contract.get("funded_at"),
         "paid_at": contract.get("paid_at"),
@@ -205,16 +317,49 @@ async def serialize_contract(contract: dict) -> dict:
 
 
 async def ensure_wallet(user_id: Any) -> dict:
-    normalized_user_id = user_id if isinstance(user_id, ObjectId) else parse_object_id(str(user_id), field_name="user id")
-    wallet = await wallet_collection.find_one({"user_id": normalized_user_id})
+    # Handle both string and ObjectId user_ids
+    user_oid = parse_object_id(str(user_id), field_name="user id")
+    wallet = await wallet_collection.find_one({
+        "$or": [
+            {"user_id": user_oid},
+            {"user_id": str(user_oid)}
+        ]
+    })
     if wallet:
         return wallet
 
     now = utc_now()
     payload = {
-        "user_id": normalized_user_id,
+        "user_id": user_oid,
         "balance": 0.0,
         "locked_balance": 0.0,
+        "budget_balance": 0.0,
+        "budget_spent_total": 0.0,
+        "pending_withdrawal_balance": 0.0,
+        "total_withdrawn": 0.0,
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await wallet_collection.insert_one(payload)
+    payload["_id"] = result.inserted_id
+    return payload
+
+
+async def ensure_platform_wallet() -> dict:
+    wallet = await wallet_collection.find_one({"wallet_type": "platform"})
+    if wallet:
+        return wallet
+
+    now = utc_now()
+    payload = {
+        "wallet_type": "platform",
+        "user_id": "platform",
+        "vendor_user_id": "platform",
+        "vendor_id": "platform",
+        "balance": 0.0,
+        "locked_balance": 0.0,
+        "budget_balance": 0.0,
+        "budget_spent_total": 0.0,
         "created_at": now,
         "updated_at": now,
     }
@@ -225,23 +370,35 @@ async def ensure_wallet(user_id: Any) -> dict:
 
 async def log_transaction(
     *,
-    user_id: Any,
+    user_id: Any | None,
     transaction_type: TransactionType,
     amount: float,
     reference_id: Any = None,
     status_value: TransactionStatus = TransactionStatus.SUCCESS,
+    payment_method: str | None = None,
+    event_id: Any | None = None,
+    reference_type: str | None = None,
 ) -> dict:
     document = {
-        "user_id": user_id if isinstance(user_id, ObjectId) else parse_object_id(str(user_id), field_name="user id"),
+        "user_id": None
+        if user_id is None
+        else user_id if isinstance(user_id, ObjectId) else parse_object_id(str(user_id), field_name="user id"),
         "type": transaction_type.value,
         "amount": float(amount),
         "reference_id": reference_id,
+        "reference_type": reference_type,
         "status": status_value.value,
+        "payment_method": payment_method,
         "created_at": utc_now(),
     }
+    if event_id is not None:
+        document["event_id"] = (
+            event_id if isinstance(event_id, ObjectId) else parse_object_id(str(event_id), field_name="event id")
+        )
     result = await transaction_collection.insert_one(document)
     document["_id"] = result.inserted_id
     return document
+
 
 
 async def get_vendor_or_404(vendor_id: str) -> dict:
@@ -253,15 +410,33 @@ async def get_vendor_or_404(vendor_id: str) -> dict:
 
 async def get_current_vendor_or_403(current_user: dict) -> dict:
     require_role(current_user, UserRole.VENDOR)
-    vendor = await vendor_collection.find_one({"user_id": parse_object_id(current_user["id"], field_name="user id")})
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    vendor = await vendor_collection.find_one({
+        "$or": [{"user_id": user_oid}, {"user_id": str(user_oid)}]
+    })
     if not vendor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor profile not found.")
     return vendor
 
 
 async def get_current_organizer_or_403(current_user: dict) -> dict | None:
+    role = normalize_role(current_user.get("role"))
+    user_id = current_user.get("id") or current_user.get("_id")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User ID not found.")
+        
+    if role == UserRole.TEAM_MEMBER.value:
+        # Team members can act as organizers for marketplace requests
+        return {"user_id": parse_object_id(str(user_id), field_name="user id"), "is_team_member": True}
+    
     require_role(current_user, UserRole.ORGANIZER)
-    return await organizer_collection.find_one({"user_id": parse_object_id(current_user["id"], field_name="user id")})
+    user_oid = parse_object_id(str(user_id), field_name="user id")
+    return await organizer_collection.find_one({
+        "$or": [
+            {"user_id": user_oid},
+            {"user_id": str(user_oid)}
+        ]
+    })
 
 
 async def list_verified_vendors() -> list[dict]:
@@ -285,19 +460,34 @@ async def create_request(current_user: dict, *, vendor_id: str, event_id: str | 
     if not vendor_is_verified(vendor):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only verified vendors can receive requests.")
 
-    organizer_id = parse_object_id(current_user["id"], field_name="user id")
+    # The 'organizer_id' in the request document should be the actual event owner
+    # so it appears on the organizer's dashboard.
+    request_organizer_id = parse_object_id(current_user["id"], field_name="user id")
     event_object_id: ObjectId | None = None
     if event_id:
         event_object_id = parse_object_id(event_id, field_name="event id")
         event = await event_collection.find_one({"_id": event_object_id})
         if not event:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found.")
-        if not ids_match(event.get("organizer_id"), organizer_id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only request vendors for your own events.")
+        
+        # Use the event's actual owner as the organizer_id for the marketplace request
+        request_organizer_id = parse_object_id(str(event["organizer_id"]), field_name="organizer id")
+        
+        # Check if user is organizer or has team access
+        current_user_id = parse_object_id(current_user["id"], field_name="user id")
+        is_owner = ids_match(event.get("organizer_id"), current_user_id)
+        if not is_owner:
+            # Check team access fallback
+            from app.api.v1.endpoints.events import _ensure_team_access
+            try:
+                await _ensure_team_access(event, current_user)
+            except HTTPException:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have permission to create requests for this event.")
 
     now = utc_now()
     document = {
-        "organizer_id": organizer_id,
+        "organizer_id": request_organizer_id,
+        "created_by_id": parse_object_id(current_user["id"], field_name="creator id"), # Track who actually sent it
         "vendor_id": vendor["_id"],
         "event_id": event_object_id,
         "description": description.strip(),
@@ -321,8 +511,19 @@ async def get_request_or_404(request_id: str) -> dict:
 async def assert_request_access(request_doc: dict, current_user: dict) -> None:
     role = normalize_role(current_user.get("role"))
     current_user_id = parse_object_id(current_user["id"], field_name="user id")
-    if role == UserRole.ORGANIZER.value and ids_match(request_doc["organizer_id"], current_user_id):
-        return
+    if role in {UserRole.ORGANIZER.value, UserRole.TEAM_MEMBER.value}:
+        if ids_match(request_doc.get("organizer_id"), current_user_id) or ids_match(request_doc.get("created_by_id"), current_user_id):
+            return
+        
+    # Allow team members who have access to the event associated with the request
+    if role == UserRole.TEAM_MEMBER.value and request_doc.get("event_id"):
+        from app.api.v1.endpoints.events import _get_event_or_404, _ensure_team_access
+        try:
+            event = await _get_event_or_404(str(request_doc["event_id"]))
+            await _ensure_team_access(event, current_user)
+            return
+        except Exception:
+            pass
     if role == UserRole.VENDOR.value:
         vendor = await get_current_vendor_or_403(current_user)
         if ids_match(request_doc["vendor_id"], vendor["_id"]):
@@ -332,16 +533,87 @@ async def assert_request_access(request_doc: dict, current_user: dict) -> None:
 
 async def list_requests_for_user(current_user: dict) -> list[dict]:
     role = normalize_role(current_user.get("role"))
-    if role == UserRole.ORGANIZER.value:
-        query = {"organizer_id": parse_object_id(current_user["id"], field_name="user id")}
+    if role == UserRole.TEAM_MEMBER.value:
+        # Team members see requests for events they have access to, 
+        # or requests they personally created.
+        user_id_obj = parse_object_id(current_user["id"], field_name="user id")
+        email = (current_user.get("email") or "").strip().lower()
+        
+        # 1. Get events where they are a team member
+        member_cursor = event_team_member_collection.find({
+            "$or": [
+                {"user_id": str(user_id_obj)},
+                {"user_id": user_id_obj},
+                {"email": email}
+            ],
+            "status": "active"
+        })
+        member_events = await member_cursor.to_list(length=1000)
+        event_ids = []
+        for m in member_events:
+            if m.get("event_id"):
+                try:
+                    eid = parse_object_id(str(m["event_id"]), field_name="event id")
+                    event_ids.extend([eid, str(eid)])
+                except Exception: continue
+        
+        # 2. Get events where they have tasks
+        task_cursor = event_task_collection.find({
+            "$or": [
+                {"assignee_user_id": str(user_id_obj)},
+                {"assignee_user_id": user_id_obj},
+                {"assignee_email": email}
+            ]
+        })
+        task_events = await task_cursor.to_list(length=1000)
+        for t in task_events:
+            if t.get("event_id"):
+                try:
+                    eid = parse_object_id(str(t["event_id"]), field_name="event id")
+                    if eid not in event_ids:
+                        event_ids.extend([eid, str(eid)])
+                except Exception: continue
+
+        query = {
+            "$or": [
+                {"event_id": {"$in": event_ids}},
+                {"created_by_id": user_id_obj},
+                {"created_by_id": str(user_id_obj)}
+            ]
+        }
+    elif role == UserRole.ORGANIZER.value:
+        organizer = await get_current_organizer_or_403(current_user)
+        user_id_val = organizer.get("user_id") if organizer else parse_object_id(current_user["id"], field_name="user id")
+        query = {
+            "$or": [
+                {"organizer_id": user_id_val},
+                {"organizer_id": str(user_id_val)}
+            ]
+        }
     elif role == UserRole.VENDOR.value:
         vendor = await get_current_vendor_or_403(current_user)
-        query = {"vendor_id": vendor["_id"]}
+        query = {
+            "$or": [
+                {"vendor_id": vendor["_id"]},
+                {"vendor_id": str(vendor["_id"])}
+            ]
+        }
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only organizers and vendors can list requests.")
 
     items = await request_collection.find(query, sort=[("created_at", -1)]).to_list(length=500)
-    return [await serialize_request(item) for item in items]
+    
+    results = []
+    for item in items:
+        try:
+            serialized = await serialize_request(item)
+            if serialized:
+                results.append(serialized)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to serialize request {item.get('_id')}: {e}")
+            continue
+    return results
 
 
 async def get_request_detail(request_id: str, current_user: dict) -> dict:
@@ -522,15 +794,29 @@ async def fund_contract(contract_id: str, current_user: dict) -> dict:
     wallet = await ensure_wallet(current_user["id"])
     now = utc_now()
     wallet_result = await wallet_collection.update_one(
-        {"_id": wallet["_id"], "balance": {"$gte": price}},
+        {"_id": wallet["_id"], "budget_balance": {"$gte": price}},
         {
             "$inc": {
-                "balance": -price,
+                "budget_balance": -price,
+                "budget_spent_total": price,
                 "locked_balance": price,
             },
             "$set": {"updated_at": now},
         },
     )
+    fund_source = "budget" if wallet_result.modified_count == 1 else None
+    if wallet_result.modified_count != 1:
+        wallet_result = await wallet_collection.update_one(
+            {"_id": wallet["_id"], "balance": {"$gte": price}},
+            {
+                "$inc": {
+                    "balance": -price,
+                    "locked_balance": price,
+                },
+                "$set": {"updated_at": now},
+            },
+        )
+        fund_source = "balance" if wallet_result.modified_count == 1 else None
     if wallet_result.modified_count != 1:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Insufficient wallet balance to fund this contract.")
 
@@ -546,20 +832,21 @@ async def fund_contract(contract_id: str, current_user: dict) -> dict:
                 "escrow_status": EscrowStatus.LOCKED.value,
                 "payment_status": PaymentStatus.PENDING.value,
                 "funded_at": now,
+                "fund_source": fund_source,
                 "updated_at": now,
             }
         },
     )
     if contract_result.modified_count != 1:
+        revert_update = {"locked_balance": -price}
+        if fund_source == "budget":
+            revert_update["budget_balance"] = price
+            revert_update["budget_spent_total"] = -price
+        else:
+            revert_update["balance"] = price
         await wallet_collection.update_one(
             {"_id": wallet["_id"]},
-            {
-                "$inc": {
-                    "balance": price,
-                    "locked_balance": -price,
-                },
-                "$set": {"updated_at": utc_now()},
-            },
+            {"$inc": revert_update, "$set": {"updated_at": utc_now()}},
         )
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The contract could not be funded.")
 
@@ -590,7 +877,11 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
     price = float(contract["price"])
     organizer_wallet = await ensure_wallet(current_user["id"])
     vendor_wallet = await ensure_wallet(vendor["user_id"])
+    platform_wallet = await ensure_platform_wallet()
     now = utc_now()
+
+    commission = round(price * 0.10, 2)
+    vendor_payout = round(price - commission, 2)
 
     lock_result = await wallet_collection.update_one(
         {"_id": organizer_wallet["_id"], "locked_balance": {"$gte": price}},
@@ -607,7 +898,7 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
     credit_result = await wallet_collection.update_one(
         {"_id": vendor_wallet["_id"]},
         {
-            "$inc": {"balance": price},
+            "$inc": {"balance": vendor_payout},
             "$set": {"updated_at": now},
         },
     )
@@ -621,6 +912,30 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
         )
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Vendor wallet could not be credited.")
 
+    commission_result = await wallet_collection.update_one(
+        {"_id": platform_wallet["_id"]},
+        {
+            "$inc": {"balance": commission},
+            "$set": {"updated_at": now},
+        },
+    )
+    if commission_result.modified_count != 1:
+        await wallet_collection.update_one(
+            {"_id": organizer_wallet["_id"]},
+            {
+                "$inc": {"locked_balance": price},
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        await wallet_collection.update_one(
+            {"_id": vendor_wallet["_id"]},
+            {
+                "$inc": {"balance": -vendor_payout},
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Platform commission wallet could not be credited.")
+
     contract_result = await contract_collection.update_one(
         {
             "_id": contract["_id"],
@@ -633,6 +948,7 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
                 "status": ContractStatus.PAID.value,
                 "escrow_status": EscrowStatus.RELEASED.value,
                 "payment_status": PaymentStatus.PAID.value,
+                "commission_amount": commission,
                 "paid_at": now,
                 "updated_at": now,
             }
@@ -649,7 +965,14 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
         await wallet_collection.update_one(
             {"_id": vendor_wallet["_id"]},
             {
-                "$inc": {"balance": -price},
+                "$inc": {"balance": -vendor_payout},
+                "$set": {"updated_at": utc_now()},
+            },
+        )
+        await wallet_collection.update_one(
+            {"_id": platform_wallet["_id"]},
+            {
+                "$inc": {"balance": -commission},
                 "$set": {"updated_at": utc_now()},
             },
         )
@@ -664,7 +987,13 @@ async def release_contract(contract_id: str, current_user: dict) -> dict:
     await log_transaction(
         user_id=vendor["user_id"],
         transaction_type=TransactionType.RELEASE,
-        amount=price,
+        amount=vendor_payout,
+        reference_id=contract["_id"],
+    )
+    await log_transaction(
+        user_id=None,
+        transaction_type=TransactionType.COMMISSION,
+        amount=commission,
         reference_id=contract["_id"],
     )
     updated = await get_contract_or_404(contract_id)
@@ -684,13 +1013,17 @@ async def refund_contract(contract_id: str, current_user: dict) -> dict:
     price = float(contract["price"])
     organizer_wallet = await ensure_wallet(current_user["id"])
     now = utc_now()
+    fund_source = contract.get("fund_source", "balance")
+    inc_payload = {"locked_balance": -price}
+    if fund_source == "budget":
+        inc_payload["budget_balance"] = price
+        inc_payload["budget_spent_total"] = -price
+    else:
+        inc_payload["balance"] = price
     wallet_result = await wallet_collection.update_one(
         {"_id": organizer_wallet["_id"], "locked_balance": {"$gte": price}},
         {
-            "$inc": {
-                "balance": price,
-                "locked_balance": -price,
-            },
+            "$inc": inc_payload,
             "$set": {"updated_at": now},
         },
     )
@@ -717,7 +1050,6 @@ async def refund_contract(contract_id: str, current_user: dict) -> dict:
             {"_id": organizer_wallet["_id"]},
             {
                 "$inc": {
-                    "balance": -price,
                     "locked_balance": price,
                 },
                 "$set": {"updated_at": utc_now()},

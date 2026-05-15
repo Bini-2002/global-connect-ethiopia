@@ -15,9 +15,11 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def parse_object_id(value: str, *, field_name: str) -> ObjectId:
+def parse_object_id(value: Any, *, field_name: str) -> ObjectId:
+    if isinstance(value, ObjectId):
+        return value
     try:
-        return ObjectId(value)
+        return ObjectId(str(value))
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -62,7 +64,10 @@ def parse_flexible_payload(value: str | None) -> dict[str, Any] | list[Any] | st
 async def require_vendor_profile(current_user: dict, *, approved_only: bool = False) -> dict:
     if to_user_role(current_user.get("role")) != UserRole.VENDOR:
         raise HTTPException(status_code=403, detail="Only vendors can access this resource.")
-    vendor = await vendor_collection.find_one({"user_id": ObjectId(current_user["id"])})
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    vendor = await vendor_collection.find_one({
+        "$or": [{"user_id": user_oid}, {"user_id": str(user_oid)}]
+    })
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor profile not found.")
     if approved_only and vendor.get("verification_status") != "approved":
@@ -73,7 +78,10 @@ async def require_vendor_profile(current_user: dict, *, approved_only: bool = Fa
 async def require_organizer_profile(current_user: dict) -> dict | None:
     if to_user_role(current_user.get("role")) != UserRole.ORGANIZER:
         raise HTTPException(status_code=403, detail="Only organizers can access this resource.")
-    return await organizer_collection.find_one({"user_id": ObjectId(current_user["id"])})
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    return await organizer_collection.find_one({
+        "$or": [{"user_id": user_oid}, {"user_id": str(user_oid)}]
+    })
 
 
 async def get_user_name(user_id: str) -> str | None:

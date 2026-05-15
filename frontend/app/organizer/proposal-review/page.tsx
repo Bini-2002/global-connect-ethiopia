@@ -6,7 +6,6 @@ import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import Link from "next/link";
 import { api } from "@/app/lib/api";
-import { getOrganizerPortalRoute } from "@/app/lib/auth";
 import {
   appendProposalFields,
   base64ToFile,
@@ -36,16 +35,6 @@ export default function ProposalReview() {
 
     const loadReviewTargets = async () => {
       try {
-        const organizerRoute = await getOrganizerPortalRoute();
-        if (!isActive) {
-          return;
-        }
-
-        if (organizerRoute !== "/organizer/dashboard") {
-          router.replace(organizerRoute);
-          return;
-        }
-
         const data = await api.get<ReviewTargetsResponse>('/offices/review-targets');
         if (isActive) {
           setReviewTargets(data);

@@ -6,7 +6,7 @@ import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import { api } from "@/app/lib/api";
-import { getOrganizerPortalRoute, getToken, waitForToken } from "@/app/lib/auth";
+import { getToken } from "@/app/lib/auth";
 import { PastEvent, EventStats } from "@/app/types/event";
 import { ProposalRecord } from "@/app/types/proposal";
 import { 
@@ -79,20 +79,8 @@ export default function CreateEventPage() {
 
     const fetchData = async () => {
       try {
-        const organizerRoute = await getOrganizerPortalRoute();
-        if (!isActive) {
-          return;
-        }
-
-        if (organizerRoute !== "/organizer/dashboard") {
-          router.replace(organizerRoute);
-          return;
-        }
-
-        const authToken = (await waitForToken(1500, 50)) ?? getToken();
         const proposals = await api.get<ProposalRecord[]>(
           "/proposals/",
-          authToken ? { authToken } : undefined,
         );
 
         if (!isActive) {

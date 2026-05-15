@@ -12,6 +12,22 @@ from .opportunity import (
     OpportunityResponse,
     OpportunityVendorInvite,
 )
+from .venue_listing import (
+    VenueListingCreateRequest,
+    VenueListingDocument,
+    VenueListingResponse,
+    VenueListingSearchResponse,
+    VenueListingUpdateRequest,
+    VenueListingVendorSummary,
+)
+from .venue_reservation import (
+    VenueReservationCancelRequest,
+    VenueReservationCreateRequest,
+    VenueReservationOrganizerConfirmRequest,
+    VenueReservationProviderResponseRequest,
+    VenueReservationResponse,
+    VenueSearchResponse,
+)
 
 __all__ = [
     "ProposalCreate",
@@ -28,4 +44,16 @@ __all__ = [
     "OpportunityProposalSummary",
     "OpportunityResponse",
     "OpportunityVendorInvite",
+    "VenueListingCreateRequest",
+    "VenueListingDocument",
+    "VenueListingResponse",
+    "VenueListingSearchResponse",
+    "VenueListingUpdateRequest",
+    "VenueListingVendorSummary",
+    "VenueReservationCancelRequest",
+    "VenueReservationCreateRequest",
+    "VenueReservationOrganizerConfirmRequest",
+    "VenueReservationProviderResponseRequest",
+    "VenueReservationResponse",
+    "VenueSearchResponse",
 ]

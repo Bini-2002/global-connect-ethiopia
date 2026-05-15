@@ -13,13 +13,132 @@ import {
 } from '@/app/types/marketplace';
 
 const CATEGORY_OPTIONS = [
-  'Venue Provider',
-  'Catering Provider',
-  'Decor',
-  'Audio / Visual',
-  'Security',
-  'Photography',
+  'Hotel', 'Catering', 'Decoring', 'Security', 'Audio Visual',
+  'Modeling and Hosts', 'Volunteer facilitator', 'Graphics Design'
 ];
+
+type FieldDef = {
+  name: string;
+  label: string;
+  type: 'text' | 'number' | 'select' | 'checkbox';
+  options?: string[];
+  isCore?: boolean;
+};
+
+const CATEGORY_SCHEMAS: Record<string, FieldDef[]> = {
+  'Hotel': [
+    { name: 'room_type', label: 'Primary Room Type', type: 'select', options: ['Single', 'Double', 'Suite', 'Family'], isCore: true },
+    { name: 'star_rating', label: 'Star Rating', type: 'select', options: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'], isCore: true },
+    { name: 'capacity', label: 'Max Guests / Capacity', type: 'number', isCore: true },
+    { name: 'location_type', label: 'Location Setting', type: 'select', options: ['City Center', 'Resort', 'Airport', 'Suburban'], isCore: true },
+    { name: 'meals_included', label: 'Meals Included', type: 'select', options: ['None', 'Breakfast', 'Half-Board', 'Full-Board'], isCore: false },
+    { name: 'pool_access', label: 'Swimming Pool', type: 'checkbox', isCore: false },
+    { name: 'gym_access', label: 'Fitness Center', type: 'checkbox', isCore: false },
+    { name: 'wifi', label: 'Free High-Speed WiFi', type: 'checkbox', isCore: false },
+    { name: 'parking', label: 'Free Parking', type: 'checkbox', isCore: false },
+    { name: 'check_in_time', label: 'Check-In Time', type: 'text', isCore: false },
+  ],
+  'Catering': [
+    { name: 'cuisine_style', label: 'Cuisine Style', type: 'select', options: ['Ethiopian', 'Italian', 'Continental', 'Asian', 'Mixed'], isCore: true },
+    { name: 'service_style', label: 'Service Style', type: 'select', options: ['Buffet', 'Plated', 'Family Style', 'Food Stations'], isCore: true },
+    { name: 'min_guests', label: 'Minimum Guests', type: 'number', isCore: true },
+    { name: 'max_guests', label: 'Maximum Guests', type: 'number', isCore: true },
+    { name: 'dietary_vegan', label: 'Vegan Options', type: 'checkbox', isCore: false },
+    { name: 'dietary_halal', label: 'Halal Options', type: 'checkbox', isCore: false },
+    { name: 'dietary_gluten', label: 'Gluten-Free', type: 'checkbox', isCore: false },
+    { name: 'staff_included', label: 'Staff Provided', type: 'select', options: ['Food Drop-off Only', 'Servers Included', 'Chefs & Servers Included'], isCore: false },
+    { name: 'tasting', label: 'Tasting Session Available', type: 'checkbox', isCore: false },
+    { name: 'cutlery', label: 'Cutlery/Plates Included', type: 'checkbox', isCore: false },
+  ],
+  'Decoring': [
+    { name: 'decor_style', label: 'Primary Style', type: 'select', options: ['Traditional', 'Modern', 'Corporate', 'Rustic', 'Luxury'], isCore: true },
+    { name: 'event_focus', label: 'Primary Event Focus', type: 'select', options: ['Weddings', 'Conferences', 'Birthdays', 'Exhibitions'], isCore: true },
+    { name: 'setup_time', label: 'Typical Setup Time (Hours)', type: 'number', isCore: true },
+    { name: 'color_customization', label: 'Full Color Customization', type: 'checkbox', isCore: true },
+    { name: 'floral', label: 'Fresh Flowers Included', type: 'checkbox', isCore: false },
+    { name: 'lighting', label: 'Ambient Lighting Included', type: 'checkbox', isCore: false },
+    { name: 'furniture', label: 'Furniture Rental Included', type: 'checkbox', isCore: false },
+    { name: 'teardown', label: 'Teardown/Cleanup Included', type: 'checkbox', isCore: false },
+    { name: 'consultation', label: 'Free Design Consultation', type: 'checkbox', isCore: false },
+  ],
+  'Security': [
+    { name: 'personnel_type', label: 'Personnel Type', type: 'select', options: ['Bouncers', 'VIP Escorts', 'Uniformed Guards', 'Crowd Control'], isCore: true },
+    { name: 'armed', label: 'Armed Security Available', type: 'checkbox', isCore: true },
+    { name: 'min_guards', label: 'Minimum Guards', type: 'number', isCore: true },
+    { name: 'max_guards', label: 'Maximum Guards', type: 'number', isCore: true },
+    { name: 'shift_length', label: 'Standard Shift (Hours)', type: 'number', isCore: false },
+    { name: 'comms_gear', label: 'Radios/Earpieces Included', type: 'checkbox', isCore: false },
+    { name: 'metal_detectors', label: 'Metal Detectors Provided', type: 'checkbox', isCore: false },
+    { name: 'female_guards', label: 'Female Guards Available', type: 'checkbox', isCore: false },
+    { name: 'cctv_monitoring', label: 'CCTV Monitoring Service', type: 'checkbox', isCore: false },
+  ],
+  'Audio Visual': [
+    { name: 'primary_service', label: 'Primary Service', type: 'select', options: ['Sound System', 'Lighting', 'LED Screens', 'Full Production'], isCore: true },
+    { name: 'audience_size', label: 'Max Audience Coverage', type: 'select', options: ['Up to 100', '100-500', '500-2000', '2000+'], isCore: true },
+    { name: 'technicians', label: 'Technicians Included', type: 'number', isCore: true },
+    { name: 'backup_power', label: 'Backup Generators Included', type: 'checkbox', isCore: true },
+    { name: 'microphones', label: 'Wireless Mics Included', type: 'number', isCore: false },
+    { name: 'dj_gear', label: 'DJ Equipment Provided', type: 'checkbox', isCore: false },
+    { name: 'livestream', label: 'Livestreaming Capabilities', type: 'checkbox', isCore: false },
+    { name: 'recording', label: 'Audio/Video Recording', type: 'checkbox', isCore: false },
+    { name: 'drone', label: 'Drone Coverage', type: 'checkbox', isCore: false },
+  ],
+  'Social Media Promoting': [
+    { name: 'primary_platform', label: 'Primary Platform', type: 'select', options: ['TikTok', 'Instagram', 'Telegram', 'Facebook', 'LinkedIn'], isCore: true },
+    { name: 'reach', label: 'Total Follower Reach', type: 'select', options: ['< 50k', '50k - 200k', '200k - 1M', '1M+'], isCore: true },
+    { name: 'engagement_rate', label: 'Avg Engagement Rate', type: 'text', isCore: true },
+    { name: 'content_type', label: 'Content Style', type: 'select', options: ['Video Reels', 'Static Posts', 'Stories', 'Giveaways'], isCore: true },
+    { name: 'post_count', label: 'Number of Posts', type: 'number', isCore: false },
+    { name: 'video_production', label: 'Video Production Included', type: 'checkbox', isCore: false },
+    { name: 'analytics', label: 'Post-Campaign Analytics', type: 'checkbox', isCore: false },
+    { name: 'duration', label: 'Campaign Duration (Days)', type: 'number', isCore: false },
+    { name: 'boost_budget', label: 'Ad Boost Budget Included', type: 'checkbox', isCore: false },
+  ],
+  'Marketing and Advertisment': [
+    { name: 'channel', label: 'Primary Channel', type: 'select', options: ['Billboards', 'Print Media', 'Radio', 'TV', 'Digital Ads'], isCore: true },
+    { name: 'scale', label: 'Campaign Scale', type: 'select', options: ['Local City', 'Regional', 'National', 'International'], isCore: true },
+    { name: 'target_audience', label: 'Target Demographic', type: 'text', isCore: true },
+    { name: 'estimated_views', label: 'Estimated Views/Impressions', type: 'text', isCore: true },
+    { name: 'design_included', label: 'Creative Design Included', type: 'checkbox', isCore: false },
+    { name: 'printing_included', label: 'Printing Costs Included', type: 'checkbox', isCore: false },
+    { name: 'campaign_length', label: 'Duration (Weeks)', type: 'number', isCore: false },
+    { name: 'reporting', label: 'Performance Reporting', type: 'select', options: ['Weekly', 'End of Campaign', 'None'], isCore: false },
+    { name: 'permit_handling', label: 'Gov Permit Handling', type: 'checkbox', isCore: false },
+  ],
+  'Modeling and Hosts': [
+    { name: 'talent_type', label: 'Talent Role', type: 'select', options: ['Runway Models', 'Brand Ambassadors', 'Ushers', 'MCs / Hosts'], isCore: true },
+    { name: 'headcount', label: 'Number of Talents', type: 'number', isCore: true },
+    { name: 'gender', label: 'Gender Availability', type: 'select', options: ['All Female', 'All Male', 'Mixed'], isCore: true },
+    { name: 'languages', label: 'Primary Languages', type: 'text', isCore: true },
+    { name: 'wardrobe', label: 'Wardrobe Provided', type: 'checkbox', isCore: false },
+    { name: 'makeup', label: 'Makeup/Styling Included', type: 'checkbox', isCore: false },
+    { name: 'transport', label: 'Transport Handled by Agency', type: 'checkbox', isCore: false },
+    { name: 'briefing', label: 'Pre-event Briefing Required', type: 'checkbox', isCore: false },
+    { name: 'shift_hours', label: 'Max Shift Hours', type: 'number', isCore: false },
+  ],
+  'Volunteer facilitator': [
+    { name: 'volunteer_count', label: 'Number of Volunteers', type: 'number', isCore: true },
+    { name: 'role_type', label: 'Primary Role', type: 'select', options: ['Registration/Check-in', 'Crowd Control', 'Logistics/Setup', 'General Support'], isCore: true },
+    { name: 'training_level', label: 'Training Provided', type: 'select', options: ['Basic Briefing', 'Specialized Training', 'Certified First Aid'], isCore: true },
+    { name: 'age_group', label: 'Average Age Group', type: 'select', options: ['University Students', 'Young Professionals', 'Mixed'], isCore: true },
+    { name: 'uniforms', label: 'T-Shirts/Uniforms Provided', type: 'checkbox', isCore: false },
+    { name: 'meals_handled', label: 'Meals Handled by Agency', type: 'checkbox', isCore: false },
+    { name: 'supervisors', label: 'Team Leads/Supervisors Included', type: 'checkbox', isCore: false },
+    { name: 'transport_handled', label: 'Transport Handled by Agency', type: 'checkbox', isCore: false },
+    { name: 'certificate', label: 'Provides Certificates', type: 'checkbox', isCore: false },
+  ],
+  'Graphics Design': [
+    { name: 'design_type', label: 'Primary Design Output', type: 'select', options: ['Event Branding/Logo', 'Social Media Posters', 'Print Banners', 'Full Package'], isCore: true },
+    { name: 'turnaround_time', label: 'Standard Turnaround (Days)', type: 'number', isCore: true },
+    { name: 'revisions', label: 'Revisions Included', type: 'number', isCore: true },
+    { name: 'source_files', label: 'Source Files Provided', type: 'checkbox', isCore: true },
+    { name: 'software', label: 'Primary Software', type: 'text', isCore: false },
+    { name: 'motion_graphics', label: 'Motion Graphics/Animation', type: 'checkbox', isCore: false },
+    { name: 'print_ready', label: 'Print-Ready Formats', type: 'checkbox', isCore: false },
+    { name: 'custom_illustrations', label: 'Custom Illustrations', type: 'checkbox', isCore: false },
+    { name: 'branding_guidelines', label: 'Brand Guidelines Doc', type: 'checkbox', isCore: false },
+  ]
+};
 
 function formatCurrency(value?: number | null) {
   if (value === undefined || value === null) return 'N/A';
@@ -38,14 +157,15 @@ function formatDate(value?: string | null) {
 const initialFormState = {
   title: '',
   description: '',
-  category: 'Venue Provider',
+  category: 'Hotel',
   price_min: '50000',
   price_max: '120000',
   pricing_type: 'negotiable' as 'fixed' | 'negotiable',
   location: 'Addis Ababa',
   tags: '',
-  image_urls: '',
+  image_files: [] as File[],
   availability: '',
+  service_details_obj: {} as Record<string, any>,
 };
 
 export default function VendorDashboardPage() {
@@ -99,7 +219,7 @@ export default function VendorDashboardPage() {
       const payload: VendorServiceCreatePayload = {
         title: form.title.trim(),
         description: form.description.trim(),
-        category: form.category,
+        category: summary?.business_category || 'Other',
         price_min: Number(form.price_min),
         price_max: Number(form.price_max),
         pricing_type: form.pricing_type,
@@ -108,11 +228,9 @@ export default function VendorDashboardPage() {
           .split(',')
           .map((item) => item.trim())
           .filter(Boolean),
-        image_urls: form.image_urls
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean),
+        image_files: form.image_files,
         availability: form.availability.trim() || undefined,
+        service_details: Object.keys(form.service_details_obj).length ? JSON.stringify(form.service_details_obj) : undefined,
       };
 
       await vendorPortalService.createService(payload);
@@ -344,21 +462,7 @@ export default function VendorDashboardPage() {
                       />
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label htmlFor="category" className="mb-1 block text-sm font-medium text-slate-700">Category</label>
-                        <select
-                          id="category"
-                          value={form.category}
-                          onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
-                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
-                        >
-                          {CATEGORY_OPTIONS.map((option) => (
-                            <option key={option} value={option}>{option}</option>
-                          ))}
-                        </select>
-                      </div>
-
+                    <div className="grid gap-4 sm:grid-cols-1">
                       <div>
                         <label htmlFor="location" className="mb-1 block text-sm font-medium text-slate-700">Service location</label>
                         <input
@@ -417,24 +521,18 @@ export default function VendorDashboardPage() {
                     </div>
 
                     <div>
-                      <label htmlFor="tags" className="mb-1 block text-sm font-medium text-slate-700">Tags</label>
+                      <label htmlFor="image_files" className="mb-1 block text-sm font-medium text-slate-700">Images</label>
                       <input
-                        id="tags"
-                        value={form.tags}
-                        onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value }))}
-                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
-                        placeholder="premium, conference, indoor, large-capacity"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="image_urls" className="mb-1 block text-sm font-medium text-slate-700">Image URLs</label>
-                      <input
-                        id="image_urls"
-                        value={form.image_urls}
-                        onChange={(event) => setForm((current) => ({ ...current, image_urls: event.target.value }))}
-                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
-                        placeholder="https://example.com/photo-1.jpg, https://example.com/photo-2.jpg"
+                        id="image_files"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(event) => {
+                          if (event.target.files) {
+                            setForm((current) => ({ ...current, image_files: Array.from(event.target.files as FileList) }));
+                          }
+                        }}
+                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#062E22]/10 file:text-[#062E22] hover:file:bg-[#062E22]/20"
                       />
                     </div>
 
@@ -442,12 +540,97 @@ export default function VendorDashboardPage() {
                       <label htmlFor="availability" className="mb-1 block text-sm font-medium text-slate-700">Availability notes or JSON</label>
                       <textarea
                         id="availability"
-                        rows={4}
+                        rows={2}
                         value={form.availability}
                         onChange={(event) => setForm((current) => ({ ...current, availability: event.target.value }))}
                         className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
                         placeholder='{"days":["Mon","Tue"],"lead_time":"14 days"}'
                       />
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-4">
+                      <h3 className="font-semibold text-slate-800 mb-4">{summary?.business_category || 'Service'} Specific Details</h3>
+                      {summary?.business_category && CATEGORY_SCHEMAS[summary.business_category] ? (
+                        <div className="space-y-6">
+                          <div>
+                            <h4 className="text-sm font-semibold uppercase tracking-wide text-[#0a4a37] mb-3">Marketplace Display (Core)</h4>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              {CATEGORY_SCHEMAS[summary.business_category].filter(f => f.isCore).map(field => (
+                                <div key={field.name}>
+                                  <label className="mb-1 block text-sm font-medium text-slate-700">{field.label}</label>
+                                  {field.type === 'select' ? (
+                                    <select
+                                      className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                                      value={form.service_details_obj[field.name] || ''}
+                                      onChange={(e) => setForm(curr => ({ ...curr, service_details_obj: { ...curr.service_details_obj, [field.name]: e.target.value } }))}
+                                    >
+                                      <option value="">Select...</option>
+                                      {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                    </select>
+                                  ) : field.type === 'checkbox' ? (
+                                    <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        className="w-4 h-4 accent-[#062E22]"
+                                        checked={!!form.service_details_obj[field.name]}
+                                        onChange={(e) => setForm(curr => ({ ...curr, service_details_obj: { ...curr.service_details_obj, [field.name]: e.target.checked } }))}
+                                      />
+                                      <span className="text-sm text-slate-700">Yes, included</span>
+                                    </label>
+                                  ) : (
+                                    <input
+                                      type={field.type}
+                                      className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                                      value={form.service_details_obj[field.name] || ''}
+                                      onChange={(e) => setForm(curr => ({ ...curr, service_details_obj: { ...curr.service_details_obj, [field.name]: e.target.value } }))}
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="pt-2">
+                            <h4 className="text-sm font-semibold uppercase tracking-wide text-[#0a4a37] mb-3">Detailed View (Extras)</h4>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              {CATEGORY_SCHEMAS[summary.business_category].filter(f => !f.isCore).map(field => (
+                                <div key={field.name}>
+                                  <label className="mb-1 block text-sm font-medium text-slate-700">{field.label}</label>
+                                  {field.type === 'select' ? (
+                                    <select
+                                      className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                                      value={form.service_details_obj[field.name] || ''}
+                                      onChange={(e) => setForm(curr => ({ ...curr, service_details_obj: { ...curr.service_details_obj, [field.name]: e.target.value } }))}
+                                    >
+                                      <option value="">Select...</option>
+                                      {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                    </select>
+                                  ) : field.type === 'checkbox' ? (
+                                    <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        className="w-4 h-4 accent-[#062E22]"
+                                        checked={!!form.service_details_obj[field.name]}
+                                        onChange={(e) => setForm(curr => ({ ...curr, service_details_obj: { ...curr.service_details_obj, [field.name]: e.target.checked } }))}
+                                      />
+                                      <span className="text-sm text-slate-700">Yes, included</span>
+                                    </label>
+                                  ) : (
+                                    <input
+                                      type={field.type}
+                                      className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-[#062E22] focus:ring-2 focus:ring-[#062E22]/10"
+                                      value={form.service_details_obj[field.name] || ''}
+                                      onChange={(e) => setForm(curr => ({ ...curr, service_details_obj: { ...curr.service_details_obj, [field.name]: e.target.value } }))}
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-500">No specific details configured for this category.</p>
+                      )}
                     </div>
 
                     <button

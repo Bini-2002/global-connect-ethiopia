@@ -76,7 +76,7 @@ async def _get_user_from_session(request: Request) -> tuple[dict, str | None] | 
     return user, normalize_role(session_doc.get("role"))
 
 
-async def get_current_user(request: Request, token: str | None = Depends(oauth2_scheme)):
+async def _get_current_user_core(request: Request, token: str | None, require_active: bool = True):
     session_user = await _get_user_from_session(request)
     user: dict | None = None
     role: str | None = None
@@ -145,7 +145,7 @@ async def get_current_user(request: Request, token: str | None = Depends(oauth2_
                 )
                 user["is_active"] = True
 
-        if not user.get("is_active", True):
+        if require_active and not user.get("is_active", True):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Inactive account",
@@ -159,6 +159,11 @@ async def get_current_user(request: Request, token: str | None = Depends(oauth2_
     except HTTPException:
         raise
 
+async def get_current_user(request: Request, token: str | None = Depends(oauth2_scheme)):
+    return await _get_current_user_core(request, token, require_active=True)
+
+async def get_current_user_allow_inactive(request: Request, token: str | None = Depends(oauth2_scheme)):
+    return await _get_current_user_core(request, token, require_active=False)
 
 class RoleChecker:
     def __init__(self, allowed_roles: list[UserRole]):

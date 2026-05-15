@@ -7,14 +7,17 @@ import Link from 'next/link';
 import {
   CalendarDays,
   CheckSquare,
+  Crown,
   FileBarChart2,
   FolderOpen,
   Landmark,
   Megaphone,
   ShieldAlert,
   Tickets,
+  UserCheck,
   Users,
   Wallet,
+  BarChart3,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -28,8 +31,11 @@ type EventWorkspaceTab =
   | 'venue'
   | 'team'
   | 'tasks'
+  | 'attendees'
+  | 'vip'
   | 'booking'
-  | 'announcements'
+  | 'tickets'
+  | 'engagement'
   | 'operations'
   | 'vip-reservations'
   | 'wrap-up';
@@ -58,8 +64,11 @@ const tabConfigs: TabConfig[] = [
   { id: 'venue', label: 'Venue', icon: Landmark, href: (eventId) => `/organizer/events/${eventId}/venue` },
   { id: 'team', label: 'Team', icon: Users, href: (eventId) => `/organizer/events/${eventId}/team` },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare, href: (eventId) => `/organizer/events/${eventId}/tasks` },
+  { id: 'attendees', label: 'Attendees', icon: UserCheck, href: (eventId) => `/organizer/events/${eventId}/attendees` },
+  { id: 'vip', label: 'VIP Hotels', icon: Crown, href: (eventId) => `/organizer/events/${eventId}/vip` },
   { id: 'booking', label: 'Booking', icon: Tickets, href: (eventId) => `/organizer/events/${eventId}/booking` },
-  { id: 'announcements', label: 'Announcements', icon: Megaphone, href: (eventId) => `/organizer/events/${eventId}/announcements` },
+  { id: 'tickets', label: 'Tickets', icon: Tickets, href: (eventId) => `/organizer/events/${eventId}/tickets` },
+  { id: 'engagement', label: 'Engagement', icon: Megaphone, href: (eventId) => `/organizer/events/${eventId}/engagement` },
   { id: 'operations', label: 'Operations', icon: ShieldAlert, href: (eventId) => `/organizer/events/${eventId}/operations` },
   { id: 'vip-reservations', label: 'VIP Hotels', icon: Landmark, href: (eventId) => `/organizer/events/${eventId}/vip-reservations` },
   { id: 'wrap-up', label: 'Wrap-Up', icon: FileBarChart2, href: (eventId) => `/organizer/events/${eventId}/wrap-up` },
@@ -175,10 +184,12 @@ export default function EventWorkspaceShell({
   children,
   aside,
 }: EventWorkspaceShellProps) {
+  const role = typeof window !== 'undefined' ? (localStorage.getItem('role') as any || 'organizer') : 'organizer';
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <Sidebar role="organizer" />
+        <Sidebar role={role} />
         <DashboardHeader searchPlaceholder="Search event workspaces..." />
         <main className="md:ml-60 pt-16 p-6">
           <div className="max-w-7xl mx-auto flex justify-center py-24">
@@ -192,7 +203,7 @@ export default function EventWorkspaceShell({
   if (!event) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <Sidebar role="organizer" />
+        <Sidebar role={role} />
         <DashboardHeader searchPlaceholder="Search event workspaces..." />
         <main className="md:ml-60 pt-16 p-6">
           <div className="max-w-4xl mx-auto bg-white rounded-2xl border border-slate-200 p-8 text-center">
@@ -211,7 +222,7 @@ export default function EventWorkspaceShell({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Sidebar role="organizer" />
+      <Sidebar role={role} />
       <DashboardHeader searchPlaceholder="Search event workspaces..." />
       <main className="md:ml-60 pt-16 p-6">
         <div className="max-w-7xl mx-auto space-y-6">
@@ -233,30 +244,68 @@ export default function EventWorkspaceShell({
           </div>
 
           {error ? (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">
-              {error}
-            </div>
+            error === 'FORBIDDEN' ? (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300">
+                  <div className="p-8 text-center">
+                    <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <ShieldAlert className="w-10 h-10 text-amber-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-[#062E22]">Access Restricted</h2>
+                    <p className="text-slate-600 mt-4 leading-relaxed">
+                      You do not have the required permissions to access this specific module.
+                      This section is reserved for event organizers and authorized administrators.
+                    </p>
+
+                    <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+                      <Link
+                        href={`/organizer/events/${event?.id}`}
+                        className="px-8 py-3 bg-[#062E22] text-white rounded-xl font-bold hover:bg-[#0a4a37] transition-all shadow-lg shadow-[#062E22]/20"
+                      >
+                        Return to Workspace
+                      </Link>
+                      <Link
+                        href="/team/dashboard"
+                        className="px-8 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all"
+                      >
+                        Team Dashboard
+                      </Link>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 px-8 py-4 border-t border-slate-100 flex justify-center">
+                    <p className="text-xs text-slate-400 font-medium italic">
+                      Professional Security Enforcement • Global Connect Ethiopia
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">
+                {error}
+              </div>
+            )
           ) : null}
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3">
-            <div className="flex flex-wrap gap-2">
-              {tabConfigs.map((tab) => {
+            <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+              {(role === 'team_member' ? tabConfigs.filter(t => ['overview', 'venue', 'tasks'].includes(t.id)) : tabConfigs).map((tab) => {
+                const isActive = activeTab === tab.id;
                 const Icon = tab.icon;
-                const active = tab.id === activeTab;
                 return (
                   <Link
                     key={tab.id}
                     href={tab.href(event.id)}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
-                      active ? 'bg-[#062E22] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${isActive
+                        ? 'border-[#062E22] text-[#062E22] bg-[#062E22]/5'
+                        : 'border-transparent text-slate-500 hover:text-[#062E22] hover:bg-slate-50'
+                      }`}
                   >
                     <Icon className="w-4 h-4" />
                     {tab.label}
                   </Link>
                 );
               })}
-            </div>
+            </nav>
           </div>
 
           <div className="grid xl:grid-cols-3 gap-6">

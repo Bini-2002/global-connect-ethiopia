@@ -7,7 +7,6 @@ import DashboardHeader from "@/components/DashboardHeader";
 import Sidebar from "@/components/Sidebar";
 import AIModal from "@/components/organizer/AIModal";
 import { api } from "@/app/lib/api";
-import { getOrganizerPortalRoute } from "@/app/lib/auth";
 import {
   appendProposalFields,
   buildSessionProposalData,
@@ -63,16 +62,6 @@ export default function CreateProposalPage() {
 
     const loadReviewTargets = async () => {
       try {
-        const organizerRoute = await getOrganizerPortalRoute();
-        if (!isActive) {
-          return;
-        }
-
-        if (organizerRoute !== "/organizer/dashboard") {
-          router.replace(organizerRoute);
-          return;
-        }
-
         const data = await api.get<ReviewTargetsResponse>('/offices/review-targets');
         if (!isActive) {
           return;

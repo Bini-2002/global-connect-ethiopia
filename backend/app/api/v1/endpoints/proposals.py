@@ -12,6 +12,7 @@ from app.models.proposal_states import ProposalStatus
 from app.models.roles import UserRole
 from app.models.supported_event_types import normalize_supported_event_type
 from app.schemas.proposal import ProposalCreate, ProposalResponse, ProposalUpdate
+from app.services.marketplace import parse_object_id
 from app.services.object_storage import ObjectStorageService
 from app.services.review_offices import resolve_review_office
 
@@ -22,22 +23,25 @@ storage_service = ObjectStorageService()
 
 def _require_organizer(current_user: dict) -> None:
     from app.models.roles import normalize_role
-    if normalize_role(current_user.get("role")) != UserRole.ORGANIZER.value:
-        raise HTTPException(status_code=403, detail="Only organizers can access proposals")
+    role = normalize_role(current_user.get("role"))
+    if role not in {UserRole.ORGANIZER.value, UserRole.TEAM_MEMBER.value}:
+        raise HTTPException(status_code=403, detail="Only organizers and team members can access proposals")
 
 
 def _to_response(proposal: dict) -> dict:
-    return {
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    
+    response = {
         "id": str(proposal["_id"]),
-        "organizer_id": proposal["organizer_id"],
-        "event_id": proposal.get("event_id"),
-        "title": proposal["title"],
+        "organizer_id": str(proposal.get("organizer_id", "")),
+        "event_id": str(proposal.get("event_id")) if proposal.get("event_id") else None,
+        "title": proposal.get("title", "Untitled Proposal"),
         "description": proposal.get("description"),
         "visibility": proposal.get("visibility", "public"),
         "event_type": proposal.get("event_type"),
         "location": proposal.get("location"),
         "expected_attendees": proposal.get("expected_attendees"),
-        "budget_estimate": proposal.get("budget_estimate"),
         "start_date": proposal.get("start_date"),
         "end_date": proposal.get("end_date"),
         "program_overview": proposal.get("program_overview"),
@@ -60,10 +64,27 @@ def _to_response(proposal: dict) -> dict:
         "police_notification_id": proposal.get("police_notification_id"),
         "rejection_reason": proposal.get("rejection_reason"),
         "change_request_note": proposal.get("change_request_note"),
-        "status": proposal["status"],
-        "created_at": proposal["created_at"],
-        "updated_at": proposal["updated_at"],
+        "status": proposal.get("status", ProposalStatus.DRAFT),
+        "created_at": proposal.get("created_at") or proposal.get("updated_at") or now,
+        "updated_at": proposal.get("updated_at") or proposal.get("created_at") or now,
     }
+
+    # Ensure nested objects have required timestamps for Pydantic validation
+    if response.get("organizer_updates"):
+        for update in response["organizer_updates"]:
+            if not update.get("created_at"):
+                update["created_at"] = response["created_at"]
+                
+    if response.get("review_decisions"):
+        for decision in response["review_decisions"]:
+            if not decision.get("decided_at"):
+                decision["decided_at"] = response["updated_at"]
+                
+    if response.get("security_assignment"):
+        if not response["security_assignment"].get("assigned_at"):
+            response["security_assignment"]["assigned_at"] = response["updated_at"]
+
+    return response
 
 
 async def _build_office_assignments(
@@ -124,7 +145,6 @@ async def create_proposal(
     event_type: Optional[str] = Form(None),
     location: Optional[str] = Form(None),
     expected_attendees: Optional[int] = Form(None),
-    budget_estimate: Optional[float] = Form(None),
     start_date: Optional[str] = Form(None),
     end_date: Optional[str] = Form(None),
     program_overview: Optional[str] = Form(None),
@@ -179,7 +199,6 @@ async def create_proposal(
         "event_type": normalized_event_type,
         "location": location,
         "expected_attendees": expected_attendees,
-        "budget_estimate": budget_estimate,
         "start_date": datetime.fromisoformat(start_date) if start_date else None,
         "end_date": datetime.fromisoformat(end_date) if end_date else None,
         "program_overview": program_overview,
@@ -210,7 +229,6 @@ async def update_proposal(
     event_type: Optional[str] = Form(None),
     location: Optional[str] = Form(None),
     expected_attendees: Optional[int] = Form(None),
-    budget_estimate: Optional[float] = Form(None),
     start_date: Optional[str] = Form(None),
     end_date: Optional[str] = Form(None),
     program_overview: Optional[str] = Form(None),
@@ -259,8 +277,6 @@ async def update_proposal(
         update_data["location"] = location
     if expected_attendees is not None:
         update_data["expected_attendees"] = expected_attendees
-    if budget_estimate is not None:
-        update_data["budget_estimate"] = budget_estimate
     if start_date is not None:
         update_data["start_date"] = datetime.fromisoformat(start_date) if start_date else None
     if end_date is not None:
@@ -335,7 +351,6 @@ async def submit_proposal(
         "end_date",
         "location",
         "expected_attendees",
-        "budget_estimate"
     ]
     invalid_fields = []
     for field in required_fields:
@@ -378,10 +393,30 @@ async def submit_proposal(
 @router.get("/", response_model=List[ProposalResponse])
 async def list_my_proposals(current_user: dict = Depends(get_current_user)):
     _require_organizer(current_user)
-    cursor = proposal_collection.find({"organizer_id": str(current_user["_id"])})
-    proposals = await cursor.to_list(length=100)
+    try:
+        user_oid = parse_object_id(current_user["id"], field_name="user id")
+        cursor = proposal_collection.find({
+            "$or": [
+                {"organizer_id": user_oid},
+                {"organizer_id": str(user_oid)}
+            ]
+        })
+        proposals_docs = await cursor.to_list(length=100)
 
-    return [_to_response(p) for p in proposals]
+        results = []
+        for p in proposals_docs:
+            try:
+                results.append(_to_response(p))
+            except Exception as e:
+                print(f"Error serializing proposal {p.get('_id')}: {str(e)}")
+                # Skip broken proposals instead of 500ing
+                continue
+        return results
+    except Exception as e:
+        import traceback
+        print(f"CRITICAL ERROR in list_my_proposals: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{proposal_id}", response_model=ProposalResponse)

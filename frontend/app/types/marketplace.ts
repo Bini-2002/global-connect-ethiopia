@@ -1,6 +1,6 @@
 export type RequestStatus = 'REQUESTED' | 'QUOTED' | 'NEGOTIATING' | 'ACCEPTED';
 export type NegotiationMessageType = 'QUOTE' | 'COUNTER';
-export type ContractStatus = 'draft' | 'pending_signatures' | 'active' | 'completed' | 'cancelled';
+export type ContractStatus = 'draft' | 'AGREED' | 'FUNDED' | 'COMPLETED' | 'PAID' | 'CANCELLED';
 export type EscrowStatus = 'NONE' | 'LOCKED' | 'RELEASED';
 export type PaymentStatus = 'PENDING' | 'PAID';
 export type TransactionType = 'DEPOSIT' | 'ESCROW_LOCK' | 'RELEASE' | 'REFUND' | 'COMMISSION' | 'TASK_PAYOUT';
@@ -37,6 +37,7 @@ export interface VendorServiceRecord {
   location?: string | null;
   images: ServiceImageAsset[];
   availability?: unknown;
+  service_details?: unknown;
   tags: string[];
   is_active: boolean;
   created_at: string;
@@ -89,7 +90,9 @@ export interface VendorServiceCreatePayload {
   location: string;
   tags?: string[];
   image_urls?: string[];
+  image_files?: File[];
   availability?: string;
+  service_details?: string;
 }
 
 export interface MarketplaceVendorRecord {
@@ -97,6 +100,7 @@ export interface MarketplaceVendorRecord {
   user_id: string;
   business_name: string;
   services: string[];
+  service_records?: VendorServiceRecord[];
   is_verified: boolean;
   rating: number;
   created_at: string;
@@ -167,8 +171,27 @@ export interface WalletRecord {
   user_id: string;
   balance: number;
   locked_balance: number;
+  pending_withdrawal_balance?: number;
+  total_withdrawn?: number;
+  currency?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface WithdrawalRecord {
+  id: string;
+  wallet_id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  payout_method: string | null;
+  payout_reference: string | null;
+  provider_reference: string | null;
+  notes: string | null;
+  currency: string;
+  requested_at: string;
+  updated_at: string;
+  completed_at: string | null;
 }
 
 export interface WalletTransactionRecord {

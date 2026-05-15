@@ -16,6 +16,9 @@ import {
   SparklesIcon,
   XMarkIcon,
   Bars3Icon,
+  BriefcaseIcon,
+  UserIcon,
+  BellIcon,
 } from "@heroicons/react/24/outline";
 
 interface SidebarItem {
@@ -25,7 +28,7 @@ interface SidebarItem {
 }
 
 interface SidebarProps {
-  role: 'organizer' | 'admin' | 'ministry' | 'municipal' | 'police' | 'vendor';
+  role: 'organizer' | 'admin' | 'ministry' | 'municipal' | 'police' | 'vendor' | 'attendee' | 'team_member';
   portalName?: string;
 }
 
@@ -87,6 +90,7 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Dashboard', href: '/organizer/dashboard', icon: <HomeIcon className="w-5 h-5" /> },
     { label: 'My Events', href: '/organizer/events', icon: <CalendarIcon className="w-5 h-5" /> },
     { label: 'Vendors', href: '/organizer/vendors', icon: <BuildingOfficeIcon className="w-5 h-5" /> },
+    { label: 'Opportunities', href: '/organizer/opportunities', icon: <BriefcaseIcon className="w-5 h-5" /> },
     { label: 'Requests', href: '/organizer/requests', icon: icons.queue },
     { label: 'Contracts', href: '/organizer/contracts', icon: icons.proposals },
     { label: 'Wallet', href: '/organizer/wallet', icon: icons.vendor },
@@ -95,38 +99,59 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Government', href: '/organizer/government', icon: <ClipboardDocumentListIcon className="w-5 h-5" /> },
     { label: 'Reports & Analytics', href: '/organizer/reports', icon: <ChartBarIcon className="w-5 h-5" /> },
     { label: 'AI Assistant', href: '/organizer/ai-assistant', icon: <SparklesIcon className="w-5 h-5" /> },
+    { label: 'Notifications', href: '/notifications', icon: <BellIcon className="w-5 h-5" /> },
+    { label: 'Profile', href: '/profile/organizer', icon: <UserIcon className="w-5 h-5" /> },
     { label: 'Settings', href: '/organizer/settings', icon: <CogIcon className="w-5 h-5" /> },
   ],
   admin: [
     { label: 'Organizers', href: '/admin/organizers', icon: icons.users },
     { label: 'Vendors', href: '/admin/vendors', icon: icons.vendor },
+    { label: 'Revenue Analytics', href: '/admin/analytics', icon: <ChartBarIcon className="w-5 h-5" /> },
+    { label: 'Notifications', href: '/notifications', icon: <BellIcon className="w-5 h-5" /> },
+    { label: 'Profile', href: '/profile/admin', icon: <UserIcon className="w-5 h-5" /> },
   ],
   ministry: [
     { label: 'Overview', href: '/ministry/proposals', icon: icons.dashboard },
     { label: 'Review Queue', href: '/ministry/proposals', icon: icons.queue },
     { label: 'Approved', href: '/ministry/proposals?tab=approved', icon: icons.check },
     { label: 'Rejected', href: '/ministry/proposals?tab=rejected', icon: icons.reject },
+    { label: 'Profile', href: '/profile/ministry', icon: <UserIcon className="w-5 h-5" /> },
   ],
   municipal: [
     { label: 'Overview', href: '/municipal/proposals', icon: icons.dashboard },
     { label: 'Review Queue', href: '/municipal/proposals', icon: icons.queue },
     { label: 'Approved', href: '/municipal/proposals?tab=approved', icon: icons.check },
     { label: 'Rejected', href: '/municipal/proposals?tab=rejected', icon: icons.reject },
+    { label: 'Profile', href: '/profile/municipal', icon: <UserIcon className="w-5 h-5" /> },
   ],
   police: [
     { label: 'Overview', href: '/police/proposals', icon: icons.dashboard },
     { label: 'Allowed Events', href: '/police/proposals', icon: icons.events },
+    { label: 'Profile', href: '/profile/police', icon: <UserIcon className="w-5 h-5" /> },
   ],
   vendor: [
     { label: 'Dashboard', href: '/vendor/dashboard', icon: icons.dashboard },
+    { label: 'Opportunities', href: '/vendor/opportunities', icon: <BriefcaseIcon className="w-5 h-5" /> },
     { label: 'Requests', href: '/vendor/requests', icon: icons.queue },
     { label: 'Contracts', href: '/vendor/contracts', icon: icons.proposals },
     { label: 'Venue Listings', href: '/vendor/venue-listings', icon: icons.events },
     { label: 'Reservations', href: '/vendor/venue-listings/reservations', icon: icons.check },
     { label: 'Wallet', href: '/vendor/wallet', icon: icons.vendor },
+    { label: 'Notifications', href: '/notifications', icon: <BellIcon className="w-5 h-5" /> },
     { label: 'Verification', href: '/vendor/verification', icon: icons.shield },
+    { label: 'Profile', href: '/profile/vendor', icon: <UserIcon className="w-5 h-5" /> },
   ],
-
+  attendee: [
+    { label: 'Home', href: '/', icon: <HomeIcon className="w-5 h-5" /> },
+    { label: 'My Profile', href: '/profile/attendee', icon: <UserIcon className="w-5 h-5" /> },
+  ],
+  team_member: [
+    { label: 'My Dashboard', href: '/team/dashboard', icon: <HomeIcon className="w-5 h-5" /> },
+    { label: 'Assigned Events', href: '/organizer/events', icon: <CalendarIcon className="w-5 h-5" /> },
+    { label: 'Vendors', href: '/organizer/vendors', icon: <BuildingOfficeIcon className="w-5 h-5" /> },
+    { label: 'Notifications', href: '/notifications', icon: <BellIcon className="w-5 h-5" /> },
+    { label: 'Profile', href: '/profile/team', icon: <UserIcon className="w-5 h-5" /> },
+  ],
 };
 
 const portalNames: Record<string, string> = {
@@ -136,6 +161,7 @@ const portalNames: Record<string, string> = {
   municipal: 'Municipal Portal',
   police: 'Police Portal',
   vendor: 'Vendor Portal',
+  team_member: 'Team Hub',
 };
 
 export default function Sidebar({ role, portalName }: SidebarProps) {

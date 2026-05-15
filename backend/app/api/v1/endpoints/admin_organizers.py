@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query
 from app.api.v1.deps import allow_admin
 from app.core.config import settings
 from app.db.mongodb import organizer_collection, user_collection, verification_job_collection
+from app.services.marketplace import parse_object_id
 
 router = APIRouter()
 
@@ -92,10 +93,7 @@ async def get_organizer_detail_for_admin(
       - pending      : OCR not yet run
     """
     _ = current_user
-    try:
-        oid = ObjectId(organizer_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid organizer ID")
+    oid = parse_object_id(organizer_id, field_name="organizer ID")
 
     profile = await organizer_collection.find_one({"_id": oid})
     if not profile:
@@ -123,10 +121,7 @@ async def admin_decide_organizer_verification(
     On APPROVE: status → "approved"
     On REJECT:  status → "draft" (data preserved), rejection_comment saved
     """
-    try:
-        oid = ObjectId(organizer_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid organizer ID")
+    oid = parse_object_id(organizer_id, field_name="organizer ID")
 
     profile = await organizer_collection.find_one({"_id": oid})
     if not profile:
@@ -214,10 +209,7 @@ async def admin_run_ocr_for_organizer(
     Runs synchronously and returns updated score immediately.
     """
     _ = current_user
-    try:
-        oid = ObjectId(organizer_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid organizer ID")
+    oid = parse_object_id(organizer_id, field_name="organizer ID")
 
     profile = await organizer_collection.find_one({"_id": oid})
     if not profile:
@@ -281,10 +273,7 @@ async def get_organizer_resubmission_flag(
     Use this to avoid missing organizer updates in the admin queue.
     """
     _ = current_user
-    try:
-        oid = ObjectId(organizer_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid organizer ID")
+    oid = parse_object_id(organizer_id, field_name="organizer ID")
 
     profile = await organizer_collection.find_one({"_id": oid})
     if not profile:

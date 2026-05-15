@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { 
-  CheckCircle2, 
-  Clock, 
-  ListTodo, 
-  LogOut, 
-  Wallet, 
-  ArrowUpRight, 
+import {
+  CheckCircle2,
+  Clock,
+  ListTodo,
+  LogOut,
+  Wallet,
+  ArrowUpRight,
   History,
   TrendingUp,
   LayoutDashboard
@@ -125,7 +125,7 @@ export default function TeamDashboardPage() {
               <p className="text-xs text-white/50 uppercase tracking-widest font-bold">Wallet Balance</p>
               <p className="text-lg font-bold text-[#8CB988]">{formatCurrency(wallet?.balance || wallet?.available_balance)}</p>
             </div>
-            <button 
+            <button
               onClick={() => { logout(); router.push('/login'); }}
               className="flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl transition-all duration-300 text-sm font-bold border border-white/10 backdrop-blur-md"
             >
@@ -137,16 +137,16 @@ export default function TeamDashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto py-10 px-4 sm:px-8">
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
+
           {/* Left Column: Stats & Wallet */}
           <div className="lg:col-span-4 space-y-8">
-            
+
             {/* Wallet Card */}
             <div className="bg-[#062E22] rounded-[2.5rem] p-8 shadow-2xl shadow-emerald-900/20 text-white relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700" />
-              
+
               <div className="relative z-10">
                 <div className="flex justify-between items-start mb-8">
                   <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-sm">
@@ -168,7 +168,7 @@ export default function TeamDashboardPage() {
                   </div>
                 </div>
 
-                <button 
+                <button
                   className="w-full py-4 bg-[#8CB988] hover:bg-[#7aa976] text-[#062E22] rounded-2xl font-black text-sm uppercase tracking-widest transition-all duration-300 shadow-xl shadow-emerald-950/40 flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleWithdraw}
                   disabled={isWithdrawing || (wallet?.balance || wallet?.available_balance || 0) <= 0}
@@ -239,12 +239,12 @@ export default function TeamDashboardPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                   <div className="px-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 shadow-sm">
-                     {tasks.length} Total
-                   </div>
+                  <div className="px-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 shadow-sm">
+                    {tasks.length} Total
+                  </div>
                 </div>
               </div>
-              
+
               <div className="p-4">
                 {loadingTasks ? (
                   <div className="flex flex-col items-center justify-center py-20">
@@ -267,24 +267,22 @@ export default function TeamDashboardPage() {
                           <div className="flex-1">
                             <div className="flex flex-wrap items-center gap-3 mb-3">
                               <h3 className="text-lg font-black text-[#062E22] group-hover:text-black transition-colors">{task.title}</h3>
-                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                task.priority === 'high' ? 'bg-red-50 text-red-600 border border-red-100' :
-                                task.priority === 'medium' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                                'bg-slate-50 text-slate-500 border border-slate-100'
-                              }`}>
+                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${task.priority === 'high' ? 'bg-red-50 text-red-600 border border-red-100' :
+                                  task.priority === 'medium' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                    'bg-slate-50 text-slate-500 border border-slate-100'
+                                }`}>
                                 {task.priority} Priority
                               </span>
-                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                task.status === 'done' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                                task.status === 'pending_approval' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                                task.status === 'in_progress' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
-                                'bg-slate-50 text-slate-500 border border-slate-100'
-                              }`}>
+                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${task.status === 'done' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                  task.status === 'pending_approval' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                    task.status === 'in_progress' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                                      'bg-slate-50 text-slate-500 border border-slate-100'
+                                }`}>
                                 {task.status === 'pending_approval' ? 'Pending Approval' : task.status.replace('_', ' ')}
                               </span>
                             </div>
                             <p className="text-sm text-slate-500 font-medium leading-relaxed mb-4">{task.description || 'No specialized instructions provided for this assignment.'}</p>
-                            
+
                             <div className="flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-400">
                               {task.due_date && (
                                 <div className="flex items-center gap-1.5 py-1 px-3 bg-slate-100/50 rounded-lg">
@@ -300,10 +298,10 @@ export default function TeamDashboardPage() {
                               )}
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center gap-3 pt-2">
                             {task.status === 'open' && (
-                              <button 
+                              <button
                                 onClick={() => void handleUpdateStatus(task, 'in_progress')}
                                 disabled={updatingId === task.id}
                                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300 shadow-lg shadow-blue-200"
@@ -312,7 +310,7 @@ export default function TeamDashboardPage() {
                               </button>
                             )}
                             {task.status === 'in_progress' && (
-                              <button 
+                              <button
                                 onClick={() => void handleUpdateStatus(task, 'pending_approval')}
                                 disabled={updatingId === task.id}
                                 className="px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300 shadow-lg shadow-amber-200"

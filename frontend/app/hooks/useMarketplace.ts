@@ -9,6 +9,7 @@ import {
   MarketplaceVendorRecord,
   WalletRecord,
   WalletTransactionRecord,
+  WithdrawalRecord,
 } from '@/app/types/marketplace';
 
 interface ResourceState<T> {
@@ -319,6 +320,43 @@ export function useWalletTransactions(): ResourceState<WalletTransactionRecord[]
       } catch (nextError) {
         if (active) {
           setError(createErrorMessage(nextError, 'Unable to load wallet transactions.'));
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
+
+  return { data, error, loading, refresh: () => setReloadKey((value) => value + 1) };
+}
+
+export function useWalletWithdrawals(): ResourceState<WithdrawalRecord[]> {
+  const [data, setData] = useState<WithdrawalRecord[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await marketplaceService.listWithdrawals();
+        if (active) {
+          setData(response);
+        }
+      } catch (nextError) {
+        if (active) {
+          setError(createErrorMessage(nextError, 'Unable to load wallet withdrawals.'));
         }
       } finally {
         if (active) {

@@ -46,6 +46,7 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    role: str
 
 # Data stored in DB
 class UserInDB(BaseModel):
@@ -82,3 +83,26 @@ class OtpVerifyResponse(BaseModel):
     token_type: Optional[str] = None
     user_id: Optional[str] = None
     role: Optional[str] = None
+
+class TeamMemberRegister(BaseModel):
+    full_name: str = Field(..., min_length=3)
+    phone_number: str = Field(..., min_length=9)
+    password: str = Field(..., min_length=8)
+    
+    @field_validator('password')
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not re.search(r'\d', v):
+            raise ValueError('Password must contain at least one number')
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not re.search(r'[!@#$%^&*(),.?":{}|<> ]', v):
+            raise ValueError('Password must contain at least one special character')
+        return v
+
+class PhoneOtpSendRequest(BaseModel):
+    phone_number: str
+
+class PhoneOtpVerifyRequest(BaseModel):
+    phone_number: str
+    otp_code: str = Field(..., min_length=6, max_length=6)

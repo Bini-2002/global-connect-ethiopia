@@ -140,6 +140,7 @@ def setup_marketplace(monkeypatch: pytest.MonkeyPatch):
         "request_collection": FakeCollection(),
         "contract_collection": FakeCollection(),
         "wallet_collection": FakeCollection(),
+        "withdrawal_collection": FakeCollection(),
         "transaction_collection": FakeCollection(),
         "event_collection": FakeCollection(),
         "organizer_collection": FakeCollection(),
@@ -319,7 +320,7 @@ def test_marketplace_lifecycle_handles_quote_counter_accept_fund_complete_and_re
     current_user_ref["user"] = vendor_user
     vendor_wallet_response = client.get("/api/v1/wallet/me")
     assert vendor_wallet_response.status_code == 200
-    assert vendor_wallet_response.json()["balance"] == 900
+    assert vendor_wallet_response.json()["balance"] == 810
     assert vendor_wallet_response.json()["locked_balance"] == 0
 
     vendor_transactions_response = client.get("/api/v1/wallet/transactions")
@@ -330,6 +331,42 @@ def test_marketplace_lifecycle_handles_quote_counter_accept_fund_complete_and_re
     organizer_transactions_response = client.get("/api/v1/wallet/transactions")
     assert organizer_transactions_response.status_code == 200
     assert [item["type"] for item in organizer_transactions_response.json()] == ["RELEASE", "ESCROW_LOCK", "DEPOSIT"]
+
+
+def test_release_applies_commission_split(
+    client: TestClient,
+    setup_marketplace,
+) -> None:
+    current_user_ref = setup_marketplace["current_user_ref"]
+    organizer_user = setup_marketplace["organizer_user"]
+    vendor_user = setup_marketplace["vendor_user"]
+
+    _, contract_id = _create_accepted_contract(client, setup_marketplace)
+
+    current_user_ref["user"] = organizer_user
+    assert client.post("/api/v1/wallet/deposit", json={"amount": 1000}).status_code == 200
+
+    fund_response = client.post(f"/api/v1/contracts/{contract_id}/fund")
+    assert fund_response.status_code == 200
+
+    wallet_after_fund = client.get("/api/v1/wallet/me")
+    assert wallet_after_fund.status_code == 200
+    assert wallet_after_fund.json()["balance"] == 100
+    assert wallet_after_fund.json()["locked_balance"] == 900
+
+    current_user_ref["user"] = vendor_user
+    assert client.post(f"/api/v1/contracts/{contract_id}/complete").status_code == 200
+
+    current_user_ref["user"] = organizer_user
+    release_response = client.post(f"/api/v1/contracts/{contract_id}/release")
+    assert release_response.status_code == 200
+    assert release_response.json()["payment_status"] == "PAID"
+
+    vendor_wallet = next(doc for doc in setup_marketplace["collections"]["wallet_collection"].docs if doc.get("user_id") == setup_marketplace["vendor_user"]["_id"])
+    commission_entry = next(doc for doc in setup_marketplace["collections"]["transaction_collection"].docs if doc.get("type") == "COMMISSION")
+
+    assert float(vendor_wallet["balance"]) == 810.0
+    assert float(commission_entry["amount"]) == 90.0
 
 
 def test_contract_funding_requires_sufficient_balance(client: TestClient, setup_marketplace) -> None:
@@ -388,3 +425,58 @@ def test_refund_unlocks_escrow_back_to_organizer(client: TestClient, setup_marke
     transactions_response = client.get("/api/v1/wallet/transactions")
     assert transactions_response.status_code == 200
     assert [item["type"] for item in transactions_response.json()] == ["REFUND", "ESCROW_LOCK", "DEPOSIT"]
+
+
+def test_withdrawal_reserves_wallet_balance_and_records_history(
+    client: TestClient,
+    setup_marketplace,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_user_ref = setup_marketplace["current_user_ref"]
+    organizer_user = setup_marketplace["organizer_user"]
+
+    async def fake_initialize_withdrawal(*args, **kwargs):
+        return {"success": True, "tx_ref": "wd-test-001", "provider_reference": "chapa-transfer-001"}
+
+    monkeypatch.setattr("app.services.chapa_service.initialize_withdrawal", fake_initialize_withdrawal)
+
+    current_user_ref["user"] = organizer_user
+    assert client.post("/api/v1/wallet/deposit", json={"amount": 1000}).status_code == 200
+
+    withdrawal_response = client.post(
+        "/api/v1/wallet/withdrawals",
+        json={
+            "amount": 250,
+            "payout_method": "chapa",
+            "payout_reference": "bank-account-123",
+            "notes": "Quarterly vendor payout",
+        },
+    )
+    assert withdrawal_response.status_code == 201
+    assert withdrawal_response.json()["status"] == "PROCESSING"
+    assert withdrawal_response.json()["provider_reference"] == "chapa-transfer-001"
+    withdrawal_id = withdrawal_response.json()["id"]
+
+    complete_response = client.post(
+        f"/api/v1/wallet/withdrawals/{withdrawal_id}/complete",
+        json={"provider_reference": "chapa-transfer-001"},
+    )
+    assert complete_response.status_code == 200
+    assert complete_response.json()["status"] == "COMPLETED"
+    assert complete_response.json()["completed_at"] is not None
+
+    wallet_response = client.get("/api/v1/wallet/me")
+    assert wallet_response.status_code == 200
+    assert wallet_response.json()["balance"] == 750
+    assert wallet_response.json()["pending_withdrawal_balance"] == 0
+    assert wallet_response.json()["total_withdrawn"] == 250
+
+    withdrawals_response = client.get("/api/v1/wallet/withdrawals")
+    assert withdrawals_response.status_code == 200
+    assert len(withdrawals_response.json()) == 1
+    assert withdrawals_response.json()[0]["amount"] == 250
+    assert withdrawals_response.json()[0]["status"] == "COMPLETED"
+
+    transactions_response = client.get("/api/v1/wallet/transactions")
+    assert transactions_response.status_code == 200
+    assert [item["type"] for item in transactions_response.json()] == ["WITHDRAWAL", "DEPOSIT"]

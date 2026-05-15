@@ -158,6 +158,7 @@ export default function EventAnnouncementsPage() {
               <input
                 value="confirmed_bookings"
                 disabled
+                title="Audience segment"
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500"
               />
             </div>
@@ -168,6 +169,7 @@ export default function EventAnnouncementsPage() {
                 onChange={(eventValue) =>
                   setAnnouncementForm((current) => ({ ...current, subject: eventValue.target.value }))
                 }
+                placeholder="Enter announcement subject"
                 className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
               />
             </div>
@@ -179,6 +181,7 @@ export default function EventAnnouncementsPage() {
                 onChange={(eventValue) =>
                   setAnnouncementForm((current) => ({ ...current, body: eventValue.target.value }))
                 }
+                placeholder="Write the announcement message"
                 className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
               />
             </div>
@@ -190,6 +193,7 @@ export default function EventAnnouncementsPage() {
                 onChange={(eventValue) =>
                   setAnnouncementForm((current) => ({ ...current, send_at: eventValue.target.value }))
                 }
+                title="Send at date and time"
                 className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
               />
               <p className="text-xs text-slate-500 mt-2">
@@ -219,10 +223,10 @@ export default function EventAnnouncementsPage() {
           ) : (
             <div className="space-y-3 mt-5">
               {announcements.map((announcement) => (
-                <button
+                <div
                   key={announcement.id}
                   onClick={() => setSelectedAnnouncementId(announcement.id)}
-                  className={`w-full text-left rounded-2xl border p-4 transition ${
+                  className={`w-full text-left rounded-2xl border p-4 transition cursor-pointer ${
                     selectedAnnouncementId === announcement.id
                       ? 'border-[#062E22] bg-[#F5FBF8]'
                       : 'border-slate-200 hover:bg-slate-50'
@@ -255,7 +259,7 @@ export default function EventAnnouncementsPage() {
                   {announcement.delivery_warning ? (
                     <p className="text-xs text-amber-700 mt-3">{announcement.delivery_warning}</p>
                   ) : null}
-                </button>
+                </div>
               ))}
             </div>
           )}

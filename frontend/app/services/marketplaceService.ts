@@ -12,6 +12,7 @@ import {
   WalletDepositPayload,
   WalletRecord,
   WalletTransactionRecord,
+  WithdrawalRecord,
 } from '@/app/types/marketplace';
 import { VenueReservationRecord } from '@/app/types/event';
 
@@ -117,6 +118,14 @@ export const marketplaceService = {
 
   listWalletTransactions: async (): Promise<WalletTransactionRecord[]> => {
     return api.get<WalletTransactionRecord[]>('/wallet/transactions');
+  },
+
+  listWithdrawals: async (): Promise<WithdrawalRecord[]> => {
+    return api.get<WithdrawalRecord[]>('/wallet/withdrawals');
+  },
+
+  requestWithdrawal: async (payload: { amount: number; payout_method?: string; payout_reference?: string; notes?: string }): Promise<WithdrawalRecord> => {
+    return api.post<WithdrawalRecord>('/wallet/withdrawals', payload);
   },
 
   // ─── Phase 2: Venue Listings ─────────────────────────────────────────────────

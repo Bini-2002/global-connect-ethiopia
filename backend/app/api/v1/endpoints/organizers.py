@@ -27,10 +27,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from bson import ObjectId
+from bson import ObjectId, errors as bson_errors
+from app.services.marketplace import parse_object_id
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.api.v1.deps import get_current_user
+from app.api.v1.deps import get_current_user, get_current_user_allow_inactive
 from app.core.config import settings
 from app.core.queue import get_verification_queue
 from app.db.mongodb import organizer_collection, verification_job_collection
@@ -171,7 +172,7 @@ async def register_individual_organizer(
     social_media_link: str | None = Form(None),
     national_id: UploadFile = File(...),
     government_issued_id: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     """
     Individual organizer one-step registration.
@@ -201,7 +202,10 @@ async def register_individual_organizer(
         allowed_extensions=ID_DOCUMENT_EXTENSIONS,
     )
 
-    user_oid = ObjectId(current_user["id"])
+    user_id_str = current_user.get("id") or str(current_user.get("_id", ""))
+    if not user_id_str:
+        raise HTTPException(status_code=401, detail="User ID not found")
+    user_oid = parse_object_id(user_id_str, field_name="user id")
     now = datetime.now(timezone.utc)
 
     profile_data = {
@@ -290,10 +294,12 @@ async def register_individual_organizer(
 
 
 @router.get("/individual/review-summary")
-async def get_individual_review_summary(current_user: dict = Depends(get_current_user)):
+async def get_individual_review_summary(current_user: dict = Depends(get_current_user_allow_inactive)):
     """Returns the submitted individual registration data for review."""
     _require_organizer(current_user)
-    profile = await organizer_collection.find_one({"user_id": ObjectId(current_user["id"])})
+    user_id_str = current_user.get("id") or str(current_user.get("_id", ""))
+    user_oid = parse_object_id(user_id_str, field_name="user id")
+    profile = await organizer_collection.find_one({"user_id": user_oid})
     if not profile or profile.get("profile_type") != "individual":
         raise HTTPException(status_code=404, detail="Individual organizer profile not found")
 
@@ -322,7 +328,7 @@ async def create_or_update_organization_step_1(
     website_url: str | None = Form(None),
     organization_description: str | None = Form(None),
     business_licence: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     """
     Organization step 1 — org details and business licence upload.
@@ -348,7 +354,10 @@ async def create_or_update_organization_step_1(
         allowed_extensions=BUSINESS_LICENSE_EXTENSIONS,
     )
 
-    user_oid = ObjectId(current_user["id"])
+    user_id_str = current_user.get("id") or str(current_user.get("_id", ""))
+    if not user_id_str:
+        raise HTTPException(status_code=401, detail="User ID not found")
+    user_oid = parse_object_id(user_id_str, field_name="user id")
     now = datetime.now(timezone.utc)
     step1_data = {
         "organization_name": organization_name.strip(),
@@ -420,7 +429,7 @@ async def create_or_update_organization_step_2(
     rep_workspace_id: str = Form(...),
     representative_id_document: UploadFile = File(...),
     authorization_proof: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     """
     Organization step 2 — representative data and authorization proof.
@@ -429,7 +438,10 @@ async def create_or_update_organization_step_2(
             authorization_proof (file)
     """
     _require_organizer(current_user)
-    user_oid = ObjectId(current_user["id"])
+    user_id_str = current_user.get("id") or str(current_user.get("_id", ""))
+    if not user_id_str:
+        raise HTTPException(status_code=401, detail="User ID not found")
+    user_oid = parse_object_id(user_id_str, field_name="user id")
 
     existing = await organizer_collection.find_one({"user_id": user_oid})
     if not existing:
@@ -493,7 +505,7 @@ async def submit_organization_for_verification(
     alternative_contact: str | None = Form(None),
     confirm_information_is_accurate: bool = Form(...),
     agree_terms_and_privacy: bool = Form(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_allow_inactive),
 ):
     """
     Organization step 3 — final submission.
@@ -503,7 +515,10 @@ async def submit_organization_for_verification(
     OCR verification job.
     """
     _require_organizer(current_user)
-    user_oid = ObjectId(current_user["id"])
+    user_id_str = current_user.get("id") or str(current_user.get("_id", ""))
+    if not user_id_str:
+        raise HTTPException(status_code=401, detail="User ID not found")
+    user_oid = parse_object_id(user_id_str, field_name="user id")
 
     existing = await organizer_collection.find_one({"user_id": user_oid})
     if not existing:
@@ -626,10 +641,12 @@ async def submit_organization_for_verification(
 
 
 @router.get("/organization/review-summary")
-async def get_organization_review_summary(current_user: dict = Depends(get_current_user)):
+async def get_organization_review_summary(current_user: dict = Depends(get_current_user_allow_inactive)):
     """Returns the full organization registration data for the organizer to review."""
     _require_organizer(current_user)
-    profile = await organizer_collection.find_one({"user_id": ObjectId(current_user["id"])})
+    user_id_str = current_user.get("id") or str(current_user.get("_id", ""))
+    user_oid = parse_object_id(user_id_str, field_name="user id")
+    profile = await organizer_collection.find_one({"user_id": user_oid})
     if not profile or profile.get("profile_type") != "organization":
         raise HTTPException(status_code=404, detail="Organization profile not found")
 
@@ -659,10 +676,12 @@ async def get_organization_review_summary(current_user: dict = Depends(get_curre
 
 
 @router.get("/verification-status", response_model=OrganizerVerificationStatusResponse)
-async def get_verification_status(current_user: dict = Depends(get_current_user)):
+async def get_verification_status(current_user: dict = Depends(get_current_user_allow_inactive)):
     """Returns current verification status, OCR score and tier for any organizer type."""
     _require_organizer(current_user)
-    profile = await organizer_collection.find_one({"user_id": ObjectId(current_user["id"])})
+    user_id_str = current_user.get("id") or str(current_user.get("_id", ""))
+    user_oid = parse_object_id(user_id_str, field_name="user id")
+    profile = await organizer_collection.find_one({"user_id": user_oid})
     if not profile:
         raise HTTPException(status_code=404, detail="Organizer profile not found")
 

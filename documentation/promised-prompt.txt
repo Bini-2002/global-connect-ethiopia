@@ -1,0 +1,56 @@
+1.
+Test_Public_Key = CHAPUBK_TEST-lJCcDzcYPwjYSKYM6vDvLSjGqZA4dc24
+
+2.
+Test secret key = CHASECK_TEST-bRzQUZZDbeDk7Vk7BQxxIqBxbEFBB0w8
+
+3.
+Encryption key = AWt9n38Khnh7r064u1j8GBPZ
+
+==================================
+
+http://localhost:3000/organizer/contracts/69f7d1f0df389dad9042be1d
+
+here 
+1. The Funded at , Completed at and Paid at are not specifically clicked or showed.
+
+2. Plus there is no option to complete the payment only the funding option.
+
+3. prepare an organized payment transaction report or where for each negotiation the system will get 5% from the organizer and 5% from the vendor as their final payment is completed 
+
+4.
+"Lifecycle
+
+-Contract state progression
+Draft
+-Pending Signatures
+-Active
+-Completed"
+plus this section doesn't specify on which status both the vendor and the organizer are. so fix it to show by coloring.
+
+5.
+"Lifecycle
+
+State progression
+Draft
+
+Pending Signatures
+
+Active
+
+Complete" state progression also not functional for the vendor as he can't submit on what stage he is on so the logic there is 
+"the "
+
+===================================
+
+great!! It worked for now. I look tired and i think I've tested so many things so I want one last dance as 
+1. 
+I don't think the attendee side is not covered at all plan strong integration testing for him and give it for Samri.
+
+2. 
+I want to add a feature for the organizer to reserve detailed reservation form the hotels for special 
+guests to make the project. So you'll generate a mock 3 hotels for display and save them in the database 
+then the organizer will notify the guests on their email about the details. 
+Give this one for Mafi as she will work on it on
+
+3.    
