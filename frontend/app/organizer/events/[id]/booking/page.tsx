@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { QrCode } from 'lucide-react';
+import { QrCode, Globe, Lock } from 'lucide-react';
 import { api } from '@/app/lib/api';
 import { useEventWorkspace } from '@/app/hooks/useEventWorkspace';
 import { eventsService } from '@/app/services/eventsService';
@@ -29,6 +29,7 @@ export default function EventBookingPage() {
     booking_opens_at: '',
     booking_closes_at: '',
     required_attendee_fields: '',
+    visibility: 'public' as 'public' | 'private',
   });
 
   const loadBookings = async () => {
@@ -55,6 +56,7 @@ export default function EventBookingPage() {
       booking_opens_at: startOfInputDateTime(event.booking_opens_at || event.start_date),
       booking_closes_at: startOfInputDateTime(event.booking_closes_at || event.end_date),
       required_attendee_fields: (event.required_attendee_fields || []).join(', '),
+      visibility: (event.visibility as 'public' | 'private') || 'public',
     });
   }, [event]);
 
@@ -81,6 +83,7 @@ export default function EventBookingPage() {
           .split(',')
           .map((field) => field.trim())
           .filter(Boolean),
+        visibility: bookingSettings.visibility,
       });
       await refresh();
     } catch (err) {
@@ -130,8 +133,52 @@ export default function EventBookingPage() {
       }
     >
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h2 className="text-lg font-bold text-[#062E22]">Booking Settings</h2>
-        <div className="grid md:grid-cols-2 gap-4 mt-5">
+        <h2 className="text-lg font-bold text-[#062E22]">Event Availability & Booking</h2>
+        
+        <div className="mt-6">
+          <label className="text-sm font-medium text-slate-700 mb-2 block">Who can see and book this event?</label>
+          <div className="grid md:grid-cols-2 gap-4">
+            <button
+              onClick={() => setBookingSettings(curr => ({ ...curr, visibility: 'public' }))}
+              className={`flex items-start gap-4 p-4 rounded-xl border-2 transition text-left ${
+                bookingSettings.visibility === 'public'
+                  ? 'border-[#062E22] bg-[#062E22]/5'
+                  : 'border-slate-100 hover:border-slate-200'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                bookingSettings.visibility === 'public' ? 'bg-[#062E22] text-white' : 'bg-slate-100 text-slate-500'
+              }`}>
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-[#062E22]">Public Event</p>
+                <p className="text-xs text-slate-500 mt-1">Anyone can discover and register for this event on the platform.</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setBookingSettings(curr => ({ ...curr, visibility: 'private' }))}
+              className={`flex items-start gap-4 p-4 rounded-xl border-2 transition text-left ${
+                bookingSettings.visibility === 'private'
+                  ? 'border-[#062E22] bg-[#062E22]/5'
+                  : 'border-slate-100 hover:border-slate-200'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                bookingSettings.visibility === 'private' ? 'bg-[#062E22] text-white' : 'bg-slate-100 text-slate-500'
+              }`}>
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-[#062E22]">Private (By Invitation)</p>
+                <p className="text-xs text-slate-500 mt-1">Only users with an invitation or the direct link can view and join.</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4 mt-8 pt-6 border-t border-slate-100">
           <label className="rounded-xl border border-slate-200 p-4 flex items-start gap-3">
             <input
               type="checkbox"
@@ -213,9 +260,9 @@ export default function EventBookingPage() {
         <h2 className="text-lg font-bold text-[#062E22]">Attendee Booking Flow</h2>
         <div className="grid md:grid-cols-2 gap-4 mt-6">
           <div className="rounded-2xl border border-slate-200 p-5">
-            <p className="text-sm font-semibold text-[#062E22]">Public event rules</p>
+            <p className="text-sm font-semibold text-[#062E22]">Booking rules</p>
             <ul className="mt-3 space-y-2 text-sm text-slate-600">
-              <li>Only public published or live events can accept bookings.</li>
+              <li>Both public and private published events can accept bookings.</li>
               <li>Only attendee accounts can create a booking.</li>
               <li>Each attendee can hold one booking per event.</li>
               <li>Confirmed bookings immediately generate QR and check-in pass assets.</li>
@@ -224,15 +271,27 @@ export default function EventBookingPage() {
           <div className="rounded-2xl border border-slate-200 p-5">
             <p className="text-sm font-semibold text-[#062E22]">Demo route</p>
             <p className="text-sm text-slate-600 mt-3">
-              Open the attendee-facing page for this event and reserve a seat there to demonstrate the stricter Phase 1 flow.
+              Share this direct link with your attendees. For private events, this link is the only way for them to find and register.
             </p>
-            <Link
-              href={`/events/${eventId}`}
-              target="_blank"
-              className="inline-flex mt-4 px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition"
-            >
-              Open Attendee Booking Page
-            </Link>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Link
+                href={`/events/${eventId}`}
+                target="_blank"
+                className="inline-flex px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition"
+              >
+                Open Booking Page
+              </Link>
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/events/${eventId}`;
+                  navigator.clipboard.writeText(url);
+                  alert('Link copied to clipboard!');
+                }}
+                className="inline-flex px-4 py-2 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition"
+              >
+                Copy Shareable Link
+              </button>
+            </div>
           </div>
         </div>
       </div>

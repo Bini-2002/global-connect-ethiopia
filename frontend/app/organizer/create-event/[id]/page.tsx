@@ -8,6 +8,7 @@ import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
 import { ProposalRecord } from '@/app/types/proposal';
 import { eventsService } from '@/app/services/eventsService';
+import { Globe, Lock } from 'lucide-react';
 
 export default function CreateEventFromProposalPage() {
   const params = useParams();
@@ -17,6 +18,7 @@ export default function CreateEventFromProposalPage() {
   const [proposal, setProposal] = useState<ProposalRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,6 +29,9 @@ export default function CreateEventFromProposalPage() {
         const response = await api.get<ProposalRecord>(`/proposals/${proposalId}`);
         if (!mounted) return;
         setProposal(response);
+        if (response.visibility) {
+          setVisibility(response.visibility as 'public' | 'private');
+        }
       } catch (err) {
         if (!mounted) return;
         setError(err instanceof Error ? err.message : 'Failed to load proposal');
@@ -47,7 +52,7 @@ export default function CreateEventFromProposalPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const response = await eventsService.createEventFromProposal(proposal.id);
+      const response = await eventsService.createEventFromProposal(proposal.id, visibility);
       router.replace(`/organizer/events/${response.event_id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create event');
@@ -105,6 +110,49 @@ export default function CreateEventFromProposalPage() {
                       </p>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h3 className="text-lg font-bold text-[#062E22] mb-4">Event Availability</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setVisibility('public')}
+                    className={`flex items-start gap-4 p-4 rounded-xl border-2 transition text-left ${
+                      visibility === 'public'
+                        ? 'border-[#062E22] bg-[#062E22]/5'
+                        : 'border-slate-100 hover:border-slate-200'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                      visibility === 'public' ? 'bg-[#062E22] text-white' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      <Globe className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-[#062E22]">Public Event</p>
+                      <p className="text-xs text-slate-500 mt-1">Anyone can discover and register for this event on the platform.</p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setVisibility('private')}
+                    className={`flex items-start gap-4 p-4 rounded-xl border-2 transition text-left ${
+                      visibility === 'private'
+                        ? 'border-[#062E22] bg-[#062E22]/5'
+                        : 'border-slate-100 hover:border-slate-200'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                      visibility === 'private' ? 'bg-[#062E22] text-white' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      <Lock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-[#062E22]">Private (By Invitation)</p>
+                      <p className="text-xs text-slate-500 mt-1">Only users with an invitation or the direct link can view and join.</p>
+                    </div>
+                  </button>
                 </div>
               </div>
 

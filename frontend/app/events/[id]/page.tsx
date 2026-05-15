@@ -186,8 +186,7 @@ export default function EventDetailPage() {
     if (!event || role !== 'attendee') return false;
     if (!event.booking_required) return false;
     if (booking) return false;
-    if (event.visibility !== 'public') return false;
-    return ['published', 'live'].includes(event.status);
+    return ['published', 'private_published', 'live'].includes(event.status);
   }, [booking, event, role]);
 
   const bookingWindowLabel = useMemo(() => {
