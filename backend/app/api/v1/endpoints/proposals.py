@@ -33,6 +33,7 @@ def _to_response(proposal: dict) -> dict:
         "event_id": proposal.get("event_id"),
         "title": proposal["title"],
         "description": proposal.get("description"),
+        "visibility": proposal.get("visibility", "public"),
         "event_type": proposal.get("event_type"),
         "location": proposal.get("location"),
         "expected_attendees": proposal.get("expected_attendees"),
@@ -119,6 +120,7 @@ def _normalize_proposal_event_type(event_type: str | None) -> str | None:
 async def create_proposal(
     title: str = Form(...),
     description: Optional[str] = Form(None),
+    visibility: str = Form("public"),
     event_type: Optional[str] = Form(None),
     location: Optional[str] = Form(None),
     expected_attendees: Optional[int] = Form(None),
@@ -169,6 +171,7 @@ async def create_proposal(
     new_proposal = {
         "title": title,
         "description": description,
+        "visibility": visibility,
         "organizer_id": str(current_user["_id"]),
         "status": ProposalStatus.DRAFT,
         "created_at": datetime.now(timezone.utc),
@@ -203,6 +206,7 @@ async def update_proposal(
     proposal_id: str,
     title: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
+    visibility: Optional[str] = Form(None),
     event_type: Optional[str] = Form(None),
     location: Optional[str] = Form(None),
     expected_attendees: Optional[int] = Form(None),
@@ -247,6 +251,8 @@ async def update_proposal(
         update_data["title"] = title
     if description is not None:
         update_data["description"] = description
+    if visibility is not None:
+        update_data["visibility"] = visibility
     if event_type is not None:
         update_data["event_type"] = normalized_event_type
     if location is not None:

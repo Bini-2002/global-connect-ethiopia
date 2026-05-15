@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Globe, Lock } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
@@ -228,7 +228,14 @@ export default function OrganizerProposalsPage() {
                 return (
                   <div key={p.id} className="grid grid-cols-5 gap-4 items-center px-6 py-4 hover:bg-slate-50 transition cursor-pointer" onClick={() => router.push(`/organizer/proposals/${p.id}`)}>
                     <div className="col-span-2">
-                      <p className="font-medium text-[#062E22] text-sm">{p.title}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-[#062E22] text-sm">{p.title}</p>
+                        {p.visibility === 'private' ? (
+                          <Lock className="w-3 h-3 text-amber-500" title="Private" />
+                        ) : (
+                          <Globe className="w-3 h-3 text-blue-500" title="Public" />
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400">{p.location || 'No location'}</p>
                       <p className="text-xs text-slate-500 mt-1">
                         {getOfficeLabel(p.office_assignments?.ministry, 'Ministry pending')} → {getOfficeLabel(p.office_assignments?.municipal, 'Municipal pending')}

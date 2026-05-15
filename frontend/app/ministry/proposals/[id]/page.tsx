@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { Globe, Lock } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { api } from '@/app/lib/api';
@@ -108,6 +109,22 @@ export default function MinistryProposalDetailPage() {
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div><p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Type</p><p className="text-sm font-medium text-slate-800">{proposal.event_type || '—'}</p></div>
                     <div><p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Location</p><p className="text-sm font-medium text-slate-800">{proposal.location || '—'}</p></div>
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Visibility</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {proposal.visibility === 'private' ? (
+                          <>
+                            <Lock className="w-3.5 h-3.5 text-amber-600" />
+                            <span className="text-sm font-medium text-amber-700">Private</span>
+                          </>
+                        ) : (
+                          <>
+                            <Globe className="w-3.5 h-3.5 text-blue-600" />
+                            <span className="text-sm font-medium text-blue-700">Public</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   {proposal.description && <p className="text-sm text-slate-600 mb-4 leading-relaxed">{proposal.description}</p>}
                   <div className="grid grid-cols-2 gap-4 mb-4">

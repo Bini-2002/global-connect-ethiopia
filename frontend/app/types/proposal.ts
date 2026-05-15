@@ -81,6 +81,7 @@ export interface ProposalRecord {
   event_id?: string | null;
   title: string;
   description?: string | null;
+  visibility?: string | null;
   event_type?: string | null;
   location?: string | null;
   expected_attendees?: number | null;
@@ -115,6 +116,7 @@ export interface ProposalRecord {
 export interface ProposalFormData {
   title: string;
   description: string;
+  visibility: 'public' | 'private';
   event_type: string;
   start_date: string;
   end_date: string;
@@ -136,6 +138,7 @@ export interface SessionProposalData {
   id: string;
   title: string;
   description: string;
+  visibility: 'public' | 'private';
   event_type: string;
   start_date: string;
   end_date: string;

@@ -10,6 +10,7 @@ type ProposalFieldSource = Pick<
   ProposalFormData,
   | "title"
   | "description"
+  | "visibility"
   | "event_type"
   | "start_date"
   | "end_date"
@@ -28,6 +29,7 @@ type ProposalFieldSource = Pick<
   SessionProposalData,
   | "title"
   | "description"
+  | "visibility"
   | "event_type"
   | "start_date"
   | "end_date"
@@ -65,6 +67,7 @@ export const PROPOSAL_STATUS_META: Record<
 export function appendProposalFields(formData: FormData, proposal: ProposalFieldSource): void {
   formData.append("title", proposal.title || "");
   formData.append("description", proposal.description || "");
+  formData.append("visibility", proposal.visibility || "public");
   formData.append("event_type", proposal.event_type || "");
   formData.append("start_date", proposal.start_date || "");
   formData.append("end_date", proposal.end_date || "");
@@ -106,6 +109,7 @@ export function normalizeSessionProposalData(parsed: Record<string, unknown>): S
     id: String(parsed.id || `temp-${Date.now()}`),
     title: String(parsed.title || ""),
     description: String(parsed.description || ""),
+    visibility: (parsed.visibility as 'public' | 'private') || 'public',
     event_type: String(parsed.event_type || ""),
     start_date: String(parsed.start_date || ""),
     end_date: String(parsed.end_date || ""),
@@ -152,6 +156,7 @@ export async function buildSessionProposalData(
     id: existingId || `temp-${Date.now()}`,
     title: proposal.title,
     description: proposal.description,
+    visibility: proposal.visibility,
     event_type: proposal.event_type,
     start_date: proposal.start_date,
     end_date: proposal.end_date,
@@ -197,6 +202,7 @@ export function proposalToSessionData(proposal: ProposalRecord): SessionProposal
     id: proposal.id,
     title: proposal.title,
     description: proposal.description || "",
+    visibility: (proposal.visibility as 'public' | 'private') || 'public',
     event_type: proposal.event_type || "",
     start_date: proposal.start_date ? proposal.start_date.split("T")[0] : "",
     end_date: proposal.end_date ? proposal.end_date.split("T")[0] : "",

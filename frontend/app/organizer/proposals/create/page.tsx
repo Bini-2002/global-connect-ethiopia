@@ -28,6 +28,7 @@ const initialFormData: ProposalFormData = {
   location: "",
   expected_attendees: 0,
   budget_estimate: '',
+  visibility: 'public',
   programOverview: "",
   eventObjectives: "",
   targetAudience: ["Youth", "Investors"],

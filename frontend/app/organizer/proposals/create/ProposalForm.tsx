@@ -10,6 +10,8 @@ import {
   Target,
   Upload,
   Users,
+  Globe,
+  Lock,
 } from 'lucide-react';
 import { getOfficeLabel } from '@/app/lib/proposals';
 import { ProposalFormData, ReviewTargetsResponse } from '@/app/types/proposal';
@@ -94,6 +96,51 @@ export default function ProposalForm({
             required
             disabled={loading}
           />
+        </div>
+
+        <div>
+          <label className="text-sm font-semibold text-gray-700 mb-2 block">Who can see and book this event?</label>
+          <div className="grid md:grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => onChange({ target: { name: 'visibility', value: 'public' } } as any)}
+              className={`flex items-start gap-4 p-4 rounded-xl border-2 transition text-left ${
+                formData.visibility === 'public'
+                  ? 'border-[#062E22] bg-[#062E22]/5'
+                  : 'border-slate-100 hover:border-slate-200'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                formData.visibility === 'public' ? 'bg-[#062E22] text-white' : 'bg-slate-100 text-slate-500'
+              }`}>
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-[#062E22]">Public Event</p>
+                <p className="text-xs text-slate-500 mt-1">Anyone can discover and register for this event on the platform.</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onChange({ target: { name: 'visibility', value: 'private' } } as any)}
+              className={`flex items-start gap-4 p-4 rounded-xl border-2 transition text-left ${
+                formData.visibility === 'private'
+                  ? 'border-[#062E22] bg-[#062E22]/5'
+                  : 'border-slate-100 hover:border-slate-200'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                formData.visibility === 'private' ? 'bg-[#062E22] text-white' : 'bg-slate-100 text-slate-500'
+              }`}>
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-[#062E22]">Private (By Invitation)</p>
+                <p className="text-xs text-slate-500 mt-1">Only users with an invitation or the direct link can view and join.</p>
+              </div>
+            </button>
+          </div>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4">
