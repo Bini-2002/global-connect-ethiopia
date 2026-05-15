@@ -308,4 +308,5 @@ export const ROLE_DASHBOARDS: Record<string, string> = {
   municipal_gov: '/municipal/proposals',
   police: '/police/proposals',
   attendee: '/',
+  team_member: '/team/dashboard',
 };

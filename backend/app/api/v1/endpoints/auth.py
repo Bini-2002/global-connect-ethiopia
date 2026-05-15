@@ -18,7 +18,13 @@ from app.schemas.user import (
 from app.models.roles import UserRole, normalize_role, to_user_role
 from app.core.config import settings
 from app.core import security
-from app.db.mongodb import organizer_collection, session_collection, user_collection
+from app.db.mongodb import (
+    organizer_collection,
+    session_collection,
+    user_collection,
+    event_team_invitation_collection,
+    event_team_member_collection,
+)
 from app.services.email_service import EmailDeliveryError, ResendEmailService
 
 router = APIRouter()
@@ -248,6 +254,7 @@ async def register(user_in: UserCreate):
         "is_active": skips_otp,
         "email_verified": skips_otp,
         "auth_otp": otp_payload,
+        "invite_token": user_in.invite_token,
         "updated_at": datetime.now(timezone.utc)
     }
     
@@ -260,6 +267,11 @@ async def register(user_in: UserCreate):
 
     if skips_otp:
         logger.info("Created trusted internal account for %s without OTP verification", user_in.email)
+        
+        # Handle invite token for internal roles if applicable (less likely but possible)
+        if user_in.invite_token:
+            await _handle_registration_invite(str(saved_user["_id"]), user_in.email, user_in.invite_token, user_in.full_name)
+
         return {
             "message": "Internal account created successfully. You can log in directly without OTP verification.",
             "user_id": str(saved_user["_id"]) if saved_user else None,
@@ -419,6 +431,18 @@ async def verify_email_otp(payload: OtpVerifyRequest):
         {"$set": {"email_verified": True, "is_active": True, "auth_otp.verified": True, "auth_otp.code": None}},
     )
 
+    if user.get("invite_token"):
+        await _handle_registration_invite(str(user["_id"]), user["email"], user["invite_token"], user["full_name"])
+        # Clear the token after use
+        await user_collection.update_one({"_id": user["_id"]}, {"$unset": {"invite_token": ""}})
+
+    # Retroactively link tasks assigned by email
+    from app.db.mongodb import event_task_collection
+    await event_task_collection.update_many(
+        {"assignee_email": user["email"].strip().lower(), "assignee_user_id": None},
+        {"$set": {"assignee_user_id": str(user["_id"])}}
+    )
+
     access_token = security.create_access_token(
         subject=str(user["_id"]),
         role=user.get("role", "attendee"),
@@ -434,3 +458,37 @@ async def verify_email_otp(payload: OtpVerifyRequest):
         "role": user.get("role", "attendee"),
     }
 
+async def _handle_registration_invite(user_id: str, email: str, token: str, full_name: str):
+    invitation = await event_team_invitation_collection.find_one({"token": token, "status": "pending"})
+    if not invitation:
+        return
+
+    if invitation.get("email") != email.strip().lower():
+        return
+
+    now = datetime.now(timezone.utc)
+    event_id = invitation["event_id"]
+
+    # Add to team members
+    member_doc = {
+        "event_id": event_id,
+        "user_id": user_id,
+        "email": email.strip().lower(),
+        "full_name": full_name,
+        "assigned_role": invitation["assigned_role"],
+        "status": "active",
+        "joined_at": now,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await event_team_member_collection.update_one(
+        {"event_id": event_id, "user_id": user_id},
+        {"$set": member_doc},
+        upsert=True
+    )
+
+    # Mark invitation as accepted
+    await event_team_invitation_collection.update_one(
+        {"_id": invitation["_id"]},
+        {"$set": {"status": "accepted", "accepted_at": now, "updated_at": now}}
+    )

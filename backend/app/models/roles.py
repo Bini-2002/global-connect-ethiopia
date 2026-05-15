@@ -9,6 +9,7 @@ class UserRole(str, Enum):
     MUNICIPAL_GOV = 'municipal_gov'
     POLICE = 'police'
     ATTENDEE = 'attendee'
+    TEAM_MEMBER = 'team_member'
 
 
 ROLE_ALIASES: dict[str, UserRole] = {
@@ -33,6 +34,8 @@ ROLE_ALIASES: dict[str, UserRole] = {
     "municipal gov": UserRole.MUNICIPAL_GOV,
     "police": UserRole.POLICE,
     "attendee": UserRole.ATTENDEE,
+    "team_member": UserRole.TEAM_MEMBER,
+    "team member": UserRole.TEAM_MEMBER,
 }
 
 
