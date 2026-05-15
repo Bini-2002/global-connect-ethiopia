@@ -3,7 +3,7 @@ export type NegotiationMessageType = 'QUOTE' | 'COUNTER';
 export type ContractStatus = 'draft' | 'pending_signatures' | 'active' | 'completed' | 'cancelled';
 export type EscrowStatus = 'NONE' | 'LOCKED' | 'RELEASED';
 export type PaymentStatus = 'PENDING' | 'PAID';
-export type TransactionType = 'DEPOSIT' | 'ESCROW_LOCK' | 'RELEASE' | 'REFUND' | 'COMMISSION';
+export type TransactionType = 'DEPOSIT' | 'ESCROW_LOCK' | 'RELEASE' | 'REFUND' | 'COMMISSION' | 'TASK_PAYOUT';
 export type TransactionStatus = 'SUCCESS';
 
 export interface ServiceImageAsset {

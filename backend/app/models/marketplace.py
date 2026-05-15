@@ -37,6 +37,8 @@ class TransactionType(str, Enum):
     RELEASE = "RELEASE"
     REFUND = "REFUND"
     COMMISSION = "COMMISSION"
+    TASK_PAYOUT = "TASK_PAYOUT"
+    WITHDRAWAL = "WITHDRAWAL"
 
 
 class TransactionStatus(str, Enum):

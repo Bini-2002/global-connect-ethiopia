@@ -133,8 +133,25 @@ async def ensure_marketplace_indexes() -> None:
     await transaction_collection.create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
     await transaction_collection.create_index([("reference_id", ASCENDING), ("type", ASCENDING), ("created_at", DESCENDING)])
 
-    await wallet_collection.create_index([("vendor_user_id", ASCENDING)], unique=True)
-    await wallet_collection.create_index([("vendor_id", ASCENDING)], unique=True)
+    try:
+        await wallet_collection.drop_index("vendor_user_id_1")
+    except Exception:
+        pass
+    try:
+        await wallet_collection.drop_index("vendor_id_1")
+    except Exception:
+        pass
+
+    await wallet_collection.create_index(
+        [("vendor_user_id", ASCENDING)],
+        unique=True,
+        partialFilterExpression={"vendor_user_id": {"$exists": True}},
+    )
+    await wallet_collection.create_index(
+        [("vendor_id", ASCENDING)],
+        unique=True,
+        partialFilterExpression={"vendor_id": {"$exists": True}},
+    )
     await wallet_collection.create_index(
         [("user_id", ASCENDING)],
         unique=True,

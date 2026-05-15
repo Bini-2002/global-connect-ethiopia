@@ -111,6 +111,10 @@ export const marketplaceService = {
     return api.post<WalletRecord>('/wallet/deposit', payload);
   },
 
+  withdrawFromWallet: async (payload: WalletDepositPayload): Promise<WalletRecord> => {
+    return api.post<WalletRecord>('/wallet/withdraw', payload);
+  },
+
   listWalletTransactions: async (): Promise<WalletTransactionRecord[]> => {
     return api.get<WalletTransactionRecord[]>('/wallet/transactions');
   },
@@ -168,10 +172,5 @@ export const marketplaceService = {
     );
   },
 };
-
-export default marketplaceService;
-
-
-
 
 export default marketplaceService;
