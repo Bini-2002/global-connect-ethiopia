@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     CHAPA_SECRET_KEY: Optional[str] = None
     CHAPA_API_URL: str = "https://api.chapa.co/v1"
 
+    # AI Configuration
+    GEMINI_API_KEY: Optional[str] = None
+    AI_MOCK_MODE: bool = False
+
     class Config:
         # case_sensitive = False
         env_file = ".env"
