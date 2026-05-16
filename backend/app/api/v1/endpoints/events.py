@@ -35,6 +35,8 @@ from app.db.mongodb import (
     verification_letter_collection,
     wallet_collection,
     vip_reservation_collection,
+    vip_hotel_reservation_collection,
+    vip_hotel_room_reservation_collection,
 )
 from app.models.event_states import (
     BookingStatus,
@@ -2784,3 +2786,456 @@ async def delete_vip_reservation(
     result = await vip_reservation_collection.delete_one({"_id": oid, "event_id": event_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="VIP reservation not found")
+
+
+# ─── VIP Hotel Room Reservations (Vendor-Linked Escrow Workflow) ──────────────
+
+_HOTEL_VENDOR_CATEGORY = "hotel_accommodation"
+
+
+class VipRoomPayload(BaseModel):
+    vip_name: str
+    vip_email: str
+    room_type: Literal["single", "double", "luxury"]
+    bed_preference: Literal["king", "twin", "queen", "no_preference"] = "no_preference"
+    floor_preference: Literal["low", "high", "no_preference"] = "no_preference"
+    smoking_preference: Literal["smoking", "non_smoking"] = "non_smoking"
+    meal_plan: Literal["room_only", "bed_breakfast", "half_board", "full_board"] = "room_only"
+    special_requests: list[str] = []
+    notes: str | None = None
+
+
+class VipHotelRoomReservationCreate(BaseModel):
+    vendor_id: str
+    check_in_date: str
+    check_out_date: str
+    number_of_nights: int = Field(..., ge=1)
+    total_amount: float = Field(..., gt=0)
+    rooms: list[VipRoomPayload] = Field(..., min_length=1)
+
+
+def _serialize_hotel_room_reservation(doc: dict) -> dict:
+    rooms = doc.get("rooms", [])
+    return {
+        "id": str(doc["_id"]),
+        "event_id": doc.get("event_id", ""),
+        "organizer_id": doc.get("organizer_id", ""),
+        "vendor_id": doc.get("vendor_id", ""),
+        "hotel_name": doc.get("hotel_name", ""),
+        "hotel_address": doc.get("hotel_address"),
+        "check_in_date": doc.get("check_in_date", ""),
+        "check_out_date": doc.get("check_out_date", ""),
+        "number_of_nights": doc.get("number_of_nights", 1),
+        "total_amount": float(doc.get("total_amount", 0)),
+        "rooms": [
+            {
+                "room_index": r.get("room_index", i),
+                "vip_name": r.get("vip_name", ""),
+                "vip_email": r.get("vip_email", ""),
+                "room_type": r.get("room_type", "single"),
+                "bed_preference": r.get("bed_preference", "no_preference"),
+                "floor_preference": r.get("floor_preference", "no_preference"),
+                "smoking_preference": r.get("smoking_preference", "non_smoking"),
+                "meal_plan": r.get("meal_plan", "room_only"),
+                "special_requests": r.get("special_requests", []),
+                "notes": r.get("notes"),
+                "assigned_room_number": r.get("assigned_room_number"),
+            }
+            for i, r in enumerate(rooms)
+        ],
+        "status": doc.get("status", "pending_hotel_review"),
+        "payment_status": doc.get("payment_status", "escrowed"),
+        "hotel_response_note": doc.get("hotel_response_note"),
+        "receipt_available": bool(doc.get("receipt_stored")),
+        "created_at": str(doc.get("created_at", "")),
+        "updated_at": str(doc.get("updated_at", "")),
+        "confirmed_at": str(doc["confirmed_at"]) if doc.get("confirmed_at") else None,
+        "payment_released_at": str(doc["payment_released_at"]) if doc.get("payment_released_at") else None,
+    }
+
+
+@router.get("/{event_id}/vip-hotel-reservations/hotel-vendors")
+async def list_hotel_vendors_for_reservation(
+    event_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Return approved hotel/accommodation vendors the organizer can select from."""
+    await _get_owned_event_or_403(event_id, current_user)
+    from app.db.mongodb import vendor_collection as _vendor_col
+    docs = await _vendor_col.find({
+        "verification_status": "approved",
+        "step_2.business_details.business_category": _HOTEL_VENDOR_CATEGORY,
+    }).to_list(length=200)
+    return [
+        {
+            "vendor_id": str(v["_id"]),
+            "vendor_user_id": str(v.get("user_id", "")),
+            "business_name": (v.get("step_2") or {}).get("business_details", {}).get("business_name", ""),
+            "business_address": (v.get("step_2") or {}).get("business_details", {}).get("business_address", ""),
+            "website_url": (v.get("step_2") or {}).get("business_details", {}).get("website_url"),
+            "years_of_operation": (v.get("step_2") or {}).get("business_details", {}).get("years_of_operation"),
+        }
+        for v in docs
+    ]
+
+
+@router.post("/{event_id}/vip-hotel-reservations", status_code=201)
+async def create_vip_hotel_room_reservation(
+    event_id: str,
+    payload: VipHotelRoomReservationCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Create a multi-room VIP hotel reservation backed by wallet escrow."""
+    event = await _get_owned_event_or_403(event_id, current_user)
+    from app.db.mongodb import vendor_collection as _vendor_col
+
+    vendor_oid = parse_object_id(payload.vendor_id, field_name="vendor id")
+    vendor = await _vendor_col.find_one({
+        "_id": vendor_oid,
+        "verification_status": "approved",
+        "step_2.business_details.business_category": _HOTEL_VENDOR_CATEGORY,
+    })
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Hotel vendor not found or not approved")
+
+    biz = (vendor.get("step_2") or {}).get("business_details") or {}
+    hotel_name = biz.get("business_name", "Hotel")
+    hotel_address = biz.get("business_address")
+    vendor_user_id = str(vendor.get("user_id", ""))
+
+    organizer_wallet = await ensure_wallet(current_user["id"])
+    available = float(organizer_wallet.get("balance", 0))
+    if available < payload.total_amount:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient wallet balance. Required: ETB {payload.total_amount:,.2f}, Available: ETB {available:,.2f}",
+        )
+
+    now = utc_now()
+    lock_result = await wallet_collection.update_one(
+        {"_id": organizer_wallet["_id"], "balance": {"$gte": payload.total_amount}},
+        {"$inc": {"balance": -payload.total_amount, "locked_balance": payload.total_amount}, "$set": {"updated_at": now}},
+    )
+    if lock_result.modified_count != 1:
+        raise HTTPException(status_code=409, detail="Wallet escrow failed — balance may have changed. Please retry.")
+
+    escrow_tx = await log_transaction(
+        user_id=current_user["id"],
+        transaction_type=TransactionType.ESCROW_LOCK,
+        amount=payload.total_amount,
+        reference_type="vip_hotel_reservation",
+        event_id=event["_id"],
+    )
+
+    rooms_doc = [
+        {
+            "room_index": i,
+            "vip_name": r.vip_name.strip(),
+            "vip_email": r.vip_email.strip().lower(),
+            "room_type": r.room_type,
+            "bed_preference": r.bed_preference,
+            "floor_preference": r.floor_preference,
+            "smoking_preference": r.smoking_preference,
+            "meal_plan": r.meal_plan,
+            "special_requests": r.special_requests,
+            "notes": r.notes,
+            "assigned_room_number": None,
+        }
+        for i, r in enumerate(payload.rooms)
+    ]
+
+    doc = {
+        "event_id": event_id,
+        "organizer_id": current_user["id"],
+        "vendor_id": payload.vendor_id,
+        "vendor_user_id": vendor_user_id,
+        "hotel_name": hotel_name,
+        "hotel_address": hotel_address,
+        "check_in_date": payload.check_in_date,
+        "check_out_date": payload.check_out_date,
+        "number_of_nights": payload.number_of_nights,
+        "total_amount": payload.total_amount,
+        "rooms": rooms_doc,
+        "status": "pending_hotel_review",
+        "payment_status": "escrowed",
+        "hotel_response_note": None,
+        "escrow_transaction_id": str(escrow_tx["_id"]),
+        "receipt_stored": False,
+        "receipt_data": None,
+        "created_at": now,
+        "updated_at": now,
+        "confirmed_at": None,
+        "payment_released_at": None,
+    }
+    result = await vip_hotel_room_reservation_collection.insert_one(doc)
+    doc["_id"] = result.inserted_id
+
+    try:
+        await push_notification(
+            user_id=vendor_user_id,
+            title="New VIP Room Reservation",
+            message=f"A VIP room request for {len(payload.rooms)} room(s) has arrived. Check-in: {payload.check_in_date}.",
+            notification_type="vip_hotel_reservation",
+            reference_id=str(result.inserted_id),
+        )
+    except Exception:
+        pass
+
+    try:
+        from app.services.email_service import EmailService
+        for r in payload.rooms:
+            EmailService.send_generic_email(
+                recipient_email=r.vip_email,
+                subject=f"VIP Room Reservation Pending – {event.get('title', 'Event')}",
+                body=(
+                    f"Dear {r.vip_name},\n\nYour VIP hotel reservation at {hotel_name} is being processed.\n"
+                    f"Room Type: {r.room_type.title()}\nCheck-in: {payload.check_in_date}\nCheck-out: {payload.check_out_date}\n\n"
+                    "You will receive a confirmation once the hotel assigns your room number.\n\nGlobal Connect Ethiopia"
+                ),
+            )
+    except Exception:
+        pass
+
+    return _serialize_hotel_room_reservation(doc)
+
+
+@router.get("/{event_id}/vip-hotel-reservations")
+async def list_vip_hotel_room_reservations(
+    event_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """List all VIP hotel room reservations for an event (organizer only)."""
+    await _get_owned_event_or_403(event_id, current_user)
+    docs = await vip_hotel_room_reservation_collection.find(
+        {"event_id": event_id}, sort=[("created_at", -1)]
+    ).to_list(length=200)
+    return [_serialize_hotel_room_reservation(d) for d in docs]
+
+
+@router.get("/{event_id}/vip-hotel-reservations/{reservation_id}")
+async def get_vip_hotel_room_reservation(
+    event_id: str,
+    reservation_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(reservation_id, field_name="reservation id")
+    doc = await vip_hotel_room_reservation_collection.find_one({"_id": oid, "event_id": event_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="VIP hotel reservation not found")
+    return _serialize_hotel_room_reservation(doc)
+
+
+@router.post("/{event_id}/vip-hotel-reservations/{reservation_id}/release-payment")
+async def release_vip_hotel_payment(
+    event_id: str,
+    reservation_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Release escrowed payment to the hotel vendor and generate a receipt."""
+    event = await _get_owned_event_or_403(event_id, current_user)
+    from app.services.marketplace_mvp import ensure_platform_wallet
+
+    oid = parse_object_id(reservation_id, field_name="reservation id")
+    reservation = await vip_hotel_room_reservation_collection.find_one({"_id": oid, "event_id": event_id})
+    if not reservation:
+        raise HTTPException(status_code=404, detail="VIP hotel reservation not found")
+    if reservation.get("status") != "confirmed":
+        raise HTTPException(status_code=400, detail="Payment can only be released for confirmed reservations")
+    if reservation.get("payment_status") != "escrowed":
+        raise HTTPException(status_code=400, detail="Payment has already been released or is not in escrow")
+
+    amount = float(reservation["total_amount"])
+    vendor_user_id = reservation["vendor_user_id"]
+    commission = round(amount * 0.10, 2)
+    vendor_payout = round(amount - commission, 2)
+    now = utc_now()
+
+    organizer_wallet = await ensure_wallet(current_user["id"])
+    vendor_wallet = await ensure_wallet(vendor_user_id)
+    platform_wallet = await ensure_platform_wallet()
+
+    lock_result = await wallet_collection.update_one(
+        {"_id": organizer_wallet["_id"], "locked_balance": {"$gte": amount}},
+        {"$inc": {"locked_balance": -amount}, "$set": {"updated_at": now}},
+    )
+    if lock_result.modified_count != 1:
+        raise HTTPException(status_code=409, detail="Organizer escrow balance no longer available")
+
+    credit_result = await wallet_collection.update_one(
+        {"_id": vendor_wallet["_id"]},
+        {"$inc": {"balance": vendor_payout}, "$set": {"updated_at": now}},
+    )
+    if credit_result.modified_count != 1:
+        await wallet_collection.update_one(
+            {"_id": organizer_wallet["_id"]},
+            {"$inc": {"locked_balance": amount}, "$set": {"updated_at": now}},
+        )
+        raise HTTPException(status_code=409, detail="Vendor wallet credit failed")
+
+    await wallet_collection.update_one(
+        {"_id": platform_wallet["_id"]},
+        {"$inc": {"balance": commission}, "$set": {"updated_at": now}},
+    )
+
+    release_tx = await log_transaction(
+        user_id=current_user["id"],
+        transaction_type=TransactionType.RELEASE,
+        amount=amount,
+        reference_type="vip_hotel_reservation",
+        event_id=event["_id"],
+    )
+    await log_transaction(
+        user_id=vendor_user_id,
+        transaction_type=TransactionType.RELEASE,
+        amount=vendor_payout,
+        reference_type="vip_hotel_reservation",
+        event_id=event["_id"],
+    )
+
+    receipt_data = {
+        "reservation_id": reservation_id,
+        "event_title": event.get("title", "Event"),
+        "organizer_name": current_user.get("full_name", "Organizer"),
+        "hotel_name": reservation["hotel_name"],
+        "hotel_address": reservation.get("hotel_address", ""),
+        "check_in_date": reservation["check_in_date"],
+        "check_out_date": reservation["check_out_date"],
+        "number_of_nights": reservation["number_of_nights"],
+        "rooms": reservation["rooms"],
+        "total_amount": amount,
+        "commission": commission,
+        "vendor_payout": vendor_payout,
+        "transaction_id": str(release_tx["_id"]),
+        "released_at": str(now),
+    }
+
+    await vip_hotel_room_reservation_collection.update_one(
+        {"_id": oid},
+        {"$set": {
+            "payment_status": "released",
+            "payment_released_at": now,
+            "release_transaction_id": str(release_tx["_id"]),
+            "receipt_stored": True,
+            "receipt_data": receipt_data,
+            "updated_at": now,
+        }},
+    )
+
+    try:
+        await push_notification(
+            user_id=vendor_user_id,
+            title="Payment Released",
+            message=f"ETB {vendor_payout:,.2f} has been credited to your wallet for the VIP reservation at {reservation['hotel_name']}.",
+            notification_type="payment_released",
+            reference_id=reservation_id,
+        )
+    except Exception:
+        pass
+
+    try:
+        from app.services.email_service import EmailService
+        EmailService.send_generic_email(
+            recipient_email=current_user.get("email", ""),
+            subject=f"Payment Receipt – VIP Hotel | {event.get('title', '')}",
+            body=(
+                f"Dear {current_user.get('full_name', 'Organizer')},\n\n"
+                f"Payment of ETB {amount:,.2f} for {reservation['hotel_name']} has been released.\n"
+                f"Rooms: {len(reservation['rooms'])} | Check-in: {reservation['check_in_date']} | Check-out: {reservation['check_out_date']}\n"
+                f"Transaction ID: {str(release_tx['_id'])}\n\nDownload receipt from your VIP workspace.\n\nGlobal Connect Ethiopia"
+            ),
+        )
+    except Exception:
+        pass
+
+    updated = await vip_hotel_room_reservation_collection.find_one({"_id": oid})
+    return _serialize_hotel_room_reservation(updated)
+
+
+@router.get("/{event_id}/vip-hotel-reservations/{reservation_id}/receipt")
+async def download_vip_hotel_receipt(
+    event_id: str,
+    reservation_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Download VIP hotel payment receipt as a printable HTML file."""
+    await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(reservation_id, field_name="reservation id")
+    doc = await vip_hotel_room_reservation_collection.find_one({"_id": oid, "event_id": event_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="VIP hotel reservation not found")
+    if not doc.get("receipt_stored") or not doc.get("receipt_data"):
+        raise HTTPException(status_code=404, detail="Receipt not yet available. Release payment first.")
+
+    r = doc["receipt_data"]
+    rows = ""
+    for rm in r.get("rooms", []):
+        sr = ", ".join(rm.get("special_requests", [])) or "—"
+        rows += (
+            f"<tr><td>{rm['vip_name']}</td><td>{rm['vip_email']}</td>"
+            f"<td>{rm['room_type'].title()}</td>"
+            f"<td>{rm.get('meal_plan','room_only').replace('_',' ').title()}</td>"
+            f"<td>{rm.get('assigned_room_number') or '—'}</td>"
+            f"<td>{sr}</td></tr>"
+        )
+
+    html = (
+        "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'/>"
+        f"<title>VIP Hotel Receipt</title>"
+        "<style>"
+        "body{font-family:sans-serif;color:#1e293b;background:#f8fafc;padding:40px}"
+        ".receipt{max-width:820px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e2e8f0;padding:48px}"
+        ".header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px;border-bottom:2px solid #062E22;padding-bottom:24px}"
+        ".brand{font-size:22px;font-weight:700;color:#062E22}"
+        ".brand span{font-size:13px;font-weight:400;color:#64748b;display:block;margin-top:4px}"
+        ".badge{background:#D1FAE5;color:#065F46;font-size:12px;font-weight:700;padding:6px 14px;border-radius:999px}"
+        ".grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}"
+        ".field{background:#f8fafc;border-radius:10px;padding:14px}"
+        ".field label{font-size:11px;color:#94a3b8;font-weight:600;display:block;margin-bottom:4px}"
+        ".field span{font-size:14px;font-weight:600;color:#1e293b}"
+        "table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px}"
+        "th{background:#062E22;color:#fff;padding:10px 12px;text-align:left;font-weight:600}"
+        "td{padding:10px 12px;border-bottom:1px solid #e2e8f0}"
+        "tr:nth-child(even) td{background:#f8fafc}"
+        ".totals{background:#f0fdf4;border-radius:12px;padding:20px 24px;margin-bottom:24px}"
+        ".totals .row{display:flex;justify-content:space-between;font-size:14px;padding:4px 0}"
+        ".totals .big{font-weight:700;font-size:16px;border-top:2px solid #062E22;margin-top:10px;padding-top:10px}"
+        ".footer{margin-top:24px;text-align:center;font-size:12px;color:#94a3b8}"
+        "@media print{body{background:#fff;padding:0}.receipt{box-shadow:none;border:none;padding:24px}.no-print{display:none}}"
+        "</style></head><body><div class='receipt'>"
+        "<div class='header'>"
+        "<div class='brand'>Global Connect Ethiopia<span>Official Payment Receipt</span></div>"
+        "<span class='badge'>PAYMENT RELEASED</span></div>"
+        "<div class='grid'>"
+        f"<div class='field'><label>Event</label><span>{r.get('event_title','')}</span></div>"
+        f"<div class='field'><label>Organizer</label><span>{r.get('organizer_name','')}</span></div>"
+        f"<div class='field'><label>Hotel</label><span>{r.get('hotel_name','')}</span></div>"
+        f"<div class='field'><label>Address</label><span>{r.get('hotel_address','—')}</span></div>"
+        f"<div class='field'><label>Check-In</label><span>{r.get('check_in_date','')}</span></div>"
+        f"<div class='field'><label>Check-Out</label><span>{r.get('check_out_date','')}</span></div>"
+        f"<div class='field'><label>Nights</label><span>{r.get('number_of_nights','')}</span></div>"
+        f"<div class='field'><label>Rooms Booked</label><span>{len(r.get('rooms',[]))}</span></div>"
+        "</div>"
+        "<table><thead><tr><th>VIP Name</th><th>Email</th><th>Room Type</th><th>Meal Plan</th><th>Room #</th><th>Special Requests</th></tr></thead>"
+        f"<tbody>{rows}</tbody></table>"
+        "<div class='totals'>"
+        f"<div class='row'><span>Total Charged</span><span>ETB {r.get('total_amount',0):,.2f}</span></div>"
+        f"<div class='row'><span>Platform Fee (10%)</span><span>ETB {r.get('commission',0):,.2f}</span></div>"
+        f"<div class='row'><span>Vendor Payout</span><span>ETB {r.get('vendor_payout',0):,.2f}</span></div>"
+        f"<div class='row big'><span>AMOUNT PAID</span><span>ETB {r.get('total_amount',0):,.2f}</span></div>"
+        "</div>"
+        "<div class='grid'>"
+        f"<div class='field'><label>Transaction ID</label><span style='font-size:12px;font-family:monospace'>{r.get('transaction_id','')}</span></div>"
+        f"<div class='field'><label>Released At</label><span>{str(r.get('released_at',''))[:19].replace('T',' ')}</span></div>"
+        "</div>"
+        "<div class='footer'>This receipt is generated automatically by Global Connect Ethiopia.</div>"
+        "<div class='no-print' style='margin-top:24px;text-align:center'>"
+        "<button onclick='window.print()' style='background:#062E22;color:#fff;border:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer'>Print / Save as PDF</button>"
+        "</div></div></body></html>"
+    )
+
+    return StreamingResponse(
+        BytesIO(html.encode("utf-8")),
+        media_type="text/html",
+        headers={"Content-Disposition": f'attachment; filename="vip-hotel-receipt-{reservation_id[:8]}.html"'},
+    )

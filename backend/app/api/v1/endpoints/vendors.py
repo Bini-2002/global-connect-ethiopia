@@ -7,7 +7,14 @@ from app.api.v1.deps import get_current_user, get_current_user_allow_inactive
 from app.core.config import settings
 from app.core.queue import get_verification_queue
 from starlette.concurrency import run_in_threadpool
-from app.db.mongodb import contract_collection, request_collection, vendor_collection, vendor_service_collection, verification_job_collection
+from app.db.mongodb import (
+    contract_collection,
+    request_collection,
+    vendor_collection,
+    vendor_service_collection,
+    verification_job_collection,
+    vip_hotel_room_reservation_collection,
+)
 from app.models.roles import UserRole
 from app.schemas.marketplace_mvp import VendorMarketplaceResponse
 from app.schemas.vendor import (
@@ -495,3 +502,173 @@ async def list_marketplace_vendors():
 async def get_marketplace_vendor(vendor_id: str):
     return await get_vendor_detail(vendor_id)
 
+
+# ─── Hotel Vendor: Room Reservation Management ────────────────────────────────
+
+_HOTEL_CATEGORY = "hotel_accommodation"
+
+
+async def _get_hotel_vendor_or_403(current_user: dict) -> dict:
+    """Return the vendor record only if the caller is an approved hotel vendor."""
+    from app.models.roles import normalize_role
+    if normalize_role(current_user.get("role")) != UserRole.VENDOR.value:
+        raise HTTPException(status_code=403, detail="Vendor access only")
+    from app.services.marketplace import parse_object_id
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    vendor = await vendor_collection.find_one({
+        "$or": [{"user_id": user_oid}, {"user_id": str(user_oid)}]
+    })
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor profile not found")
+    if vendor.get("verification_status") != "approved":
+        raise HTTPException(status_code=403, detail="Vendor must be approved first")
+    biz_cat = (vendor.get("step_2") or {}).get("business_details", {}).get("business_category", "")
+    if biz_cat != _HOTEL_CATEGORY:
+        raise HTTPException(
+            status_code=403,
+            detail="This section is only available to hotel accommodation vendors",
+        )
+    return vendor
+
+
+def _serialize_hotel_reservation_for_vendor(doc: dict) -> dict:
+    rooms = doc.get("rooms", [])
+    return {
+        "id": str(doc["_id"]),
+        "event_id": doc.get("event_id", ""),
+        "hotel_name": doc.get("hotel_name", ""),
+        "check_in_date": doc.get("check_in_date", ""),
+        "check_out_date": doc.get("check_out_date", ""),
+        "number_of_nights": doc.get("number_of_nights", 1),
+        "total_amount": float(doc.get("total_amount", 0)),
+        "status": doc.get("status", "pending_hotel_review"),
+        "payment_status": doc.get("payment_status", "escrowed"),
+        "hotel_response_note": doc.get("hotel_response_note"),
+        "rooms": [
+            {
+                "room_index": r.get("room_index", i),
+                "vip_name": r.get("vip_name", ""),
+                "vip_email": r.get("vip_email", ""),
+                "room_type": r.get("room_type", "single"),
+                "bed_preference": r.get("bed_preference", "no_preference"),
+                "floor_preference": r.get("floor_preference", "no_preference"),
+                "smoking_preference": r.get("smoking_preference", "non_smoking"),
+                "meal_plan": r.get("meal_plan", "room_only"),
+                "special_requests": r.get("special_requests", []),
+                "notes": r.get("notes"),
+                "assigned_room_number": r.get("assigned_room_number"),
+            }
+            for i, r in enumerate(rooms)
+        ],
+        "created_at": str(doc.get("created_at", "")),
+        "confirmed_at": str(doc["confirmed_at"]) if doc.get("confirmed_at") else None,
+    }
+
+
+@router.get("/hotel-room-reservations/incoming")
+async def list_incoming_hotel_reservations(
+    current_user: dict = Depends(get_current_user),
+):
+    """Hotel vendor: list all incoming VIP room reservation requests."""
+    vendor = await _get_hotel_vendor_or_403(current_user)
+    docs = await vip_hotel_room_reservation_collection.find(
+        {"vendor_id": str(vendor["_id"])},
+        sort=[("created_at", -1)],
+    ).to_list(length=200)
+    return [_serialize_hotel_reservation_for_vendor(d) for d in docs]
+
+
+@router.patch("/hotel-room-reservations/{reservation_id}/respond")
+async def respond_to_hotel_reservation(
+    reservation_id: str,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+):
+    """Hotel vendor: assign room numbers and confirm the reservation.
+
+    Payload:
+        room_assignments: list of {"room_index": int, "assigned_room_number": str}
+        hotel_response_note: optional note
+    """
+    vendor = await _get_hotel_vendor_or_403(current_user)
+    from app.services.marketplace import parse_object_id
+    from datetime import datetime, timezone
+
+    oid = parse_object_id(reservation_id, field_name="reservation id")
+    reservation = await vip_hotel_room_reservation_collection.find_one({
+        "_id": oid,
+        "vendor_id": str(vendor["_id"]),
+    })
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    if reservation.get("status") == "payment_released":
+        raise HTTPException(status_code=400, detail="This reservation is already completed")
+
+    room_assignments: list[dict] = payload.get("room_assignments", [])
+    hotel_response_note: str | None = payload.get("hotel_response_note")
+
+    if not room_assignments:
+        raise HTTPException(status_code=400, detail="Provide at least one room assignment")
+
+    # Apply assignments to the rooms array
+    updated_rooms = list(reservation.get("rooms", []))
+    assignment_map = {int(a["room_index"]): str(a["assigned_room_number"]).strip() for a in room_assignments}
+    for room in updated_rooms:
+        idx = room.get("room_index", 0)
+        if idx in assignment_map:
+            room["assigned_room_number"] = assignment_map[idx]
+
+    # All rooms must be assigned to move to confirmed
+    all_assigned = all(r.get("assigned_room_number") for r in updated_rooms)
+    new_status = "confirmed" if all_assigned else "pending_hotel_review"
+    now = datetime.now(timezone.utc)
+
+    await vip_hotel_room_reservation_collection.update_one(
+        {"_id": oid},
+        {
+            "$set": {
+                "rooms": updated_rooms,
+                "hotel_response_note": hotel_response_note,
+                "status": new_status,
+                "confirmed_at": now if new_status == "confirmed" else reservation.get("confirmed_at"),
+                "updated_at": now,
+            }
+        },
+    )
+
+    # Notify organizer
+    try:
+        from app.services.notification_service import push_notification
+        status_msg = "confirmed! Room numbers have been assigned." if all_assigned else "partially updated — some rooms are still pending."
+        await push_notification(
+            user_id=reservation["organizer_id"],
+            title="VIP Room Assignment Update",
+            message=f"Your reservation at {reservation['hotel_name']} has been {status_msg}",
+            notification_type="vip_hotel_confirmed",
+            reference_id=reservation_id,
+        )
+    except Exception:
+        pass
+
+    # Email VIPs their room number
+    if all_assigned:
+        try:
+            from app.services.email_service import EmailService
+            for room in updated_rooms:
+                EmailService.send_generic_email(
+                    recipient_email=room["vip_email"],
+                    subject=f"Your VIP Room is Confirmed – {reservation['hotel_name']}",
+                    body=(
+                        f"Dear {room['vip_name']},\n\n"
+                        f"Your room at {reservation['hotel_name']} has been confirmed.\n"
+                        f"Room Number: {room.get('assigned_room_number', '—')}\n"
+                        f"Room Type: {room['room_type'].title()}\n"
+                        f"Check-in: {reservation['check_in_date']}\nCheck-out: {reservation['check_out_date']}\n\n"
+                        "We look forward to welcoming you.\n\nGlobal Connect Ethiopia"
+                    ),
+                )
+        except Exception:
+            pass
+
+    updated = await vip_hotel_room_reservation_collection.find_one({"_id": oid})
+    return _serialize_hotel_reservation_for_vendor(updated)

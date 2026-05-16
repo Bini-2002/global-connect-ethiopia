@@ -63,8 +63,11 @@ message_collection = db.messages
 # notifications collection
 notification_collection = db.notifications
 
-# VIP hotel reservations
+# VIP hotel reservations (legacy simple form)
 vip_hotel_reservation_collection = db.vip_hotel_reservations
+
+# VIP hotel room reservations (vendor-linked, escrow payment)
+vip_hotel_room_reservation_collection = db.vip_hotel_room_reservations
 
 # AI collections
 ai_schedule_draft_collection = db.ai_schedule_drafts
