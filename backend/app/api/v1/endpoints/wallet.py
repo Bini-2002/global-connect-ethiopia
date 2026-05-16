@@ -8,16 +8,11 @@ from app.schemas.marketplace_mvp import (
     TransactionResponse,
     WalletDepositCreate,
     WalletResponse,
-    WithdrawalCreate,
-    WithdrawalResponse,
 )
 from app.services.marketplace_mvp import (
-    complete_withdrawal,
     deposit_to_wallet,
     get_wallet_for_user,
     list_wallet_transactions,
-    list_wallet_withdrawals,
-    request_withdrawal,
 )
 
 router = APIRouter()

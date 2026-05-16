@@ -161,19 +161,6 @@ function RegistrationFormContent() {
                   <p className="text-sm text-slate-600">Collaborate on events and tasks</p>
                 </div>
 
-                {/* Team Member Card */}
-                <div
-                  onClick={() => handleRoleSelect("team_member")}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${formData.role === "team_member"
-                      ? "border-[#062E22] bg-amber-50 ring-2 ring-amber-200"
-                      : "border-slate-200 hover:border-amber-300 hover:bg-slate-50"
-                    }`}
-                >
-                  <h4 className="font-bold text-slate-800 mb-1">Team Member</h4>
-                  <p className="text-sm text-slate-600">
-                    Join an event team and complete tasks
-                  </p>
-                </div>
               </div>
             </div>
 

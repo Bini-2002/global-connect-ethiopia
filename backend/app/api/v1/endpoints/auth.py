@@ -28,7 +28,7 @@ from app.db.mongodb import (
     event_team_invitation_collection,
     event_team_member_collection,
 )
-from app.services.email_service import EmailDeliveryError, ResendEmailService
+from app.services.email_service import EmailDeliveryError, ResendEmailService, EmailService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

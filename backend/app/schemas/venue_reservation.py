@@ -91,3 +91,20 @@ class VenueReservationResponse(BaseModel):
     organizer_confirmed_at: datetime | None = None
     confirmed_at: datetime | None = None
     cancelled_at: datetime | None = None
+
+
+class VipReservationCreate(BaseModel):
+    vip_name: str
+    hotel_name: str
+    vip_email: str | None = None
+    notes: str | None = None
+
+
+class VipReservationResponse(BaseModel):
+    id: str
+    event_id: str
+    vip_name: str
+    hotel_name: str
+    vip_email: str | None = None
+    notes: str | None = None
+    created_at: datetime
