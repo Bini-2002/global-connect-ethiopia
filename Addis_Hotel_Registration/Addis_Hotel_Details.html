@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Addis Hotel - Registration Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+            line-height: 1.6;
+            margin: 40px auto;
+            max-width: 800px;
+            padding: 20px;
+        }
+        h1 {
+            color: #062E22;
+            border-bottom: 2px solid #062E22;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #062E22;
+            margin-top: 30px;
+        }
+        .section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+        .field {
+            margin-bottom: 10px;
+        }
+        .field strong {
+            display: inline-block;
+            width: 200px;
+            color: #555;
+        }
+        .description {
+            font-style: italic;
+            color: #666;
+            background: #fff;
+            padding: 15px;
+            border-left: 4px solid #062E22;
+            margin-top: 10px;
+        }
+        .no-print {
+            text-align: center;
+            margin: 40px 0;
+        }
+        button {
+            background-color: #062E22;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #0a4d3a;
+        }
+        .license-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+        @media print {
+            .no-print { display: none; }
+            body { margin: 0; padding: 0; max-width: 100%; }
+            .section { border: none; background: transparent; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print">
+        <button onclick="window.print()">🖨️ Save as PDF</button>
+        <p style="font-size: 12px; color: #666; margin-top: 10px;">Click the button above and select "Save as PDF" as the destination printer.</p>
+    </div>
+
+    <h1>Addis Hotel - Vendor Registration Details</h1>
+
+    <div class="section">
+        <h2>Basic Information</h2>
+        <div class="field"><strong>Business Name:</strong> Addis Hotel</div>
+        <div class="field"><strong>Business Category:</strong> Hotel & Accommodation</div>
+        <div class="field"><strong>Tax ID (TIN):</strong> 0014928475</div>
+        <div class="field"><strong>Trade License Number:</strong> MOTRI/ADD/2010-45</div>
+        <div class="field"><strong>Year Established:</strong> 2010</div>
+    </div>
+
+    <div class="section">
+        <h2>Contact & Location</h2>
+        <div class="field"><strong>City:</strong> Addis Ababa</div>
+        <div class="field"><strong>Address:</strong> Bole Road, near Friendship City Center</div>
+        <div class="field"><strong>Business Phone:</strong> +251 11 654 3210</div>
+        <div class="field"><strong>Business Email:</strong> contact@addishotel.com.et</div>
+        <div class="field"><strong>Website:</strong> https://www.addishotel.com.et</div>
+    </div>
+
+    <div class="section">
+        <h2>Business Profile & Facilities</h2>
+        <div class="field"><strong>Capacity/Rooms:</strong> 500 Rooms</div>
+        <div class="field"><strong>Star Rating:</strong> 4 Star</div>
+        <div class="field"><strong>Amenities:</strong> Free Wi-Fi, Airport Shuttle, Conference Rooms, Spa, Fitness Center, 24/7 Room Service.</div>
+        
+        <h3 style="margin-top: 20px; color: #555;">Description:</h3>
+        <div class="description">
+            Addis Hotel is a premier 4-star luxury accommodation located in the vibrant heart of Addis Ababa. Featuring 500 elegantly furnished rooms—ranging from Standard and Deluxe to Executive and Presidential Suites—we offer world-class hospitality. Our facilities include state-of-the-art conference halls, fine dining restaurants featuring both Ethiopian and international cuisines, a fully equipped wellness center, and a heated outdoor pool, making us the perfect destination for both business and leisure travelers.
+        </div>
+    </div>
+
+    <div class="section" style="page-break-before: always;">
+        <h2>Business License Document</h2>
+        <p>The following document serves as the official representation of the business license for Addis Hotel.</p>
+        <!-- Linking to the generated artifact image. If this doesn't show up in the PDF, the user has it saved in the chat anyway. -->
+        <img src="C:\Users\binig\.gemini\antigravity\brain\d9042557-f8db-4bc4-af35-662b81d9bb98\addis_hotel_business_license_1778969635967.png" alt="Addis Hotel Business License" class="license-image">
+    </div>
+
+</body>
+</html>

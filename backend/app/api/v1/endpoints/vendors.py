@@ -53,8 +53,9 @@ def _is_valid_url(url: str) -> bool:
 
 def _require_vendor(current_user: dict) -> None:
     from app.models.roles import normalize_role
-    if normalize_role(current_user.get("role")) != UserRole.VENDOR.value:
-        raise HTTPException(status_code=403, detail="Only vendors can submit this form")
+    current_role = normalize_role(current_user.get("role"))
+    if current_role != UserRole.VENDOR.value:
+        raise HTTPException(status_code=403, detail=f"Only vendors can submit this form. Your current role is: {current_role}. Email: {current_user.get('email')}")
 
 
 def _to_response(document: dict) -> dict:
