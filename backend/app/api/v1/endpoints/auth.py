@@ -434,7 +434,7 @@ async def send_email_otp(payload: OtpSendRequest):
 
 
 @router.post("/verify-email-otp", response_model=OtpVerifyResponse)
-async def verify_email_otp(payload: OtpVerifyRequest):
+async def verify_email_otp(payload: OtpVerifyRequest, response: Response):
     logger.info("OTP verification attempt for %s", payload.email)
     user = await user_collection.find_one({"email": payload.email})
     if not user:
@@ -483,6 +483,13 @@ async def verify_email_otp(payload: OtpVerifyRequest):
         role=user.get("role", "attendee"),
     )
     logger.info("OTP verification succeeded for %s", payload.email)
+
+    session_id, expires_at = await _create_session(
+        user_id=str(user["_id"]),
+        role=user.get("role", "attendee"),
+        remember_me=True,
+    )
+    _set_session_cookie(response, session_id, expires_at)
 
     return {
         "message": "Email verified successfully",
