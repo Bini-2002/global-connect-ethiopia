@@ -226,6 +226,24 @@ async def create_or_update_vendor_business_details(
     return _to_response(vendor)
 
 
+@router.get("/verification/status")
+async def get_vendor_verification_status(current_user: dict = Depends(get_current_user_allow_inactive)):
+    _require_vendor(current_user)
+
+    user_oid = parse_object_id(current_user["id"], field_name="user id")
+    vendor = await vendor_collection.find_one({
+        "$or": [{"user_id": user_oid}, {"user_id": str(user_oid)}]
+    })
+    
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+        
+    return {
+        "status": vendor.get("status"),
+        "verification_status": vendor.get("verification_status")
+    }
+
+
 @router.get("/verification/review-summary", response_model=VendorReviewSummaryResponse)
 async def get_vendor_review_summary(current_user: dict = Depends(get_current_user_allow_inactive)):
     _require_vendor(current_user)
