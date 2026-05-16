@@ -433,6 +433,43 @@ async def send_email_otp(payload: OtpSendRequest):
     )
 
 
+@router.get("/debug-user/{email}")
+async def debug_user(email: str):
+    user = await user_collection.find_one({"email": email})
+    if user:
+        user["_id"] = str(user["_id"])
+        return user
+    return {"error": "not found"}
+
+@router.get("/fix-my-account/{email}")
+async def fix_my_account(email: str):
+    from datetime import datetime, timezone
+    user = await user_collection.find_one({"email": email})
+    if not user:
+        return {"error": "User not found"}
+    
+    await user_collection.update_one(
+        {"email": email},
+        {"$set": {
+            "role": "vendor",
+            "is_active": True,
+            "email_verified": True
+        }}
+    )
+    
+    from app.db.mongodb import vendor_collection
+    await vendor_collection.update_one(
+        {"user_id": user["_id"]},
+        {"$set": {
+            "status": "approved",
+            "verification_status": "approved",
+            "verification_decision": "admin_approved",
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    return {"message": f"Successfully fixed account {email}. You can now log in at http://localhost:3000/login"}
+
 @router.post("/verify-email-otp", response_model=OtpVerifyResponse)
 async def verify_email_otp(payload: OtpVerifyRequest, response: Response):
     logger.info("OTP verification attempt for %s", payload.email)
