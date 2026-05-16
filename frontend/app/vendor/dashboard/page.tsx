@@ -27,16 +27,21 @@ type FieldDef = {
 
 const CATEGORY_SCHEMAS: Record<string, FieldDef[]> = {
   'Hotel': [
-    { name: 'room_type', label: 'Primary Room Type', type: 'select', options: ['Single', 'Double', 'Suite', 'Family'], isCore: true },
-    { name: 'star_rating', label: 'Star Rating', type: 'select', options: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'], isCore: true },
-    { name: 'capacity', label: 'Max Guests / Capacity', type: 'number', isCore: true },
-    { name: 'location_type', label: 'Location Setting', type: 'select', options: ['City Center', 'Resort', 'Airport', 'Suburban'], isCore: true },
-    { name: 'meals_included', label: 'Meals Included', type: 'select', options: ['None', 'Breakfast', 'Half-Board', 'Full-Board'], isCore: false },
+    { name: 'room_type', label: 'Primary Room Type', type: 'select', options: ['Single', 'Double', 'Suite', 'Family', 'Presidential', 'Mixed Allocation'], isCore: true },
+    { name: 'star_rating', label: 'Star Rating', type: 'select', options: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars', 'Unrated Boutique'], isCore: true },
+    { name: 'capacity', label: 'Total Room Capacity', type: 'number', isCore: true },
+    { name: 'location_type', label: 'Location Setting', type: 'select', options: ['City Center', 'Resort', 'Airport', 'Suburban', 'Diplomatic Area'], isCore: true },
+    { name: 'event_halls', label: 'Number of Event/Conference Halls', type: 'number', isCore: true },
+    { name: 'max_hall_capacity', label: 'Max Capacity of Largest Hall', type: 'number', isCore: true },
+    { name: 'meals_included', label: 'Standard Meal Plan', type: 'select', options: ['Room Only', 'Bed & Breakfast', 'Half-Board', 'Full-Board', 'All Inclusive'], isCore: false },
+    { name: 'airport_shuttle', label: 'Airport Shuttle Service', type: 'checkbox', isCore: false },
+    { name: 'vip_lounge', label: 'VIP/Executive Lounge Access', type: 'checkbox', isCore: false },
+    { name: 'security_level', label: 'Security (e.g., CCTV, Guards)', type: 'select', options: ['Standard', 'High Security (Diplomat Ready)', '24/7 Armed Guards'], isCore: false },
     { name: 'pool_access', label: 'Swimming Pool', type: 'checkbox', isCore: false },
     { name: 'gym_access', label: 'Fitness Center', type: 'checkbox', isCore: false },
-    { name: 'wifi', label: 'Free High-Speed WiFi', type: 'checkbox', isCore: false },
-    { name: 'parking', label: 'Free Parking', type: 'checkbox', isCore: false },
-    { name: 'check_in_time', label: 'Check-In Time', type: 'text', isCore: false },
+    { name: 'wifi', label: 'High-Speed Enterprise WiFi', type: 'checkbox', isCore: false },
+    { name: 'parking', label: 'Secure Parking Capacity', type: 'number', isCore: false },
+    { name: 'check_in_time', label: 'Standard Check-In Time', type: 'text', isCore: false },
   ],
   'Catering': [
     { name: 'cuisine_style', label: 'Cuisine Style', type: 'select', options: ['Ethiopian', 'Italian', 'Continental', 'Asian', 'Mixed'], isCore: true },
@@ -188,6 +193,23 @@ export default function VendorDashboardPage() {
       ]);
       setSummary(summaryResponse);
       setServices(servicesResponse);
+
+      if (servicesResponse.length > 0) {
+        const existing = servicesResponse[0];
+        setForm({
+          title: existing.title || '',
+          description: existing.description || '',
+          category: existing.category || summaryResponse.business_category || 'Hotel',
+          price_min: existing.price_min?.toString() || '',
+          price_max: existing.price_max?.toString() || '',
+          pricing_type: existing.pricing_type as 'fixed' | 'negotiable',
+          location: existing.location || '',
+          tags: existing.tags?.join(', ') || '',
+          image_files: [],
+          availability: existing.availability ? JSON.stringify(existing.availability) : '',
+          service_details_obj: existing.service_details || {},
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load the vendor portal.');
     } finally {
@@ -209,7 +231,7 @@ export default function VendorDashboardPage() {
     );
   }, [searchQuery, services]);
 
-  const handleCreateService = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSaveService = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
     setError(null);
@@ -233,12 +255,17 @@ export default function VendorDashboardPage() {
         service_details: Object.keys(form.service_details_obj).length ? JSON.stringify(form.service_details_obj) : undefined,
       };
 
-      await vendorPortalService.createService(payload);
-      setForm(initialFormState);
-      setSuccess('Service created successfully. It is now visible in your vendor catalog.');
+      if (services.length > 0) {
+        await vendorPortalService.updateService(services[0].id, payload);
+        setSuccess('Service updated successfully.');
+      } else {
+        await vendorPortalService.createService(payload);
+        setSuccess('Service created successfully. It is now visible in your vendor catalog.');
+      }
+      
       await loadDashboard();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to create service.');
+      setError(err instanceof Error ? err.message : 'Unable to save service.');
     } finally {
       setSaving(false);
     }
@@ -476,14 +503,20 @@ export default function VendorDashboardPage() {
                     <div className="p-2 bg-[#062E22]/5 rounded-lg text-[#062E22]">
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#0a4a37]">Publish</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#0a4a37]">
+                      {services.length > 0 ? 'Update' : 'Publish'}
+                    </p>
                   </div>
-                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Create Offering</h2>
+                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                    {services.length > 0 ? 'Update Offering' : 'Create Offering'}
+                  </h2>
                   <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                    Add a new service package to your catalog for organizers to request.
+                    {services.length > 0 
+                      ? 'Update your existing service package information to reflect your latest offerings.'
+                      : 'Add a new service package to your catalog for organizers to request.'}
                   </p>
 
-                  <form onSubmit={handleCreateService} className="mt-8 space-y-6">
+                  <form onSubmit={handleSaveService} className="mt-8 space-y-6">
                     <div className="space-y-4">
                       <div>
                         <label htmlFor="title" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">Service title</label>
@@ -639,7 +672,7 @@ export default function VendorDashboardPage() {
                       className="w-full relative group overflow-hidden rounded-xl bg-[#062E22] px-5 py-4 text-sm font-bold text-white transition-all disabled:cursor-not-allowed disabled:opacity-60 shadow-lg shadow-[#062E22]/20 hover:shadow-xl hover:shadow-[#062E22]/30 hover:-translate-y-0.5"
                     >
                       <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-                      {saving ? 'Publishing...' : 'Publish Service'}
+                      {saving ? (services.length > 0 ? 'Updating...' : 'Publishing...') : (services.length > 0 ? 'Update Service' : 'Publish Service')}
                     </button>
                   </form>
                 </div>

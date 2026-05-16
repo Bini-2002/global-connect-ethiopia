@@ -52,6 +52,10 @@ export const vendorPortalService = {
   createService: async (payload: VendorServiceCreatePayload): Promise<VendorServiceRecord> => {
     return api.post<VendorServiceRecord>('/vendors/services', buildServiceFormData(payload));
   },
+
+  updateService: async (serviceId: string, payload: VendorServiceCreatePayload): Promise<VendorServiceRecord> => {
+    return api.put<VendorServiceRecord>(`/vendors/services/${serviceId}`, buildServiceFormData(payload));
+  },
 };
 
 export default vendorPortalService;
