@@ -8,7 +8,7 @@ This document outlines the testing strategy for the newly integrated VIP Hotel R
 Before beginning the test, ensure the following conditions are met:
 1. **Organizer Account:** You are logged in as an Organizer and have created at least one event.
 2. **Organizer Wallet:** The Organizer has a wallet balance (e.g., ETB 50,000). You can add funds via the database or the wallet mock endpoint if needed.
-3. **Vendor Account:** You have a Vendor account registered with the `business_category` set exactly to `"hotel_accommodation"`, and its `verification_status` is `"approved"`.
+3. **Vendor Account:** You have a Vendor account registered with the `business_category` set exactly to `"Hotel"`, and its `verification_status` is `"approved"`.
 4. **Platform Wallet:** The system must have a platform wallet initialized to receive the 10% commission.
 
 ---

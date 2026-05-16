@@ -2786,7 +2786,7 @@ async def delete_vip_reservation(
 
 # ─── VIP Hotel Room Reservations (Vendor-Linked Escrow Workflow) ──────────────
 
-_HOTEL_VENDOR_CATEGORY = "hotel_accommodation"
+_HOTEL_VENDOR_CATEGORY = "Hotel"
 
 
 class VipRoomPayload(BaseModel):

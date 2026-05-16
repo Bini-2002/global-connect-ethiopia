@@ -524,7 +524,7 @@ async def get_marketplace_vendor(vendor_id: str):
 
 # ─── Hotel Vendor: Room Reservation Management ────────────────────────────────
 
-_HOTEL_CATEGORY = "hotel_accommodation"
+_HOTEL_CATEGORY = "Hotel"
 
 
 async def _get_hotel_vendor_or_403(current_user: dict) -> dict:
