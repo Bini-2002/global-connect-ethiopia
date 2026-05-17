@@ -20,6 +20,7 @@ class VendorMarketplaceResponse(BaseModel):
     user_id: str
     business_name: str
     services: list[str] = []
+    service_records: list[dict] = []
     is_verified: bool
     rating: float = 0.0
     created_at: datetime

@@ -36,6 +36,7 @@ class VendorServiceResponse(BaseModel):
     images: list[ServiceImageAsset] = []
     availability: dict[str, Any] | list[Any] | str | None = None
     features: dict[str, Any] = {}
+    service_details: dict[str, Any] | list[Any] | str | None = None
     tags: list[str] = []
     price_recommendation_source: str | None = None
     is_active: bool = True

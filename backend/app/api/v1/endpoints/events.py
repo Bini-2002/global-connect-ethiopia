@@ -2883,6 +2883,7 @@ async def list_hotel_vendors_for_reservation(
             "years_of_operation": (v.get("step_2") or {}).get("business_details", {}).get("years_of_operation"),
             "service_name": service_name,
             "cover_image": cover_image,
+            "service_details": service.get("service_details") if service else None,
         })
     return results
 

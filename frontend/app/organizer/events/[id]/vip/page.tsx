@@ -10,6 +10,7 @@ import { api } from '@/app/lib/api';
 interface HotelVendor {
   vendor_id: string; business_name: string; business_address: string; website_url?: string;
   service_name?: string; cover_image?: string;
+  service_details?: Record<string, any>;
 }
 
 interface RoomForm {
@@ -271,15 +272,36 @@ export default function VipHotelReservationsPage() {
                       </div>
                       
                       {expandedVendorInfo === v.vendor_id && (
-                        <div className="px-4 pb-4 border-t border-slate-100 pt-3 bg-slate-50 text-xs text-slate-600">
-                          <p className="mb-1"><span className="font-semibold text-slate-700">Full Address:</span> {v.business_address}</p>
-                          {v.website_url && (
-                            <p className="mb-1">
-                              <span className="font-semibold text-slate-700">Website:</span>{' '}
-                              <a href={v.website_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{v.website_url}</a>
-                            </p>
+                        <div className="px-4 pb-4 border-t border-slate-100 pt-3 bg-slate-50 text-xs text-slate-600 space-y-3">
+                          <div>
+                            <p className="mb-1"><span className="font-semibold text-slate-700">Full Address:</span> {v.business_address}</p>
+                            {v.website_url && (
+                              <p className="mb-1">
+                                <span className="font-semibold text-slate-700">Website:</span>{' '}
+                                <a href={v.website_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{v.website_url}</a>
+                              </p>
+                            )}
+                            <p><span className="font-semibold text-slate-700">Hotel Profile:</span> Verified Global Connect Partner</p>
+                          </div>
+                          {v.service_details && Object.keys(v.service_details).length > 0 && (
+                            <div className="border-t border-slate-200 pt-3">
+                              <p className="font-bold text-[#062E22] uppercase tracking-wider text-[10px] mb-2">Room Pricing Rates</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                {Object.entries(v.service_details).map(([key, value]) => {
+                                  if (key.toLowerCase().includes('price') || key.toLowerCase().includes('rate')) {
+                                    const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/^./, str => str.toUpperCase());
+                                    return (
+                                      <div key={key} className="bg-white rounded-xl p-2 border border-slate-200 flex justify-between items-center shadow-sm">
+                                        <span className="font-medium text-slate-500">{formattedKey}</span>
+                                        <span className="font-bold text-[#062E22]">{String(value)} ETB</span>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })}
+                              </div>
+                            </div>
                           )}
-                          <p><span className="font-semibold text-slate-700">Hotel Profile:</span> Verified Global Connect Partner</p>
                         </div>
                       )}
                     </div>

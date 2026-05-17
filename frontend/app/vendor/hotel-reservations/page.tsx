@@ -135,9 +135,11 @@ export default function HotelRoomReservationsPage() {
             <div className="space-y-4">
               {reservations.map(r => {
                 const isOpen = expanded === r.id;
+                const isConfirmed = r.status === 'confirmed';
                 const isCompleted = r.status === 'payment_released';
+                const isEditable = r.status === 'pending_hotel_review';
                 return (
-                  <div key={r.id} className={`rounded-3xl border bg-white shadow-sm overflow-hidden transition ${isCompleted ? 'border-blue-200' : r.status === 'confirmed' ? 'border-emerald-200' : 'border-slate-200'}`}>
+                  <div key={r.id} className={`rounded-3xl border bg-white shadow-sm overflow-hidden transition ${isCompleted ? 'border-blue-200' : isConfirmed ? 'border-emerald-250 ring-1 ring-emerald-500/20' : 'border-slate-200'}`}>
                     {/* Card Header */}
                     <button className="w-full text-left p-6" onClick={() => setExpanded(isOpen ? null : r.id)}>
                       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -206,8 +208,8 @@ export default function HotelRoomReservationsPage() {
                               )}
                               {rm.notes && <p className="text-xs text-slate-500 italic mb-4">Guest note: {rm.notes}</p>}
 
-                              {!isCompleted && (
-                                <div>
+                              {isEditable && (
+                                <div className="mt-3">
                                   <label className="text-sm font-semibold text-slate-700 block mb-1.5">
                                     Assign Room Number
                                   </label>
@@ -224,7 +226,7 @@ export default function HotelRoomReservationsPage() {
                           ))}
                         </div>
 
-                        {!isCompleted && (
+                        {isEditable && (
                           <>
                             <div>
                               <label className="text-sm font-semibold text-slate-700 block mb-1.5">Response Note (optional)</label>
@@ -242,6 +244,12 @@ export default function HotelRoomReservationsPage() {
                               </button>
                             </div>
                           </>
+                        )}
+
+                        {isConfirmed && (
+                          <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-700 font-semibold text-center">
+                            ✓ Room assignments confirmed. Awaiting payment release from organizer.
+                          </div>
                         )}
 
                         {isCompleted && (

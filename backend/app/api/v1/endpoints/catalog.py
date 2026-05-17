@@ -29,6 +29,7 @@ async def _serialize_service(service: dict) -> dict:
         "images": service.get("images", []),
         "availability": service.get("availability"),
         "features": service.get("features", {}),
+        "service_details": service.get("service_details"),
         "tags": service.get("tags", []),
         "price_recommendation_source": service.get("price_recommendation_source"),
         "is_active": bool(service.get("is_active", True)),

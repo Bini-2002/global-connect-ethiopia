@@ -359,6 +359,12 @@ export default function VendorDashboardPage() {
                         {filteredServices.map((service) => (
                           <div key={service.id} className="group relative bg-white rounded-2xl border border-slate-200 p-6 transition-all hover:border-[#062E22]/30 hover:shadow-lg hover:shadow-[#062E22]/5">
                             <div className="flex flex-col xl:flex-row gap-6">
+                              {service.images && service.images.length > 0 && (
+                                <div className="shrink-0 w-full xl:w-48 h-32 rounded-xl overflow-hidden border border-slate-100">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={service.images[0].url} alt={service.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                </div>
+                              )}
                               <div className="flex-1">
                                 <div className="flex flex-wrap items-center gap-3 mb-2">
                                   <h3 className="text-xl font-bold text-slate-900 group-hover:text-[#062E22] transition-colors">{service.title}</h3>
@@ -562,6 +568,19 @@ export default function VendorDashboardPage() {
                           }}
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium outline-none transition focus:border-[#062E22] focus:bg-white focus:ring-4 focus:ring-[#062E22]/10 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-white file:text-[#062E22] file:shadow-sm hover:file:bg-slate-50"
                         />
+                        {services[0]?.images && services[0].images.length > 0 && (
+                          <div className="mt-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Currently Uploaded Images</p>
+                            <div className="flex flex-wrap gap-2">
+                              {services[0].images.map((img, idx) => (
+                                <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 group">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={img.url} alt="Service preview" className="w-full h-full object-cover" />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
