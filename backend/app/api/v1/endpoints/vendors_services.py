@@ -45,8 +45,6 @@ async def _serialize_service(service: dict) -> dict:
         "title": service["title"],
         "description": service["description"],
         "category": service["category"],
-        "price_min": float(service["price_min"]),
-        "price_max": float(service["price_max"]),
         "pricing_type": service["pricing_type"],
         "location": service.get("location"),
         "images": _normalize_images(service.get("images", [])),
