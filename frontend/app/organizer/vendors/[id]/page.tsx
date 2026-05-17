@@ -191,8 +191,8 @@ export default function OrganizerVendorDetailPage() {
                                   <span className="line-clamp-1 max-w-[100px]">{service.location}</span>
                                 </p>
                               )}
-                              <p className="text-xs font-semibold text-[#062E22]">
-                                {service.price_min} ETB
+                              <p className="text-xs font-semibold text-[#062E22] capitalize">
+                                {service.pricing_type}
                               </p>
                             </div>
                           </div>
@@ -355,10 +355,8 @@ export default function OrganizerVendorDetailPage() {
                 )}
                 <div className="bg-[#062E22]/5 p-4 rounded-2xl border border-[#062E22]/10">
                   <p className="text-xs font-medium text-[#062E22]/60 uppercase tracking-wider">Pricing</p>
-                  <p className="mt-1 text-sm font-bold text-[#062E22]">
-                    {selectedServiceRecord.pricing_type === 'fixed' 
-                      ? `${selectedServiceRecord.price_min} ETB` 
-                      : `${selectedServiceRecord.price_min} - ${selectedServiceRecord.price_max} ETB`}
+                  <p className="mt-1 text-sm font-bold text-[#062E22] capitalize">
+                    {selectedServiceRecord.pricing_type}
                   </p>
                   {selectedServiceRecord.pricing_type === 'negotiable' && (
                     <span className="text-[10px] font-medium text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded ml-1">Negotiable</span>

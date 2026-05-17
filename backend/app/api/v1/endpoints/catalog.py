@@ -24,16 +24,12 @@ async def _serialize_service(service: dict) -> dict:
         "title": service["title"],
         "description": service["description"],
         "category": service["category"],
-        "price_min": float(service["price_min"]),
-        "price_max": float(service["price_max"]),
         "pricing_type": service["pricing_type"],
         "location": service.get("location"),
         "images": service.get("images", []),
         "availability": service.get("availability"),
         "features": service.get("features", {}),
         "tags": service.get("tags", []),
-        "recommended_price_min": service.get("recommended_price_min"),
-        "recommended_price_max": service.get("recommended_price_max"),
         "price_recommendation_source": service.get("price_recommendation_source"),
         "is_active": bool(service.get("is_active", True)),
         "created_at": service["created_at"],
@@ -47,8 +43,6 @@ async def search_marketplace_services(
     q: str | None = Query(default=None, description="Text search query"),
     category: str | None = Query(default=None),
     location: str | None = Query(default=None),
-    price_min: float | None = Query(default=None, ge=0),
-    price_max: float | None = Query(default=None, ge=0),
     recommend_prices: bool = Query(default=False),
 ):
     query: dict = {"is_active": True}
@@ -65,15 +59,6 @@ async def search_marketplace_services(
         if isinstance(parsed_features, dict):
             for key, value in parsed_features.items():
                 query[f"features.{key}"] = value
-
-    if price_min is not None or price_max is not None:
-        clauses: list[dict] = []
-        if price_min is not None:
-            clauses.append({"price_max": {"$gte": float(price_min)}})
-        if price_max is not None:
-            clauses.append({"price_min": {"$lte": float(price_max)}})
-        if clauses:
-            query["$and"] = clauses
 
     sort = [("created_at", -1)]
     projection = None
@@ -107,8 +92,6 @@ async def search_marketplace_services(
             candidate_services=response_items,
         )
         for item in response_items:
-            item["recommended_price_min"] = recommendation.get("recommended_price_min")
-            item["recommended_price_max"] = recommendation.get("recommended_price_max")
             item["price_recommendation_source"] = recommendation.get("price_recommendation_source")
 
     return {"count": len(response_items), "items": response_items}

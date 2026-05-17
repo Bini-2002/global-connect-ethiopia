@@ -31,8 +31,6 @@ export interface VendorServiceRecord {
   title: string;
   description: string;
   category: string;
-  price_min: number;
-  price_max: number;
   pricing_type: 'fixed' | 'negotiable';
   location?: string | null;
   images: ServiceImageAsset[];
@@ -84,8 +82,6 @@ export interface VendorServiceCreatePayload {
   title: string;
   description: string;
   category: string;
-  price_min: number;
-  price_max: number;
   pricing_type: 'fixed' | 'negotiable';
   location: string;
   tags?: string[];

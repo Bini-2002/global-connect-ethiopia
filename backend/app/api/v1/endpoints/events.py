@@ -2857,22 +2857,34 @@ async def list_hotel_vendors_for_reservation(
 ):
     """Return approved hotel/accommodation vendors the organizer can select from."""
     await _get_owned_event_or_403(event_id, current_user)
-    from app.db.mongodb import vendor_collection as _vendor_col
+    from app.db.mongodb import vendor_collection as _vendor_col, vendor_service_collection as _svc_col
     docs = await _vendor_col.find({
         "verification_status": "approved",
         "step_2.business_details.business_category": _HOTEL_VENDOR_CATEGORY,
     }).to_list(length=200)
-    return [
-        {
+
+    results = []
+    for v in docs:
+        service = await _svc_col.find_one({"vendor_id": str(v["_id"]), "is_active": True}, sort=[("created_at", -1)])
+        cover_image = None
+        service_name = None
+        if service:
+            service_name = service.get("title")
+            images = service.get("images", [])
+            if images and isinstance(images, list) and images[0].get("url"):
+                cover_image = images[0]["url"]
+
+        results.append({
             "vendor_id": str(v["_id"]),
             "vendor_user_id": str(v.get("user_id", "")),
             "business_name": (v.get("step_2") or {}).get("business_details", {}).get("business_name", ""),
             "business_address": (v.get("step_2") or {}).get("business_details", {}).get("business_address", ""),
             "website_url": (v.get("step_2") or {}).get("business_details", {}).get("website_url"),
             "years_of_operation": (v.get("step_2") or {}).get("business_details", {}).get("years_of_operation"),
-        }
-        for v in docs
-    ]
+            "service_name": service_name,
+            "cover_image": cover_image,
+        })
+    return results
 
 
 @router.post("/{event_id}/vip-hotel-reservations", status_code=201)

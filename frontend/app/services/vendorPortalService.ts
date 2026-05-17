@@ -10,8 +10,6 @@ function buildServiceFormData(payload: VendorServiceCreatePayload): FormData {
   formData.append('title', payload.title);
   formData.append('description', payload.description);
   formData.append('category', payload.category);
-  formData.append('price_min', String(payload.price_min));
-  formData.append('price_max', String(payload.price_max));
   formData.append('pricing_type', payload.pricing_type);
   formData.append('location', payload.location);
 

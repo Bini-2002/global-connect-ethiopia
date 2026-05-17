@@ -142,8 +142,6 @@ async def get_vendor_service_records(vendor: dict) -> list[dict]:
                 "title": service.get("title") or "Untitled Service",
                 "description": service.get("description"),
                 "category": service.get("category"),
-                "price_min": float(service.get("price_min") or 0),
-                "price_max": float(service.get("price_max") or 0),
                 "pricing_type": service.get("pricing_type"),
                 "location": service.get("location"),
                 "images": _normalize_images(service.get("images", [])),

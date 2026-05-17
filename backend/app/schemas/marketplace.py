@@ -31,16 +31,12 @@ class VendorServiceResponse(BaseModel):
     title: str
     description: str
     category: str
-    price_min: float
-    price_max: float
     pricing_type: Literal["fixed", "negotiable"]
     location: str | None = None
     images: list[ServiceImageAsset] = []
     availability: dict[str, Any] | list[Any] | str | None = None
     features: dict[str, Any] = {}
     tags: list[str] = []
-    recommended_price_min: float | None = None
-    recommended_price_max: float | None = None
     price_recommendation_source: str | None = None
     is_active: bool = True
     created_at: datetime

@@ -67,8 +67,6 @@ async def create_vendor_service(
     title: str = Form(...),
     description: str = Form(...),
     category: str = Form(...),
-    price_min: float = Form(...),
-    price_max: float = Form(...),
     pricing_type: str = Form(...),
     location: str = Form(...),
     images: str | None = Form(default=None),
@@ -80,11 +78,14 @@ async def create_vendor_service(
 ):
     vendor = await require_vendor_profile(current_user, approved_only=True)
 
+    # Enforce maximum 1 service per vendor
+    existing_service = await vendor_service_collection.find_one({"vendor_user_id": current_user["id"]})
+    if existing_service:
+        raise HTTPException(status_code=400, detail="You can only create one service. Please update your existing service instead.")
+
     pricing_type = pricing_type.strip().lower()
     if pricing_type not in {"fixed", "negotiable"}:
         raise HTTPException(status_code=400, detail="pricing_type must be either fixed or negotiable")
-    if price_min > price_max:
-        raise HTTPException(status_code=400, detail="price_min cannot exceed price_max")
 
     image_urls = parse_string_list(images)
     uploaded_images = await image_storage.upload_images(image_files, folder="vendor_services") if image_files else []
@@ -98,8 +99,6 @@ async def create_vendor_service(
         "title": title.strip(),
         "description": description.strip(),
         "category": category.strip(),
-        "price_min": float(price_min),
-        "price_max": float(price_max),
         "pricing_type": pricing_type,
         "location": location.strip(),
         "images": _normalize_images(uploaded_images),
@@ -139,8 +138,6 @@ async def update_vendor_service(
     title: str | None = Form(default=None),
     description: str | None = Form(default=None),
     category: str | None = Form(default=None),
-    price_min: float | None = Form(default=None),
-    price_max: float | None = Form(default=None),
     pricing_type: str | None = Form(default=None),
     location: str | None = Form(default=None),
     images: str | None = Form(default=None),
@@ -172,15 +169,6 @@ async def update_vendor_service(
         if normalized_pricing not in {"fixed", "negotiable"}:
             raise HTTPException(status_code=400, detail="pricing_type must be either fixed or negotiable")
         update_data["pricing_type"] = normalized_pricing
-
-    next_price_min = float(price_min) if price_min is not None else float(service["price_min"])
-    next_price_max = float(price_max) if price_max is not None else float(service["price_max"])
-    if next_price_min > next_price_max:
-        raise HTTPException(status_code=400, detail="price_min cannot exceed price_max")
-    if price_min is not None:
-        update_data["price_min"] = next_price_min
-    if price_max is not None:
-        update_data["price_max"] = next_price_max
 
     if availability is not None:
         update_data["availability"] = parse_flexible_payload(availability)

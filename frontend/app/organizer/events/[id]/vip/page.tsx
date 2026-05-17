@@ -9,6 +9,7 @@ import { api } from '@/app/lib/api';
 
 interface HotelVendor {
   vendor_id: string; business_name: string; business_address: string; website_url?: string;
+  service_name?: string; cover_image?: string;
 }
 
 interface RoomForm {
@@ -63,6 +64,7 @@ export default function VipHotelReservationsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
+  const [expandedVendorInfo, setExpandedVendorInfo] = useState<string | null>(null);
 
   // Release payment state
   const [releasing, setReleasing] = useState<string | null>(null);
@@ -226,15 +228,61 @@ export default function VipHotelReservationsPage() {
                   No approved hotel vendors yet. Hotel vendors must register with category "Hotel Accommodation".
                 </div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   {vendors.map(v => (
-                    <button key={v.vendor_id} type="button"
-                      onClick={() => setSelectedVendor(v.vendor_id)}
-                      className={`text-left p-4 rounded-xl border transition ${selectedVendor === v.vendor_id ? 'border-[#062E22] bg-[#062E22]/5 ring-2 ring-[#062E22]/20' : 'border-slate-200 hover:bg-slate-50'}`}>
-                      <p className="font-semibold text-[#062E22]">{v.business_name}</p>
-                      <p className="text-xs text-slate-500 mt-1">{v.business_address}</p>
-                      {v.website_url && <p className="text-xs text-blue-500 mt-1">{v.website_url}</p>}
-                    </button>
+                    <div key={v.vendor_id} className={`rounded-2xl border transition overflow-hidden bg-white ${selectedVendor === v.vendor_id ? 'border-[#062E22] ring-2 ring-[#062E22]/20' : 'border-slate-200 hover:shadow-md'}`}>
+                      <div 
+                        className="cursor-pointer"
+                        onClick={() => setSelectedVendor(v.vendor_id)}
+                      >
+                        {v.cover_image ? (
+                          <div className="h-32 w-full overflow-hidden relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={v.cover_image} alt={v.business_name} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                            <div className="absolute bottom-3 left-3 right-3 text-white">
+                              <p className="font-bold text-lg leading-tight">{v.business_name}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-16 w-full bg-gradient-to-r from-[#062E22] via-[#0a4a37] to-[#EC5B13] p-3 flex items-end">
+                            <p className="font-bold text-white text-lg leading-tight">{v.business_name}</p>
+                          </div>
+                        )}
+                        <div className="p-4 flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-sm text-[#062E22]">{v.service_name || 'Hotel Service'}</p>
+                            <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                              {v.business_address}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedVendorInfo(expandedVendorInfo === v.vendor_id ? null : v.vendor_id);
+                            }}
+                            className="text-xs font-semibold text-[#062E22] hover:bg-[#062E22]/5 px-2 py-1 rounded-md transition"
+                          >
+                            {expandedVendorInfo === v.vendor_id ? 'Less Info' : 'More Info'}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {expandedVendorInfo === v.vendor_id && (
+                        <div className="px-4 pb-4 border-t border-slate-100 pt-3 bg-slate-50 text-xs text-slate-600">
+                          <p className="mb-1"><span className="font-semibold text-slate-700">Full Address:</span> {v.business_address}</p>
+                          {v.website_url && (
+                            <p className="mb-1">
+                              <span className="font-semibold text-slate-700">Website:</span>{' '}
+                              <a href={v.website_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{v.website_url}</a>
+                            </p>
+                          )}
+                          <p><span className="font-semibold text-slate-700">Hotel Profile:</span> Verified Global Connect Partner</p>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

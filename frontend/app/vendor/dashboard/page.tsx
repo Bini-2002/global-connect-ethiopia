@@ -27,10 +27,11 @@ type FieldDef = {
 
 const CATEGORY_SCHEMAS: Record<string, FieldDef[]> = {
   'Hotel': [
-    { name: 'room_type', label: 'Primary Room Type', type: 'select', options: ['Single', 'Double', 'Suite', 'Family', 'Presidential', 'Mixed Allocation'], isCore: true },
-    { name: 'star_rating', label: 'Star Rating', type: 'select', options: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars', 'Unrated Boutique'], isCore: true },
+    { name: 'single_room_price', label: 'Single Room Price (ETB)', type: 'number', isCore: true },
+    { name: 'double_room_price', label: 'Double Room Price (ETB)', type: 'number', isCore: true },
+    { name: 'suite_room_price', label: 'Suite Room Price (ETB)', type: 'number', isCore: true },
+    { name: 'presidential_room_price', label: 'Presidential Room Price (ETB)', type: 'number', isCore: false },
     { name: 'capacity', label: 'Total Room Capacity', type: 'number', isCore: true },
-    { name: 'location_type', label: 'Location Setting', type: 'select', options: ['City Center', 'Resort', 'Airport', 'Suburban', 'Diplomatic Area'], isCore: true },
     { name: 'event_halls', label: 'Number of Event/Conference Halls', type: 'number', isCore: true },
     { name: 'max_hall_capacity', label: 'Max Capacity of Largest Hall', type: 'number', isCore: true },
     { name: 'meals_included', label: 'Standard Meal Plan', type: 'select', options: ['Room Only', 'Bed & Breakfast', 'Half-Board', 'Full-Board', 'All Inclusive'], isCore: false },
@@ -38,110 +39,91 @@ const CATEGORY_SCHEMAS: Record<string, FieldDef[]> = {
     { name: 'vip_lounge', label: 'VIP/Executive Lounge Access', type: 'checkbox', isCore: false },
     { name: 'security_level', label: 'Security (e.g., CCTV, Guards)', type: 'select', options: ['Standard', 'High Security (Diplomat Ready)', '24/7 Armed Guards'], isCore: false },
     { name: 'pool_access', label: 'Swimming Pool', type: 'checkbox', isCore: false },
-    { name: 'gym_access', label: 'Fitness Center', type: 'checkbox', isCore: false },
-    { name: 'wifi', label: 'High-Speed Enterprise WiFi', type: 'checkbox', isCore: false },
-    { name: 'parking', label: 'Secure Parking Capacity', type: 'number', isCore: false },
-    { name: 'check_in_time', label: 'Standard Check-In Time', type: 'text', isCore: false },
   ],
   'Catering': [
+    { name: 'standard_package_price', label: 'Standard Package Price (Per Guest ETB)', type: 'number', isCore: true },
+    { name: 'premium_package_price', label: 'Premium Package Price (Per Guest ETB)', type: 'number', isCore: true },
     { name: 'cuisine_style', label: 'Cuisine Style', type: 'select', options: ['Ethiopian', 'Italian', 'Continental', 'Asian', 'Mixed'], isCore: true },
     { name: 'service_style', label: 'Service Style', type: 'select', options: ['Buffet', 'Plated', 'Family Style', 'Food Stations'], isCore: true },
     { name: 'min_guests', label: 'Minimum Guests', type: 'number', isCore: true },
     { name: 'max_guests', label: 'Maximum Guests', type: 'number', isCore: true },
     { name: 'dietary_vegan', label: 'Vegan Options', type: 'checkbox', isCore: false },
     { name: 'dietary_halal', label: 'Halal Options', type: 'checkbox', isCore: false },
-    { name: 'dietary_gluten', label: 'Gluten-Free', type: 'checkbox', isCore: false },
     { name: 'staff_included', label: 'Staff Provided', type: 'select', options: ['Food Drop-off Only', 'Servers Included', 'Chefs & Servers Included'], isCore: false },
-    { name: 'tasting', label: 'Tasting Session Available', type: 'checkbox', isCore: false },
-    { name: 'cutlery', label: 'Cutlery/Plates Included', type: 'checkbox', isCore: false },
   ],
   'Decoring': [
+    { name: 'basic_setup_price', label: 'Basic Setup Price (ETB)', type: 'number', isCore: true },
+    { name: 'premium_setup_price', label: 'Premium/Luxury Setup Price (ETB)', type: 'number', isCore: true },
     { name: 'decor_style', label: 'Primary Style', type: 'select', options: ['Traditional', 'Modern', 'Corporate', 'Rustic', 'Luxury'], isCore: true },
     { name: 'event_focus', label: 'Primary Event Focus', type: 'select', options: ['Weddings', 'Conferences', 'Birthdays', 'Exhibitions'], isCore: true },
     { name: 'setup_time', label: 'Typical Setup Time (Hours)', type: 'number', isCore: true },
-    { name: 'color_customization', label: 'Full Color Customization', type: 'checkbox', isCore: true },
     { name: 'floral', label: 'Fresh Flowers Included', type: 'checkbox', isCore: false },
     { name: 'lighting', label: 'Ambient Lighting Included', type: 'checkbox', isCore: false },
-    { name: 'furniture', label: 'Furniture Rental Included', type: 'checkbox', isCore: false },
     { name: 'teardown', label: 'Teardown/Cleanup Included', type: 'checkbox', isCore: false },
-    { name: 'consultation', label: 'Free Design Consultation', type: 'checkbox', isCore: false },
   ],
   'Security': [
+    { name: 'standard_guard_price', label: 'Standard Guard Price (Per Hour ETB)', type: 'number', isCore: true },
+    { name: 'vip_escort_price', label: 'VIP Escort Price (Per Hour ETB)', type: 'number', isCore: true },
+    { name: 'armed_guard_price', label: 'Armed Guard Price (Per Hour ETB)', type: 'number', isCore: false },
     { name: 'personnel_type', label: 'Personnel Type', type: 'select', options: ['Bouncers', 'VIP Escorts', 'Uniformed Guards', 'Crowd Control'], isCore: true },
-    { name: 'armed', label: 'Armed Security Available', type: 'checkbox', isCore: true },
     { name: 'min_guards', label: 'Minimum Guards', type: 'number', isCore: true },
     { name: 'max_guards', label: 'Maximum Guards', type: 'number', isCore: true },
-    { name: 'shift_length', label: 'Standard Shift (Hours)', type: 'number', isCore: false },
-    { name: 'comms_gear', label: 'Radios/Earpieces Included', type: 'checkbox', isCore: false },
     { name: 'metal_detectors', label: 'Metal Detectors Provided', type: 'checkbox', isCore: false },
-    { name: 'female_guards', label: 'Female Guards Available', type: 'checkbox', isCore: false },
     { name: 'cctv_monitoring', label: 'CCTV Monitoring Service', type: 'checkbox', isCore: false },
   ],
   'Audio Visual': [
+    { name: 'basic_av_package_price', label: 'Basic Audio/Visual Package (ETB)', type: 'number', isCore: true },
+    { name: 'full_production_price', label: 'Full Production/Lighting Package (ETB)', type: 'number', isCore: true },
     { name: 'primary_service', label: 'Primary Service', type: 'select', options: ['Sound System', 'Lighting', 'LED Screens', 'Full Production'], isCore: true },
     { name: 'audience_size', label: 'Max Audience Coverage', type: 'select', options: ['Up to 100', '100-500', '500-2000', '2000+'], isCore: true },
     { name: 'technicians', label: 'Technicians Included', type: 'number', isCore: true },
-    { name: 'backup_power', label: 'Backup Generators Included', type: 'checkbox', isCore: true },
-    { name: 'microphones', label: 'Wireless Mics Included', type: 'number', isCore: false },
-    { name: 'dj_gear', label: 'DJ Equipment Provided', type: 'checkbox', isCore: false },
     { name: 'livestream', label: 'Livestreaming Capabilities', type: 'checkbox', isCore: false },
-    { name: 'recording', label: 'Audio/Video Recording', type: 'checkbox', isCore: false },
     { name: 'drone', label: 'Drone Coverage', type: 'checkbox', isCore: false },
   ],
   'Social Media Promoting': [
+    { name: 'single_post_price', label: 'Single Post Price (ETB)', type: 'number', isCore: true },
+    { name: 'story_feature_price', label: 'Story Feature Price (ETB)', type: 'number', isCore: true },
+    { name: 'full_campaign_price', label: 'Full Campaign Price (ETB)', type: 'number', isCore: true },
     { name: 'primary_platform', label: 'Primary Platform', type: 'select', options: ['TikTok', 'Instagram', 'Telegram', 'Facebook', 'LinkedIn'], isCore: true },
     { name: 'reach', label: 'Total Follower Reach', type: 'select', options: ['< 50k', '50k - 200k', '200k - 1M', '1M+'], isCore: true },
     { name: 'engagement_rate', label: 'Avg Engagement Rate', type: 'text', isCore: true },
-    { name: 'content_type', label: 'Content Style', type: 'select', options: ['Video Reels', 'Static Posts', 'Stories', 'Giveaways'], isCore: true },
-    { name: 'post_count', label: 'Number of Posts', type: 'number', isCore: false },
     { name: 'video_production', label: 'Video Production Included', type: 'checkbox', isCore: false },
-    { name: 'analytics', label: 'Post-Campaign Analytics', type: 'checkbox', isCore: false },
-    { name: 'duration', label: 'Campaign Duration (Days)', type: 'number', isCore: false },
-    { name: 'boost_budget', label: 'Ad Boost Budget Included', type: 'checkbox', isCore: false },
   ],
   'Marketing and Advertisment': [
+    { name: 'basic_campaign_price', label: 'Basic Ad Campaign Price (ETB)', type: 'number', isCore: true },
+    { name: 'premium_campaign_price', label: 'Premium National Campaign Price (ETB)', type: 'number', isCore: true },
     { name: 'channel', label: 'Primary Channel', type: 'select', options: ['Billboards', 'Print Media', 'Radio', 'TV', 'Digital Ads'], isCore: true },
     { name: 'scale', label: 'Campaign Scale', type: 'select', options: ['Local City', 'Regional', 'National', 'International'], isCore: true },
     { name: 'target_audience', label: 'Target Demographic', type: 'text', isCore: true },
-    { name: 'estimated_views', label: 'Estimated Views/Impressions', type: 'text', isCore: true },
     { name: 'design_included', label: 'Creative Design Included', type: 'checkbox', isCore: false },
-    { name: 'printing_included', label: 'Printing Costs Included', type: 'checkbox', isCore: false },
-    { name: 'campaign_length', label: 'Duration (Weeks)', type: 'number', isCore: false },
-    { name: 'reporting', label: 'Performance Reporting', type: 'select', options: ['Weekly', 'End of Campaign', 'None'], isCore: false },
     { name: 'permit_handling', label: 'Gov Permit Handling', type: 'checkbox', isCore: false },
   ],
   'Modeling and Hosts': [
+    { name: 'standard_talent_price', label: 'Standard Talent/Usher (Per Shift ETB)', type: 'number', isCore: true },
+    { name: 'premium_talent_price', label: 'Premium/Runway Model (Per Shift ETB)', type: 'number', isCore: true },
     { name: 'talent_type', label: 'Talent Role', type: 'select', options: ['Runway Models', 'Brand Ambassadors', 'Ushers', 'MCs / Hosts'], isCore: true },
     { name: 'headcount', label: 'Number of Talents', type: 'number', isCore: true },
-    { name: 'gender', label: 'Gender Availability', type: 'select', options: ['All Female', 'All Male', 'Mixed'], isCore: true },
     { name: 'languages', label: 'Primary Languages', type: 'text', isCore: true },
     { name: 'wardrobe', label: 'Wardrobe Provided', type: 'checkbox', isCore: false },
     { name: 'makeup', label: 'Makeup/Styling Included', type: 'checkbox', isCore: false },
-    { name: 'transport', label: 'Transport Handled by Agency', type: 'checkbox', isCore: false },
-    { name: 'briefing', label: 'Pre-event Briefing Required', type: 'checkbox', isCore: false },
-    { name: 'shift_hours', label: 'Max Shift Hours', type: 'number', isCore: false },
   ],
   'Volunteer facilitator': [
+    { name: 'standard_volunteer_price', label: 'Standard Volunteer (Per Shift ETB)', type: 'number', isCore: true },
+    { name: 'team_lead_price', label: 'Team Lead/Supervisor (Per Shift ETB)', type: 'number', isCore: true },
     { name: 'volunteer_count', label: 'Number of Volunteers', type: 'number', isCore: true },
     { name: 'role_type', label: 'Primary Role', type: 'select', options: ['Registration/Check-in', 'Crowd Control', 'Logistics/Setup', 'General Support'], isCore: true },
     { name: 'training_level', label: 'Training Provided', type: 'select', options: ['Basic Briefing', 'Specialized Training', 'Certified First Aid'], isCore: true },
-    { name: 'age_group', label: 'Average Age Group', type: 'select', options: ['University Students', 'Young Professionals', 'Mixed'], isCore: true },
     { name: 'uniforms', label: 'T-Shirts/Uniforms Provided', type: 'checkbox', isCore: false },
     { name: 'meals_handled', label: 'Meals Handled by Agency', type: 'checkbox', isCore: false },
-    { name: 'supervisors', label: 'Team Leads/Supervisors Included', type: 'checkbox', isCore: false },
-    { name: 'transport_handled', label: 'Transport Handled by Agency', type: 'checkbox', isCore: false },
-    { name: 'certificate', label: 'Provides Certificates', type: 'checkbox', isCore: false },
   ],
   'Graphics Design': [
+    { name: 'logo_design_price', label: 'Logo Design Price (ETB)', type: 'number', isCore: true },
+    { name: 'poster_design_price', label: 'Event Poster Design Price (ETB)', type: 'number', isCore: true },
+    { name: 'full_branding_price', label: 'Full Branding Package (ETB)', type: 'number', isCore: true },
     { name: 'design_type', label: 'Primary Design Output', type: 'select', options: ['Event Branding/Logo', 'Social Media Posters', 'Print Banners', 'Full Package'], isCore: true },
     { name: 'turnaround_time', label: 'Standard Turnaround (Days)', type: 'number', isCore: true },
     { name: 'revisions', label: 'Revisions Included', type: 'number', isCore: true },
     { name: 'source_files', label: 'Source Files Provided', type: 'checkbox', isCore: true },
-    { name: 'software', label: 'Primary Software', type: 'text', isCore: false },
-    { name: 'motion_graphics', label: 'Motion Graphics/Animation', type: 'checkbox', isCore: false },
-    { name: 'print_ready', label: 'Print-Ready Formats', type: 'checkbox', isCore: false },
-    { name: 'custom_illustrations', label: 'Custom Illustrations', type: 'checkbox', isCore: false },
-    { name: 'branding_guidelines', label: 'Brand Guidelines Doc', type: 'checkbox', isCore: false },
   ]
 };
 
@@ -163,8 +145,6 @@ const initialFormState = {
   title: '',
   description: '',
   category: 'Hotel',
-  price_min: '50000',
-  price_max: '120000',
   pricing_type: 'negotiable' as 'fixed' | 'negotiable',
   location: 'Addis Ababa',
   tags: '',
@@ -200,8 +180,6 @@ export default function VendorDashboardPage() {
           title: existing.title || '',
           description: existing.description || '',
           category: existing.category || summaryResponse.business_category || 'Hotel',
-          price_min: existing.price_min?.toString() || '',
-          price_max: existing.price_max?.toString() || '',
           pricing_type: existing.pricing_type as 'fixed' | 'negotiable',
           location: existing.location || '',
           tags: existing.tags?.join(', ') || '',
@@ -242,8 +220,6 @@ export default function VendorDashboardPage() {
         title: form.title.trim(),
         description: form.description.trim(),
         category: summary?.business_category || 'Other',
-        price_min: Number(form.price_min),
-        price_max: Number(form.price_max),
         pricing_type: form.pricing_type,
         location: form.location.trim(),
         tags: form.tags
@@ -406,9 +382,8 @@ export default function VendorDashboardPage() {
                               <div className="shrink-0 w-full xl:w-48 flex flex-col gap-3 justify-center border-t xl:border-t-0 xl:border-l border-slate-100 pt-4 xl:pt-0 xl:pl-6">
                                 <div>
                                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Pricing Guide</p>
-                                  <p className="text-sm font-black text-[#062E22]">
-                                    {formatCurrency(service.price_min)}<br/>
-                                    <span className="text-slate-400 text-xs font-semibold block mt-0.5">to {formatCurrency(service.price_max)}</span>
+                                  <p className="text-sm font-black text-[#062E22] capitalize">
+                                    {service.pricing_type || 'Custom Packages'}
                                   </p>
                                 </div>
                                 <div>
@@ -553,33 +528,6 @@ export default function VendorDashboardPage() {
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition focus:border-[#062E22] focus:bg-white focus:ring-4 focus:ring-[#062E22]/10 placeholder:text-slate-400"
                           placeholder="Addis Ababa"
                         />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="price_min" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">Min Price</label>
-                          <input
-                            id="price_min"
-                            type="number"
-                            required
-                            min={0}
-                            value={form.price_min}
-                            onChange={(event) => setForm((current) => ({ ...current, price_min: event.target.value }))}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition focus:border-[#062E22] focus:bg-white focus:ring-4 focus:ring-[#062E22]/10"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="price_max" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">Max Price</label>
-                          <input
-                            id="price_max"
-                            type="number"
-                            required
-                            min={0}
-                            value={form.price_max}
-                            onChange={(event) => setForm((current) => ({ ...current, price_max: event.target.value }))}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition focus:border-[#062E22] focus:bg-white focus:ring-4 focus:ring-[#062E22]/10"
-                          />
-                        </div>
                       </div>
 
                       <div>
