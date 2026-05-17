@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getRole, getToken, ROLE_DASHBOARDS } from '@/app/lib/auth';
 
-export default function OrganizerLayout({ children }: { children: React.ReactNode }) {
+export default function VendorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
 
@@ -16,7 +16,7 @@ export default function OrganizerLayout({ children }: { children: React.ReactNod
     }
 
     const role = getRole();
-    if (role !== 'organizer' && role !== 'team_member') {
+    if (role !== 'vendor') {
       const destination = role && ROLE_DASHBOARDS[role] ? ROLE_DASHBOARDS[role] : '/login';
       router.replace(destination);
       return;

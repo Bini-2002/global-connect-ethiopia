@@ -2841,6 +2841,7 @@ def _serialize_hotel_room_reservation(doc: dict) -> dict:
         ],
         "status": doc.get("status", "pending_hotel_review"),
         "payment_status": doc.get("payment_status", "escrowed"),
+        "guests_notified": bool(doc.get("guests_notified")),
         "hotel_response_note": doc.get("hotel_response_note"),
         "receipt_available": bool(doc.get("receipt_stored")),
         "created_at": str(doc.get("created_at", "")),
@@ -3248,3 +3249,82 @@ async def download_vip_hotel_receipt(
         media_type="text/html",
         headers={"Content-Disposition": f'attachment; filename="vip-hotel-receipt-{reservation_id[:8]}.html"'},
     )
+
+
+@router.post("/{event_id}/vip-hotel-reservations/{reservation_id}/notify-guests")
+async def notify_vip_guests_of_reservation(
+    event_id: str,
+    reservation_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Notify all VIP guests by emailing them their personal booking receipt and room details."""
+    await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(reservation_id, field_name="reservation id")
+    doc = await vip_hotel_room_reservation_collection.find_one({"_id": oid, "event_id": event_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="VIP hotel reservation not found")
+    if doc.get("payment_status") != "released":
+        raise HTTPException(status_code=400, detail="Guests can only be notified after payment is released to the hotel.")
+
+    from app.services.email_service import EmailService
+    from app.db.mongodb import event_collection
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    event = await event_collection.find_one({"_id": parse_object_id(event_id, field_name="event id")})
+    event_title = event.get("title", "Event") if event else "Event"
+    
+    rooms = doc.get("rooms", [])
+    success_count = 0
+    
+    for rm in rooms:
+        email = rm.get("vip_email", "").strip().lower()
+        if not email:
+            continue
+        
+        subject = f"Your Confirmed VIP Hotel Reservation – {event_title}"
+        body_html = f"""
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; color: #1e293b;">
+          <h2 style="color: #062E22; border-bottom: 2px solid #062E22; padding-bottom: 10px;">VIP Hotel Reservation Confirmed</h2>
+          <p>Dear <strong>{rm.get('vip_name')}</strong>,</p>
+          <p>We are delighted to inform you that your VIP hotel accommodation for the upcoming event <strong>"{event_title}"</strong> has been successfully booked, confirmed, and paid.</p>
+          
+          <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Hotel Name:</strong> {doc.get('hotel_name')}</p>
+            <p style="margin: 4px 0;"><strong>Hotel Address:</strong> {doc.get('hotel_address') or '—'}</p>
+            <p style="margin: 4px 0;"><strong>Check-in Date:</strong> {doc.get('check_in_date')}</p>
+            <p style="margin: 4px 0;"><strong>Check-out Date:</strong> {doc.get('check_out_date')}</p>
+            <p style="margin: 4px 0;"><strong>Room Type:</strong> {rm.get('room_type','').title()}</p>
+            <p style="margin: 4px 0;"><strong>Meal Plan:</strong> {rm.get('meal_plan','').replace('_',' ').title()}</p>
+            <p style="margin: 4px 0; color: #065F46; font-size: 16px;"><strong>ASSIGNED ROOM NUMBER: {rm.get('assigned_room_number') or 'Pending Check-in'}</strong></p>
+          </div>
+          
+          <p>If you requested special arrangements ({', '.join(rm.get('special_requests', [])) or 'None'}), they have been communicated directly to the hotel staff.</p>
+          <p>We wish you a wonderful stay. Please present your ID and mention <em>Global Connect Ethiopia VIP Guest</em> at the front desk upon check-in.</p>
+          
+          <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 12px; color: #94a3b8; text-align: center;">
+            This is an automated guest hospitality message from Global Connect Ethiopia.
+          </div>
+        </div>
+        """
+        
+        try:
+            EmailService.send_generic_email(
+                recipient_email=email,
+                subject=subject,
+                body=f"Dear {rm.get('vip_name')},\n\nYour VIP reservation at {doc.get('hotel_name')} is confirmed.\nRoom Number: {rm.get('assigned_room_number') or 'Pending Check-in'}.\n\nGlobal Connect Ethiopia.",
+                body_html=body_html
+            )
+            success_count += 1
+        except Exception as e:
+            logger.error("Failed to email guest %s: %s", email, e)
+            
+    # Update reservation in database to track notified status
+    from app.services.marketplace_mvp import utc_now
+    await vip_hotel_room_reservation_collection.update_one(
+        {"_id": oid},
+        {"$set": {"guests_notified": True, "guests_notified_at": utc_now()}}
+    )
+            
+    return {"message": f"Successfully notified {success_count} of {len(rooms)} VIP guests via email."}
+

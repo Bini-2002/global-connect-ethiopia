@@ -70,6 +70,7 @@ export default function VipHotelReservationsPage() {
   // Release payment state
   const [releasing, setReleasing] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [notifying, setNotifying] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -149,6 +150,18 @@ export default function VipHotelReservationsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to download receipt');
     } finally { setDownloading(null); }
+  };
+
+  const handleNotifyGuests = async (id: string) => {
+    setNotifying(id);
+    setSuccess('');
+    try {
+      await api.post(`/events/${eventId}/vip-hotel-reservations/${id}/notify-guests`, {});
+      setSuccess('Guests have been notified via email with their room details and confirmed receipt!');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to notify guests');
+    } finally { setNotifying(null); }
   };
 
   const select = (label: string, val: string, opts: string[][], onChange: (v: string) => void) => (
@@ -444,6 +457,20 @@ export default function VipHotelReservationsPage() {
                         {releasing === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                         Release Payment
                       </button>
+                    )}
+                    {r.payment_status === 'released' && (
+                      r.guests_notified ? (
+                        <button disabled
+                          className="px-4 py-2 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-semibold flex items-center gap-2 cursor-default">
+                          Notified ✓
+                        </button>
+                      ) : (
+                        <button onClick={() => void handleNotifyGuests(r.id)} disabled={notifying === r.id}
+                          className="px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-60 flex items-center gap-2">
+                          {notifying === r.id ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : null}
+                          Notify Guests
+                        </button>
+                      )
                     )}
                     {r.receipt_available && (
                       <button onClick={() => void handleDownloadReceipt(r.id)} disabled={downloading === r.id}
