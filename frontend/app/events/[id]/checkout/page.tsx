@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle2, Ticket } from 'lucide-react';
+import { CheckCircle2, Ticket, Clock } from 'lucide-react';
 import { eventsService } from '@/app/services/eventsService';
 import { EventRecord, TicketTypeRecord, EventBookingRecord } from '@/app/types/event';
 import { formatCurrency } from '@/components/organizer/events';
@@ -86,22 +86,26 @@ export default function TicketCheckoutPage() {
 
       setBooking(createdBooking);
 
-      // All bookings are strictly free, auto-confirm immediately without showing payment step
-      await handlePaymentConfirm(createdBooking.booking_reference);
+      if (ticketType.price === 0) {
+        await handlePaymentConfirm(createdBooking.booking_reference, 'free');
+      } else {
+        setStep('payment');
+        setSubmitting(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to initialize checkout.');
       setSubmitting(false);
     }
   };
 
-  const handlePaymentConfirm = async (referenceId = 'FREE_BOOKING') => {
+  const handlePaymentConfirm = async (referenceId = 'FREE_BOOKING', method = 'chapa') => {
     try {
       setSubmitting(true);
       setError(null);
       
       const confirmedBooking = await eventsService.confirmTicketPayment(eventId, {
         payment_reference_id: referenceId,
-        payment_method: 'free',
+        payment_method: method,
       });
       
       setBooking(confirmedBooking);
@@ -274,11 +278,18 @@ export default function TicketCheckoutPage() {
                 </p>
                 <div className="flex flex-col gap-4 max-w-xs mx-auto">
                   <button
-                    onClick={() => handlePaymentConfirm(`TX-MOCK-${Date.now()}`)}
+                    onClick={() => handlePaymentConfirm(`TX-MOCK-${Date.now()}`, 'chapa')}
                     disabled={submitting}
                     className="w-full px-6 py-3 bg-[#062E22] text-white rounded-xl font-bold hover:bg-[#0a4a37] transition disabled:opacity-50"
                   >
                     {submitting ? 'Verifying...' : 'Pay with Chapa (Mock)'}
+                  </button>
+                  <button
+                    onClick={() => handlePaymentConfirm(`OFFLINE-${Date.now()}`, 'bank')}
+                    disabled={submitting}
+                    className="w-full px-6 py-3 border border-slate-300 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition disabled:opacity-50"
+                  >
+                    Offline Payment (Bank Transfer)
                   </button>
                 </div>
               </div>
@@ -286,11 +297,23 @@ export default function TicketCheckoutPage() {
 
             {step === 'confirmation' && booking && (
               <div className="text-center py-8">
-                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                <h3 className="text-2xl font-bold text-[#062E22]">Booking Confirmed!</h3>
-                <p className="mt-2 text-slate-500 mb-6">Your reference is <strong>{booking.booking_reference}</strong>.</p>
+                {booking.payment_method === 'bank' || booking.payment_method === 'cash' ? (
+                  <>
+                    <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <Clock className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-[#062E22]">Pending Offline Payment</h3>
+                    <p className="mt-2 text-slate-500 mb-6">Your booking is placed. Please transfer <strong>{formatCurrency(totalAmount)} {ticketType.currency}</strong> to our bank account. Your reference is <strong>{booking.booking_reference}</strong>.</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <CheckCircle2 className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-[#062E22]">Booking Confirmed!</h3>
+                    <p className="mt-2 text-slate-500 mb-6">Your reference is <strong>{booking.booking_reference}</strong>.</p>
+                  </>
+                )}
                 
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 max-w-sm mx-auto mb-8 text-left">
                   <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">

@@ -297,6 +297,9 @@ def _serialize_booking(document: dict, event: dict | None = None) -> dict:
         "booking_status": document.get("booking_status", "confirmed"),
         "check_in_status": document.get("check_in_status", "pending"),
         "checked_in_at": document.get("checked_in_at"),
+        "ticket_type_id": str(document.get("ticket_type_id")) if document.get("ticket_type_id") else None,
+        "payment_method": document.get("payment_method"),
+        "payment_reference_id": document.get("payment_reference_id"),
         "created_at": document["created_at"],
         "updated_at": document["updated_at"],
     }

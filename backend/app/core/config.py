@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import List, Optional
 
 class Settings(BaseSettings):
     PROJECT_NAME: str
@@ -11,6 +11,15 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
+
+    # CORS – comma-separated list of allowed origins, e.g.
+    # "https://globalconnect.et,https://www.globalconnect.et"
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    FRONTEND_BASE_URL: str = "http://localhost:3000"
+
+    def get_allowed_origins(self) -> List[str]:
+        """Return ALLOWED_ORIGINS as a parsed list, stripping whitespace."""
+        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
     CLOUDINARY_CLOUD_NAME: Optional[str] = None
     CLOUDINARY_API_KEY: Optional[str] = None
     CLOUDINARY_API_SECRET: Optional[str] = None

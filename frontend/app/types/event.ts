@@ -474,6 +474,9 @@ export interface EventBookingRecord {
   booking_status: string;
   check_in_status: string;
   checked_in_at?: string | null;
+  ticket_type_id?: string | null;
+  payment_method?: string | null;
+  payment_reference_id?: string | null;
   created_at: string;
   updated_at: string;
 }
