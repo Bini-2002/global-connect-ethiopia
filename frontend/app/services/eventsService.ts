@@ -152,7 +152,7 @@ export const eventsService = {
   },
 
   getDiscoverableEvents: async (): Promise<EventRecord[]> => {
-    return api.get<EventRecord[]>('/events/');
+    return api.get<EventRecord[]>('/events/?discover=true');
   },
 
   createEventFromProposal: async (proposalId: string, visibility: 'public' | 'private' = 'public'): Promise<EventCreateFromProposalResponse> => {

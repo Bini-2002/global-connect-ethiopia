@@ -85,33 +85,29 @@ export default function TicketCheckoutPage() {
       });
 
       setBooking(createdBooking);
-      setStep('payment');
 
-      // If free ticket, auto-confirm
-      if (ticketType.price === 0) {
-        await handlePaymentConfirm(createdBooking.booking_reference);
-      }
+      // All bookings are strictly free, auto-confirm immediately without showing payment step
+      await handlePaymentConfirm(createdBooking.booking_reference);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to initialize checkout.');
       setSubmitting(false);
     }
   };
 
-  const handlePaymentConfirm = async (referenceId = 'MOCK_CHAPA_REF') => {
+  const handlePaymentConfirm = async (referenceId = 'FREE_BOOKING') => {
     try {
       setSubmitting(true);
       setError(null);
       
       const confirmedBooking = await eventsService.confirmTicketPayment(eventId, {
         payment_reference_id: referenceId,
-        payment_method: ticketType?.price === 0 ? 'free' : 'chapa',
+        payment_method: 'free',
       });
       
       setBooking(confirmedBooking);
       setStep('confirmation');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to confirm payment.');
-    } finally {
+      setError(err instanceof Error ? err.message : 'Failed to confirm booking.');
       setSubmitting(false);
     }
   };
@@ -173,12 +169,12 @@ export default function TicketCheckoutPage() {
               </div>
               <div>
                 <h3 className="font-bold text-[#062E22]">{ticketType.name}</h3>
-                <p className="text-sm text-slate-500">{form.quantity} x {ticketType.price === 0 ? 'Free' : formatCurrency(ticketType.price)} {ticketType.currency}</p>
+                <p className="text-sm text-slate-500">{form.quantity} x Free Booking</p>
               </div>
             </div>
             <div className="text-right">
               <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Total Due</p>
-              <p className="text-2xl font-black text-[#062E22]">{totalAmount === 0 ? 'Free' : formatCurrency(totalAmount)} {ticketType.currency}</p>
+              <p className="text-2xl font-black text-[#062E22]">Free</p>
             </div>
           </div>
 

@@ -183,7 +183,7 @@ export default function LandingPage() {
   }, []);
 
   useEffect(() => {
-    if (!authReady || !loggedIn || role !== 'attendee') return;
+    if (!authReady || !loggedIn || (role !== 'attendee' && role !== 'organizer')) return;
 
     let active = true;
 
@@ -210,7 +210,7 @@ export default function LandingPage() {
     };
   }, [authReady, loggedIn, role]);
 
-  const attendeeMode = loggedIn && role === 'attendee';
+  const attendeeMode = loggedIn && (role === 'attendee' || role === 'organizer');
 
   const filteredEvents = useMemo(() => {
     const available = events.filter((event) => {
@@ -271,7 +271,7 @@ export default function LandingPage() {
                   />
                 </div>
                 <span className="rounded-full bg-[#062E22]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#062E22]">
-                  Attendee Portal
+                  {role === 'organizer' ? 'Organizer Portal' : 'Attendee Portal'}
                 </span>
                 <button
                   onClick={handleLogout}
@@ -570,11 +570,16 @@ export default function LandingPage() {
                       <div className="mt-5 flex items-center justify-between gap-3">
                         <div className="text-xs text-slate-400">
                           {event.booking_required ? (
-                            <span className={`font-semibold ${
-                              (event.remaining_slots ?? 0) <= 5 ? 'text-orange-500' : 'text-slate-500'
-                            }`}>
-                              {event.remaining_slots ?? 0} slots remaining
-                            </span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className={`font-semibold ${
+                                (event.remaining_slots ?? 0) <= 5 ? 'text-orange-500' : 'text-slate-500'
+                              }`}>
+                                {event.remaining_slots ?? 0} slots remaining
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {event.booked_count ?? 0} booked
+                              </span>
+                            </div>
                           ) : (
                             <span>Open for event details</span>
                           )}

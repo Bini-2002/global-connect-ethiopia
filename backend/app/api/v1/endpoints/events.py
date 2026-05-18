@@ -759,49 +759,55 @@ async def create_event_from_proposal(
 @router.get("/", response_model=list[EventResponse])
 async def list_events(
     status_filter: str | None = Query(default=None, alias="status"),
+    discover: bool = Query(default=False),
     current_user: dict = Depends(get_current_user),
 ):
     role = to_user_role(current_user.get("role"))
     query: dict = {}
     
-    if role == UserRole.ORGANIZER:
-        user_oid = parse_object_id(current_user["id"], field_name="organizer id")
-        query["organizer_id"] = {"$in": [user_oid, str(user_oid)]}
-    elif role == UserRole.TEAM_MEMBER:
-        # Find events where this user is an active team member
-        user_oid = parse_object_id(current_user["id"], field_name="user id")
-        memberships = await event_team_member_collection.find({
-            "$or": [
-                {"user_id": user_oid}, 
-                {"user_id": str(user_oid)},
-                {"email": {"$regex": f"^{current_user.get('email')}$", "$options": "i"}}
-            ],
-            "status": "active"
-        }).to_list(length=200)
-        
-        # Also check tasks assigned to them as a fallback
-        tasks = await event_task_collection.find({
-            "$or": [
-                {"assignee_user_id": user_oid},
-                {"assignee_user_id": str(user_oid)},
-                {"assignee_email": {"$regex": f"^{current_user.get('email')}$", "$options": "i"}}
-            ]
-        }).to_list(length=500)
-        
-        event_ids = set([m["event_id"] for m in memberships if m.get("event_id")])
-        for t in tasks:
-            if t.get("event_id"):
-                event_ids.add(t["event_id"])
-                
-        if not event_ids:
-            return []
+    if discover:
+        # Discover mode: returns public, published, live or completed events to anyone discover-capable
+        query["status"] = {"$in": [EventStatus.PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED]}
+        query["visibility"] = {"$ne": "private"}
+    else:
+        if role == UserRole.ORGANIZER:
+            user_oid = parse_object_id(current_user["id"], field_name="organizer id")
+            query["organizer_id"] = {"$in": [user_oid, str(user_oid)]}
+        elif role == UserRole.TEAM_MEMBER:
+            # Find events where this user is an active team member
+            user_oid = parse_object_id(current_user["id"], field_name="user id")
+            memberships = await event_team_member_collection.find({
+                "$or": [
+                    {"user_id": user_oid}, 
+                    {"user_id": str(user_oid)},
+                    {"email": {"$regex": f"^{current_user.get('email')}$", "$options": "i"}}
+                ],
+                "status": "active"
+            }).to_list(length=200)
             
-        query["_id"] = {"$in": [parse_object_id(eid, field_name="event id") for eid in event_ids if eid]}
-    elif role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ATTENDEE}:
-        user_oid = parse_object_id(current_user["id"], field_name="organizer id")
-        query["organizer_id"] = {"$in": [user_oid, str(user_oid)]}
+            # Also check tasks assigned to them as a fallback
+            tasks = await event_task_collection.find({
+                "$or": [
+                    {"assignee_user_id": user_oid},
+                    {"assignee_user_id": str(user_oid)},
+                    {"assignee_email": {"$regex": f"^{current_user.get('email')}$", "$options": "i"}}
+                ]
+            }).to_list(length=500)
+            
+            event_ids = set([m["event_id"] for m in memberships if m.get("event_id")])
+            for t in tasks:
+                if t.get("event_id"):
+                    event_ids.add(t["event_id"])
+                    
+            if not event_ids:
+                return []
+                
+            query["_id"] = {"$in": [parse_object_id(eid, field_name="event id") for eid in event_ids if eid]}
+        elif role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ATTENDEE}:
+            user_oid = parse_object_id(current_user["id"], field_name="organizer id")
+            query["organizer_id"] = {"$in": [user_oid, str(user_oid)]}
 
-    if role == UserRole.ATTENDEE:
+    if role == UserRole.ATTENDEE and not discover:
         allowed_statuses = [EventStatus.PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED]
         query["visibility"] = "public"
         if status_filter:
@@ -2144,22 +2150,93 @@ async def register_manual_attendee(
         {"$inc": {"booked_count": 1}, "$set": {"updated_at": now}},
     )
 
+    # Fetch event schedule
+    schedules = await event_schedule_collection.find({"event_id": event_id}, sort=[("start_time", 1)]).to_list(length=100)
+    schedule_details = ""
+    if schedules:
+        schedule_details = "\nSchedule & Sessions:\n"
+        for item in schedules:
+            t_start = item.get("start_time")
+            t_str = t_start.strftime("%Y-%m-%d %H:%M") if t_start else "TBD"
+            loc_str = f" in {item.get('room_location')}" if item.get('room_location') else ""
+            schedule_details += f"- {t_str}: {item.get('session_title')}{loc_str}\n"
+    else:
+        schedule_details = "\nSchedule: To be announced\n"
+
+    location = event.get("location") or "To be announced"
+    start_date_str = event.get("start_date").strftime("%Y-%m-%d %H:%M") if event.get("start_date") else "TBD"
+    end_date_str = event.get("end_date").strftime("%Y-%m-%d %H:%M") if event.get("end_date") else "TBD"
+    time_slot = f"{start_date_str} to {end_date_str}"
+
     # Send confirmation email (best-effort)
     try:
         from app.services.email_service import EmailService
         booking_url = f"{__import__('os').getenv('FRONTEND_BASE_URL', 'http://localhost:3000')}/events/{event_id}/bookings/{str(doc['_id'])}"
+        
+        subject = f"Your Confirmed Ticket: {event.get('title', 'Event')}"
+        body = (
+            f"Dear {payload.attendee_name.strip()},\n\n"
+            f"You have been successfully registered by the organizer for '{event.get('title')}'.\n\n"
+            f"EVENT DETAILS:\n"
+            f"----------------------------------------\n"
+            f"Event Title: {event.get('title')}\n"
+            f"Location: {location}\n"
+            f"Time Slot: {time_slot}\n"
+            f"----------------------------------------\n"
+            f"{schedule_details}\n"
+            f"----------------------------------------\n"
+            f"CHECK-IN INFORMATION:\n"
+            f"Booking Reference: {booking_ref}\n"
+            f"Check-In QR Code: {qr_code}\n\n"
+            f"View your booking: {booking_url}\n\n"
+            f"Please present the booking reference or this email to the onsite-staff for scanning upon arrival.\n\n"
+            f"Best regards,\n"
+            f"Global Connect Ethiopia"
+        )
+        
+        # Build HTML version
+        html_schedule_items = ""
+        for item in schedules:
+            t_start = item.get("start_time")
+            t_str = t_start.strftime("%Y-%m-%d %H:%M") if t_start else "TBD"
+            loc_str = f" in {item.get('room_location')}" if item.get('room_location') else ""
+            html_schedule_items += f"<li><strong>{t_str}</strong>: {item.get('session_title')}{loc_str}</li>"
+        if not html_schedule_items:
+            html_schedule_items = "<li>To be announced</li>"
+            
+        body_html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <h2 style="color: #062E22;">Your Confirmed Ticket</h2>
+          <p>Dear <strong>{payload.attendee_name.strip()}</strong>,</p>
+          <p>You have been successfully registered by the organizer for the upcoming event.</p>
+          <div style="background-color: #f7fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #062E22;">Event Details</h3>
+            <p><strong>Title:</strong> {event.get('title')}</p>
+            <p><strong>Location:</strong> {location}</p>
+            <p><strong>Time Slot:</strong> {time_slot}</p>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #062E22;">Schedule & Sessions</h3>
+            <ul style="padding-left: 20px;">
+              {html_schedule_items}
+            </ul>
+          </div>
+          <div style="background-color: #ebf8ff; border-left: 4px solid #3182ce; padding: 15px; border-radius: 4px;">
+            <h3 style="margin-top: 0; color: #2b6cb0;">Check-In Pass</h3>
+            <p><strong>Booking Reference:</strong> <code style="font-size: 1.1em;">{booking_ref}</code></p>
+            <p><strong>QR Code ID:</strong> <code>{qr_code}</code></p>
+            <p>Please present this information or the QR code to the onsite staff for scanning.</p>
+            <p><a href="{booking_url}" style="background-color: #062E22; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block;">View Booking Pass</a></p>
+          </div>
+          <p style="margin-top: 30px; font-size: 0.8em; color: #718096;">Global Connect Ethiopia</p>
+        </div>
+        """
+        
         EmailService.send_generic_email(
             recipient_email=payload.attendee_email.strip(),
-            subject=f"Your Registration: {event.get('title', 'Event')}",
-            body=(
-                f"Hello {payload.attendee_name.strip()},\n\n"
-                f"You have been registered for {event.get('title', 'the event')}.\n\n"
-                f"Booking Reference: {booking_ref}\n"
-                f"QR Code: {qr_code}\n\n"
-                f"View your booking: {booking_url}\n\n"
-                "Please bring this reference to the event check-in.\n\n"
-                "Global Connect Ethiopia"
-            ),
+            subject=subject,
+            body=body,
+            body_html=body_html
         )
     except Exception as exc:
         import logging
