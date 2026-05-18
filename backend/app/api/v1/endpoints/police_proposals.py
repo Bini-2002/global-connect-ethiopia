@@ -50,6 +50,7 @@ def _serialize(notification: dict) -> dict:
         "permit_reference": notification.get("permit_reference"),
         "approval_reference": notification.get("approval_reference"),
         "municipal_office_name": notification.get("municipal_office_name"),
+        "status": notification.get("status") or "pending",
         "notified_at": notification["notified_at"],
         "created_at": notification["created_at"],
         "updated_at": notification["updated_at"],
@@ -84,4 +85,30 @@ async def get_allowed_event_detail(
     if not notification:
         raise HTTPException(status_code=404, detail="Allowed proposal not found")
 
+    return _serialize(notification)
+
+
+@router.post("/{proposal_id}/start-review", response_model=PoliceNotificationResponse)
+async def start_review(proposal_id: str, current_user: dict = Depends(allow_police)):
+    from app.services.marketplace_mvp import utc_now
+    notification = await police_notification_collection.find_one_and_update(
+        {"proposal_id": proposal_id, "$or": _police_match_clauses(current_user)},
+        {"$set": {"status": "under_review", "updated_at": utc_now()}},
+        return_document=True
+    )
+    if not notification:
+        raise HTTPException(status_code=404, detail="Allowed proposal not found")
+    return _serialize(notification)
+
+
+@router.post("/{proposal_id}/acknowledge", response_model=PoliceNotificationResponse)
+async def acknowledge(proposal_id: str, current_user: dict = Depends(allow_police)):
+    from app.services.marketplace_mvp import utc_now
+    notification = await police_notification_collection.find_one_and_update(
+        {"proposal_id": proposal_id, "$or": _police_match_clauses(current_user)},
+        {"$set": {"status": "acknowledged", "updated_at": utc_now()}},
+        return_document=True
+    )
+    if not notification:
+        raise HTTPException(status_code=404, detail="Allowed proposal not found")
     return _serialize(notification)

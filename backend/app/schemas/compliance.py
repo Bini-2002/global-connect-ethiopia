@@ -60,6 +60,7 @@ class PoliceNotificationResponse(BaseModel):
     permit_reference: str | None = None
     approval_reference: str | None = None
     municipal_office_name: str | None = None
+    status: str | None = None
     notified_at: datetime
     created_at: datetime
     updated_at: datetime

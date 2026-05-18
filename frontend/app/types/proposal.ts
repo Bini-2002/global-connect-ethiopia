@@ -228,6 +228,7 @@ export interface PoliceNotificationRecord {
   permit_reference?: string | null;
   approval_reference?: string | null;
   municipal_office_name?: string | null;
+  status?: string | null;
   notified_at: string;
   created_at: string;
   updated_at: string;

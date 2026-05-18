@@ -622,21 +622,17 @@ export default function OrganizerRegisterPage() {
                   className="w-full rounded-lg border border-slate-300 p-3"
                 />
                 <label htmlFor="rep_national_id" className="sr-only">
-                  Representative ID type
+                  Representative ID Number
                 </label>
-                <select
+                <input
+                  type="text"
                   id="rep_national_id"
                   name="rep_national_id"
                   value={formData.rep_national_id}
                   onChange={handleChange}
+                  placeholder="Representative ID number"
                   className="w-full rounded-lg border border-slate-300 p-3"
-                  aria-label="Representative ID type"
-                >
-                  <option value="">Select ID type</option>
-                  <option value="national">National ID</option>
-                  <option value="kebele">Kebele ID</option>
-                  <option value="passport">Passport</option>
-                </select>
+                />
               </div>
               <input
                 type="text"

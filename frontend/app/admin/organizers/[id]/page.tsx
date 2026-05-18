@@ -134,6 +134,8 @@ export default function AdminOrganizerDetailPage() {
   }, [id, router]);
 
   const doDecision = async (decision: 'approved' | 'rejected') => {
+    if (!window.confirm(`Are you sure you want to mark this application as ${decision}?`)) return;
+
     setActionLoading(decision); setError(''); setSuccess('');
     try {
       const form = new FormData();

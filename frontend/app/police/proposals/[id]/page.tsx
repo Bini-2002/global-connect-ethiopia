@@ -26,6 +26,18 @@ export default function PoliceProposalDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const handleAction = async (action: 'start-review' | 'acknowledge') => {
+    try {
+      setLoading(true);
+      const res = await api.post<PoliceNotificationRecord>(`/police/proposals/${id}/${action}`, {});
+      setNotification(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to ${action}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Sidebar role="police" />
@@ -47,9 +59,28 @@ export default function PoliceProposalDetailPage() {
               </span>
             </div>
 
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-[#062E22]">{notification.event_title}</h1>
-              <p className="text-slate-500 text-sm mt-1">Persisted security-notification details for the assigned police office.</p>
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <h1 className="text-2xl font-bold text-[#062E22]">{notification.event_title}</h1>
+                <p className="text-slate-500 text-sm mt-1">Persisted security-notification details for the assigned police office.</p>
+              </div>
+              <div className="flex gap-2">
+                {notification.status !== 'under_review' && notification.status !== 'acknowledged' && (
+                  <button onClick={() => void handleAction('start-review')} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+                    Start Review
+                  </button>
+                )}
+                {notification.status !== 'acknowledged' && (
+                  <button onClick={() => void handleAction('acknowledge')} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition">
+                    Acknowledge
+                  </button>
+                )}
+                {notification.status === 'acknowledged' && (
+                  <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-bold border border-green-200">
+                    Acknowledged
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-6">
