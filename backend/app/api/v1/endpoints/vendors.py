@@ -545,7 +545,7 @@ async def _get_hotel_vendor_or_403(current_user: dict) -> dict:
     if biz_cat != _HOTEL_CATEGORY:
         raise HTTPException(
             status_code=403,
-            detail="This section is only available to hotel accommodation vendors",
+            detail="This section is only available to hotel vendors",
         )
     return vendor
 
