@@ -96,9 +96,9 @@ export default function HotelRoomReservationsPage() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-[#0a4a37]">Hotel Portal</p>
-              <h1 className="mt-1 text-3xl font-bold text-[#062E22]">VIP Room Reservations</h1>
+              <h1 className="mt-1 text-3xl font-bold text-[#062E22]">Room Reservations</h1>
               <p className="mt-2 text-sm text-slate-500 max-w-2xl">
-                Review incoming VIP room requests from organizers. Assign room numbers to each guest and submit your confirmation.
+                Review incoming room requests from organizers. Assign room numbers to each guest and submit your confirmation.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -129,7 +129,7 @@ export default function HotelRoomReservationsPage() {
             <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-16 text-center">
               <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
               <p className="font-semibold text-slate-500">No reservation requests yet</p>
-              <p className="text-sm text-slate-400 mt-1">When an organizer requests VIP rooms from your hotel, they will appear here.</p>
+              <p className="text-sm text-slate-400 mt-1">When an organizer requests rooms from your hotel, they will appear here.</p>
             </div>
           ) : (
             <div className="space-y-4">

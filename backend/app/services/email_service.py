@@ -235,15 +235,15 @@ class EmailService(ResendEmailService):
     def send_vip_reservation_email(
         cls, recipient_email: str, vip_name: str, hotel_name: str, event_name: str, notes: str = None
     ) -> Optional[str]:
-        subject = f"Your VIP Hotel Reservation for {event_name}"
-        body_text = f"Dear {vip_name},\n\nWe are pleased to confirm your VIP hotel reservation at {hotel_name} for the upcoming event '{event_name}'.\n\n"
+        subject = f"Your Hotel Reservation for {event_name}"
+        body_text = f"Dear {vip_name},\n\nWe are pleased to confirm your hotel reservation at {hotel_name} for the upcoming event '{event_name}'.\n\n"
         if notes:
             body_text += f"Additional details:\n{notes}\n\n"
         body_text += "We look forward to welcoming you.\n\nBest regards,\nThe Global Connect Ethiopia Team"
 
         body_html = f"""
         <p>Dear <strong>{vip_name}</strong>,</p>
-        <p>We are pleased to confirm your VIP hotel reservation at <strong>{hotel_name}</strong> for the upcoming event <strong>'{event_name}'</strong>.</p>
+        <p>We are pleased to confirm your hotel reservation at <strong>{hotel_name}</strong> for the upcoming event <strong>'{event_name}'</strong>.</p>
         """
         if notes:
             body_html += f"<p><strong>Additional details:</strong><br>{notes}</p>"

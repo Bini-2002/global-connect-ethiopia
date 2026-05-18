@@ -3359,12 +3359,12 @@ async def notify_vip_guests_of_reservation(
         if not email:
             continue
         
-        subject = f"Your Confirmed VIP Hotel Reservation – {event_title}"
+        subject = f"Your Confirmed Hotel Reservation – {event_title}"
         body_html = f"""
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; color: #1e293b;">
-          <h2 style="color: #062E22; border-bottom: 2px solid #062E22; padding-bottom: 10px;">VIP Hotel Reservation Confirmed</h2>
+          <h2 style="color: #062E22; border-bottom: 2px solid #062E22; padding-bottom: 10px;">Hotel Reservation Confirmed</h2>
           <p>Dear <strong>{rm.get('vip_name')}</strong>,</p>
-          <p>We are delighted to inform you that your VIP hotel accommodation for the upcoming event <strong>"{event_title}"</strong> has been successfully booked, confirmed, and paid.</p>
+          <p>We are delighted to inform you that your hotel reservation for the upcoming event <strong>"{event_title}"</strong> has been successfully booked, confirmed, and paid.</p>
           
           <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin: 20px 0;">
             <p style="margin: 4px 0;"><strong>Hotel Name:</strong> {doc.get('hotel_name')}</p>
@@ -3377,7 +3377,7 @@ async def notify_vip_guests_of_reservation(
           </div>
           
           <p>If you requested special arrangements ({', '.join(rm.get('special_requests', [])) or 'None'}), they have been communicated directly to the hotel staff.</p>
-          <p>We wish you a wonderful stay. Please present your ID and mention <em>Global Connect Ethiopia VIP Guest</em> at the front desk upon check-in.</p>
+          <p>We wish you a wonderful stay. Please present your ID and mention <em>Global Connect Ethiopia Guest</em> at the front desk upon check-in.</p>
           
           <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 12px; color: #94a3b8; text-align: center;">
             This is an automated guest hospitality message from Global Connect Ethiopia.
@@ -3389,7 +3389,7 @@ async def notify_vip_guests_of_reservation(
             EmailService.send_generic_email(
                 recipient_email=email,
                 subject=subject,
-                body=f"Dear {rm.get('vip_name')},\n\nYour VIP reservation at {doc.get('hotel_name')} is confirmed.\nRoom Number: {rm.get('assigned_room_number') or 'Pending Check-in'}.\n\nGlobal Connect Ethiopia.",
+                body=f"Dear {rm.get('vip_name')},\n\nYour hotel reservation at {doc.get('hotel_name')} is confirmed.\nRoom Number: {rm.get('assigned_room_number') or 'Pending Check-in'}.\n\nGlobal Connect Ethiopia.",
                 body_html=body_html
             )
             success_count += 1
@@ -3403,5 +3403,5 @@ async def notify_vip_guests_of_reservation(
         {"$set": {"guests_notified": True, "guests_notified_at": utc_now()}}
     )
             
-    return {"message": f"Successfully notified {success_count} of {len(rooms)} VIP guests via email."}
+    return {"message": f"Successfully notified {success_count} of {len(rooms)} guests via email."}
 

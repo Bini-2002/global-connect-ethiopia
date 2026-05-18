@@ -136,7 +136,7 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Contracts', href: '/vendor/contracts', icon: icons.proposals },
     { label: 'Venue Listings', href: '/vendor/venue-listings', icon: icons.events },
     { label: 'Venue Reservations', href: '/vendor/venue-listings/reservations', icon: icons.check },
-    { label: 'Hotel VIP Rooms', href: '/vendor/hotel-reservations', icon: icons.users },
+    { label: 'Hotel Reservations', href: '/vendor/hotel-reservations', icon: icons.users },
     { label: 'Wallet', href: '/vendor/wallet', icon: icons.vendor },
     { label: 'Notifications', href: '/notifications', icon: <BellIcon className="w-5 h-5" /> },
     { label: 'Verification', href: '/vendor/verification', icon: icons.shield },

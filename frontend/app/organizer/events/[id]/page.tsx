@@ -98,8 +98,8 @@ const workspaceCards = [
     icon: UserCheck,
   },
   {
-    title: 'VIP Hotel Reservations',
-    description: 'Book hotels for VIP guests and send confirmation emails directly.',
+    title: 'Hotel Reservations',
+    description: 'Book hotels for guests and send confirmation emails directly.',
     href: (eventId: string) => `/organizer/events/${eventId}/vip`,
     icon: Crown,
   },

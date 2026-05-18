@@ -214,8 +214,8 @@ export default function VipHotelReservationsPage() {
             <Hotel className="w-5 h-5 text-amber-700" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-[#062E22]">New VIP Hotel Reservation</h2>
-            <p className="text-sm text-slate-500">Select a registered hotel vendor and add rooms for your VIP guests.</p>
+            <h2 className="text-lg font-bold text-[#062E22]">New Hotel Reservation</h2>
+            <p className="text-sm text-slate-500">Select a registered hotel vendor and add rooms for your guests.</p>
           </div>
         </div>
 
@@ -239,7 +239,7 @@ export default function VipHotelReservationsPage() {
               <label className="text-sm font-semibold text-slate-700 mb-2 block">Select Hotel Vendor</label>
               {vendors.length === 0 ? (
                 <div className="rounded-xl bg-slate-50 border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-                  No approved hotel vendors yet. Hotel vendors must register with category "Hotel Accommodation".
+                  No approved hotel vendors yet. Hotel vendors must register with category "Hotel".
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -369,15 +369,15 @@ export default function VipHotelReservationsPage() {
                     </div>
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium text-slate-700">VIP Full Name</label>
+                        <label className="text-sm font-medium text-slate-700">Guest Full Name</label>
                         <input required value={room.vip_name} onChange={e => updateRoom(idx, 'vip_name', e.target.value)}
                           placeholder="Dr. Lemma Megersa"
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-slate-700">VIP Email</label>
+                        <label className="text-sm font-medium text-slate-700">Guest Email</label>
                         <input required type="email" value={room.vip_email} onChange={e => updateRoom(idx, 'vip_email', e.target.value)}
-                          placeholder="vip@example.com"
+                          placeholder="guest@example.com"
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
                       </div>
                       {select('Room Type', room.room_type, [['single', 'Single'], ['double', 'Double'], ['luxury', 'Luxury Suite']], v => updateRoom(idx, 'room_type', v))}
@@ -428,7 +428,7 @@ export default function VipHotelReservationsPage() {
         <h2 className="text-lg font-bold text-[#062E22] mb-5">Active Reservations</h2>
         {reservations.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">
-            No VIP hotel reservations yet.
+            No hotel reservations yet.
           </div>
         ) : (
           <div className="space-y-4">
