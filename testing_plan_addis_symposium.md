@@ -1,92 +1,94 @@
-# End-to-End Testing Plan: ADDIS NETWORK SYMPOSIUM
+# Master End-to-End Testing Roadmap: ADDIS NETWORK SYMPOSIUM
 
-This document outlines a structured, two-part testing plan to fully evaluate the Global Connect Ethiopia platform before deployment. The test focuses on a massive, complex event—the **Addis Network Symposium**—to verify all core features, including the newly added mock Chapa integration and the 10% platform transaction fee tracking.
+This document outlines a massive, comprehensive end-to-end testing protocol for the Global Connect Ethiopia platform. This roadmap is designed to stress-test every major module, interaction, and API endpoint by simulating a full-scale, high-profile event: the **Addis Network Symposium**. 
 
----
-
-## Part 1: Samri's Tasks (The Setup & Vendor Side)
-
-**Objective:** Set up the event, approve the necessary vendors, and submit quotes.
-
-### 1. Vendor & Venue Setup (Vendor Role)
-- **Action:** Register as a Vendor (e.g., "Samri Catering & Venues"). Complete the multi-step verification.
-- **Action:** Go to the Venue Listings page. Create a listing for "Millennium Hall" (Set category to Venue) with a deposit amount of 50,000 ETB.
-- **Action:** Add services like "Premium Catering" and "A/V Equipment" to your vendor catalog.
-
-### 2. Admin Approval (Admin Role)
-- **Action:** Log in as an Admin.
-- **Action:** Go to the Vendors approval tab and **approve** Samri's vendor profile.
-
-### 3. Event Creation (Organizer Role)
-- **Action:** Register an Organizer account (e.g., "Addis Events Co.").
-- **Action:** Submit an event proposal for **Addis Network Symposium**.
-  - **Details:** 5,000 attendees, duration 3 days, high profile networking event.
-- **Action:** Wait for Ministry and Municipal approval (Admin/Ministry role must approve).
-- **Action:** Once approved, convert the proposal into a live Event.
-
-### 4. Bidding on Opportunities (Vendor Role)
-- **Action:** Log back in as the Vendor.
-- **Action:** The Organizer will have created an Opportunity for "Catering for 5,000 people". Submit a proposal/quote for this opportunity (e.g., 500,000 ETB).
+This plan is divided into two distinct phases for two developers to execute sequentially.
 
 ---
 
-## Part 2: Your Tasks (The Execution, Team & Finance Side)
+## PART 1: The Setup, Approvals & Vendor Ecosystem (Samri)
 
-**Objective:** Manage contracts, execute Chapa deposits/withdrawals, manage team tasks, and verify the 10% admin commission cuts.
+**Primary Goals:** Platform setup, rigorous government approval flows, vendor registration, and initial catalog creation.
 
-### 1. Contract & Escrow (Organizer Role)
-- **Action:** Log in as the Organizer ("Addis Events Co.").
-- **Action:** Go to the Wallet tab. Click **"Top Up via Chapa"** and deposit 1,000,000 ETB. 
-  - *Verify:* The new Mock Chapa Popup should appear. Confirm the transaction and verify your wallet balance updates.
-- **Action:** Go to Marketplace Opportunities. Accept Samri's 500,000 ETB catering quote. This auto-generates a contract.
-- **Action:** Sign the contract and **Fund the Escrow** from your newly topped-up wallet.
-  - *Verify:* Your available balance should decrease, and the locked balance should increase.
+### 1. Vendor Onboarding & Profile Creation
+- [ ] **Action:** Register a new user as a **Vendor** ("Samri's Logistics & Hospitality"). Verify the email via the OTP flow.
+- [ ] **Action:** Complete the 3-step Vendor Verification process (uploading sample business documents for OCR processing).
+- [ ] **Action:** Wait for Admin approval (Admin must approve from the `/admin/vendors` dashboard).
+- [ ] **Action:** Add services to the marketplace catalog (e.g., "Premium Event Catering", "A/V Equipment", and "Stage Setup").
+- [ ] **Action:** Navigate to **Venue Listings**. Create a listing for **"Millennium Hall"** (Category: Venue).
+- [ ] **Action:** Create a second listing for **"Symposium VIP Hotel"** (Category: Hotel). This tests the hotel reservation capabilities.
 
-### 2. Team Member Tasks (Organizer & Team Role)
-- **Action:** Go to the Event Dashboard -> Team tab. Invite a team member (yourself with a different email).
-- **Action:** Log in as the Team Member. You will automatically be added to the event.
-- **Action:** The Organizer assigns you a task: "Setup VIP Lounge" with a payout of 5,000 ETB.
-- **Action:** As the Team Member, mark the task as `in_progress`, then `pending_approval`.
-- **Action:** As the Organizer, approve the task.
-- **Action:** As the Team Member, go to your Team Dashboard Wallet, click **"Withdraw Funds"**.
-  - *Verify:* The Chapa Mock Popup should appear. Confirm withdrawal and verify funds are deducted.
+### 2. Event Proposal & Government Approvals
+- [ ] **Action:** Register a new user as an **Organizer** ("Addis Events Co.").
+- [ ] **Action:** Submit an event proposal for the **"Addis Network Symposium"**. Add details: 5,000 capacity, 3-day duration, VIP requirements. Upload a sample proposal PDF.
+- [ ] **Action (Ministry):** Log in as `ministry@admin.com`. Review the proposal, set status to `In Review`, and ultimately **Approve** it.
+- [ ] **Action (Municipal):** Log in as `municipal@admin.com`. Approve the location logic and generate the system **Permit**.
+- [ ] **Action (Police):** Log in as `police@admin.com`. Go to the Police Portal, review the event details, and click **Acknowledge** to complete security clearance.
 
-### 3. Contract Completion & Vendor Withdrawal (Vendor Role)
-- **Action:** As the Organizer, mark the Catering contract as **Completed**.
-  - *Note:* This triggers the 10% platform commission logic.
-- **Action:** Log in as the Vendor (Samri).
-- **Action:** Go to the Vendor Wallet. You should see 450,000 ETB in available balance (500,000 - 10% platform fee).
-- **Action:** Click **"Request Withdrawal"**.
-  - *Verify:* The Chapa Mock Popup should appear. Confirm the withdrawal and verify the balance updates and the withdrawal appears in the history table.
+### 3. Event Creation & Configuration
+- [ ] **Action:** Back as the Organizer, convert the approved proposal into an active **Event**.
+- [ ] **Action:** Navigate to the **Schedule Tab**. Use the **AI Scheduler** to auto-generate a 3-day itinerary based on the event description. Apply the drafted AI schedule to the live event.
+- [ ] **Action:** Navigate to the **Ticketing Tab**. Create at least two ticket types: "General Admission" and "VIP Pass".
 
-### 4. Admin Commission Verification (Admin Role)
-- **Action:** Log in as Admin.
-- **Action:** Go to the **Admin Analytics** page.
-- **Action:** Scroll down to the **Platform Fee Receipts** table.
-  - *Verify:* You should see a new row for the "Addis Network Symposium" catering contract. The table should show the 500,000 ETB contract amount, the 50,000 ETB (10% cut) commission received, and the transaction ID.
+### 4. Marketplace Interaction: Opportunities & Bidding
+- [ ] **Action:** The Organizer needs catering. Use the **AI Vendor Recommendation** engine on the Vendors tab to find matches.
+- [ ] **Action:** Create an **Opportunity** broadcast for "Catering for 5,000 attendees".
+- [ ] **Action:** Switch to the Vendor account ("Samri's Logistics"). Navigate to the **Opportunities** tab and submit a **Proposal/Quote** for 500,000 ETB.
 
 ---
 
-## Expected Errors & Troubleshooting Guide
+## PART 2: Execution, Operations, AI & Finance (Bini / Mafi)
 
-During testing, you may encounter edge cases. Here's how to fix them:
+**Primary Goals:** Contract lifecycles, team management, booking logic, financial escrow flows, AI interactions, and post-event analytics.
 
-**1. "Insufficient Funds" when funding Escrow**
-- *Cause:* You accepted a contract but haven't deposited enough money into the Organizer Wallet.
-- *Fix:* Go to the Organizer Wallet and use the "Top Up via Chapa" button to simulate a deposit. Ensure you deposit enough to cover the full contract amount.
+### 1. Contract Signing & Escrow Funding
+- [ ] **Action:** Log in as the Organizer. Review Samri's Catering Quote and click **Accept**. This generates a smart contract.
+- [ ] **Action:** Click **Sign Contract**.
+- [ ] **Action:** Log in as the Vendor, go to the Contracts dashboard, and **Sign Contract**.
+- [ ] **Action:** Log back in as the Organizer. Navigate to the **Wallet**. Click **Top Up via Chapa**. Use the Mock Popup to deposit 1,500,000 ETB.
+- [ ] **Action:** Return to the signed contract and click **Fund Escrow**. Verify the 500,000 ETB moves from your Available Balance to your Locked Escrow Balance.
 
-**2. "Contract not signed by both parties"**
-- *Cause:* You are trying to fund the escrow, but the vendor hasn't digitally signed the contract yet.
-- *Fix:* Ensure Samri logs in, goes to her `Vendor -> Contracts` page, and clicks "Sign Contract". Both organizer and vendor must sign before escrow can be funded.
+### 2. Team Management & Task Delegation
+- [ ] **Action:** As the Organizer, go to the **Team** tab. Invite a new email as a Team Member.
+- [ ] **Action:** Create an account for the invited Team Member. They should automatically see the Symposium in their Team Portal.
+- [ ] **Action:** The Organizer assigns a task: "Setup VIP Lounge" with a payout of 5,000 ETB.
+- [ ] **Action:** Team Member logs in, moves the task to **In Progress**, then **Submit for Approval**.
+- [ ] **Action:** Organizer approves the task. 
+- [ ] **Action:** Team Member goes to their wallet, requests a withdrawal of 5,000 ETB using the **Mock Chapa Popup**.
 
-**3. Tasks not appearing in the Team Dashboard**
-- *Cause:* The team member was invited but hasn't logged out and logged back in, or the task wasn't assigned to their specific user ID.
-- *Fix:* Re-login as the team member. Check the Event Task assignment dropdown as the Organizer to ensure the correct team member is selected.
+### 3. Attendee Booking & Hotel Reservations
+- [ ] **Action (Organizer Booking):** As the Organizer, navigate to the attendee registration section. Manually book a ticket on behalf of a VIP attendee (e.g., "Abebe Kebede"). Pay for the ticket using the Organizer's wallet.
+- [ ] **Action (Hotel Booking):** Navigate to the **Hotel Reservations** tab. Book a VIP room at the "Symposium VIP Hotel" (created by Samri in Part 1) for your VIP guest.
+- [ ] **Action (Badges):** Generate a QR Check-in badge for Abebe Kebede.
 
-**4. Admin Analytics Table shows empty or missing 10% cut**
-- *Cause:* The organizer didn't explicitly click "Mark as Completed" on the contract. The 10% cut is *only* taken and sent to the admin when the contract is officially completed and funds are released from escrow.
-- *Fix:* Go to the Organizer Contract dashboard, view the active contract, and click the "Mark Completed" button.
+### 4. Event Operations: Announcements & Notifications
+- [ ] **Action:** As the Organizer, go to the **Announcements** tab. Create an urgent broadcast: "Keynote moved to Main Hall".
+- [ ] **Action:** Log in as the Team Member (and check the Attendee profile if testing email delivery). Check the **In-App Notifications** bell icon. Mark the notification as Read.
 
-**5. Chapa Mock Popup not closing**
-- *Cause:* The network simulation timer takes ~2.5 seconds. If you click away or refresh during this time, state might get stuck.
-- *Fix:* Simply wait 3 seconds for the green checkmark and auto-redirect. If stuck, refresh the page. Your balance is updated safely via the backend regardless of UI state.
+### 5. AI Chatbot Testing
+- [ ] **Action:** Navigate to the global Chatbot UI (bottom right or `/faq` page). 
+- [ ] **Action:** Ask the bot: "What are the licensing rules for hosting a 5,000 person event?" Ensure the Gemini API accurately retrieves knowledge based on the Ministry/Municipal workflows.
+
+### 6. Contract Completion & Vendor Payouts
+- [ ] **Action:** As the Organizer, mark the Catering Contract as **Completed**. This releases the escrow.
+- [ ] **Action:** Log in as the Vendor. Check your Wallet. Verify that you received the funds minus the 10% platform transaction fee (should receive 450,000 ETB).
+- [ ] **Action:** Initiate a **Withdrawal** from the Vendor Wallet using the Mock Chapa Popup.
+
+### 7. Global Analytics & Admin Receipts
+- [ ] **Action (Organizer Analytics):** As the Organizer, go to the Event Analytics dashboard. Verify the revenue charts show ticket sales, escrow locks, and team payouts accurately.
+- [ ] **Action (Admin Analytics):** Log in as the Admin. Navigate to **Admin Analytics**. Verify the global revenue metrics.
+- [ ] **Action (Platform Fees):** Scroll to the **Platform Fee Receipts** table. Confirm the exact 10% cut (50,000 ETB) from the catering contract is logged with its timestamp and transaction ID.
+
+---
+
+## 🛠️ Expected Errors & Resolution Guide
+
+| Module | Potential Issue | How to Fix |
+|--------|-----------------|------------|
+| **Escrow/Contracts** | "Cannot fund escrow - insufficient funds" | Ensure the Organizer Wallet has been topped up using the Chapa Mock feature before funding. |
+| **Escrow/Contracts** | "Contract requires both signatures" | Both the Organizer and Vendor must explicitly click "Sign Contract" from their respective dashboards. |
+| **Team Workflow** | "Team member cannot see tasks" | Ensure the team member registered with the EXACT email used for the invitation, and that the Organizer specifically assigned the task to them in the dropdown. |
+| **Analytics** | Admin receipt table is empty | The 10% fee is strictly triggered when a contract is marked **Completed**. Merely funding it is not enough. The Organizer must finalize it. |
+| **AI Features** | "Failed to generate schedule / recommendations" | Check Render logs. Gemini API requests might time out on free tier. If it fails, click "Retry". |
+| **Notifications** | Socket connection failed / Notification not appearing | Refresh the page. The app falls back to polling `/api/v1/notifications` every 30 seconds if real-time sockets fail. |
+| **Mock Chapa** | Modal hangs on loading spinner | The mock simulates a 2.5s network delay. Do not click outside the modal until the green success checkmark appears and auto-closes. |
