@@ -159,3 +159,30 @@ export function usePlatformRevenueAnalytics(params?: {
 
   return { data, error, loading, refresh: () => setReloadKey((k) => k + 1) };
 }
+
+export function usePlatformReceipts() {
+  const [data, setData] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await api.get<any[]>('/admin/analytics/receipts');
+        if (active) setData(response);
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : 'Failed to load receipts');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, [reloadKey]);
+
+  return { data, error, loading, refresh: () => setReloadKey((k) => k + 1) };
+}

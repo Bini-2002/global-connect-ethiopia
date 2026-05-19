@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { BarChart3, RefreshCw, TrendingUp, DollarSign, Layers } from 'lucide-react';
 import DashboardHeader from '@/components/DashboardHeader';
 import Sidebar from '@/components/Sidebar';
-import { usePlatformRevenueAnalytics } from '@/app/hooks/useNotificationsAndAnalytics';
+import { usePlatformRevenueAnalytics, usePlatformReceipts } from '@/app/hooks/useNotificationsAndAnalytics';
 import type { RevenueStream } from '@/app/types/notifications';
 
 const PAYMENT_METHODS = ['', 'chapa', 'wallet', 'cash', 'bank_transfer'];
@@ -227,10 +227,61 @@ export default function AdminPlatformAnalyticsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Receipts Table */}
+              <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#0a4a37]">Platform Fee Receipts</p>
+                <p className="mt-1 text-sm text-slate-500 mb-6">10% commission cuts from completed deals.</p>
+                
+                <ReceiptsTable />
+              </div>
             </>
           ) : null}
         </div>
       </main>
+    </div>
+  );
+}
+
+function ReceiptsTable() {
+  const { data: receipts, loading, error } = usePlatformReceipts();
+
+  if (loading) return <div className="text-sm text-slate-500">Loading receipts...</div>;
+  if (error) return <div className="text-sm text-red-500">{error}</div>;
+  if (!receipts || receipts.length === 0) return <div className="text-sm text-slate-500">No commission receipts found.</div>;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm text-slate-600">
+        <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th className="px-4 py-3 font-semibold rounded-tl-xl">Date</th>
+            <th className="px-4 py-3 font-semibold">Transaction ID</th>
+            <th className="px-4 py-3 font-semibold">Contract Amount</th>
+            <th className="px-4 py-3 font-semibold">10% Cut</th>
+            <th className="px-4 py-3 font-semibold rounded-tr-xl">Status</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {receipts.map((r: any) => (
+            <tr key={r.id} className="hover:bg-slate-50/50">
+              <td className="px-4 py-3 whitespace-nowrap">{new Date(r.created_at).toLocaleDateString()}</td>
+              <td className="px-4 py-3 font-mono text-xs">{r.id.slice(-8)}</td>
+              <td className="px-4 py-3 font-medium text-slate-900">
+                {r.currency} {r.contract_price?.toLocaleString('en-ET', { minimumFractionDigits: 2 })}
+              </td>
+              <td className="px-4 py-3 font-bold text-[#062E22]">
+                {r.currency} {r.amount?.toLocaleString('en-ET', { minimumFractionDigits: 2 })}
+              </td>
+              <td className="px-4 py-3">
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                  Received
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

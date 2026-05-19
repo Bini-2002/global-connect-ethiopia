@@ -1,0 +1,9 @@
+so before getting to fully testoing the system before deployment i want you to update the current @contextScopeItemMention file then prepare me an updated teesting plan and expaected errors with how to fix them. divide it into two places then i'll test it with my fellow teammate.
+
+Make one big event "ADDIS NETWORK SYMPOSIUM" make it specific and covery every ground out there then follow up on it. She(Samri) will start (part-1) the I'll follow up.
+
+
+Before 
+1. preparing the plan make sure that when I deposite money as an organizer , there should be a chapa pop-up when the user will make a moke deposite from the it. also help both the organizer , vendor and teammamber wallet is associated with thee chapa the also the chapa test dashboard will pop out for mock and will minimize the wallet once he clich withdraw
+
+2. build a dashboard on the admin section where he can see all the transaction fee 10% cuts from each deal as the ssytem will get the trasnaction fee from it. register it on the database and make receipt for each of them.

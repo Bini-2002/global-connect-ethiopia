@@ -5,6 +5,7 @@ import { FormEvent, useState } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import Sidebar from '@/components/Sidebar';
 import WalletCard from '@/components/marketplace/WalletCard';
+import ChapaMockPopup from '@/components/marketplace/ChapaMockPopup';
 import { useWallet, useWalletTransactions, useWalletWithdrawals } from '@/app/hooks/useMarketplace';
 import marketplaceService from '@/app/services/marketplaceService';
 
@@ -22,16 +23,26 @@ export default function VendorWalletPage() {
   } = useWalletWithdrawals();
 
   const [amount, setAmount] = useState('');
+  const [showPopup, setShowPopup] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
 
-  const handleWithdraw = async (event: FormEvent<HTMLFormElement>) => {
+  const handleWithdrawInitiate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setWithdrawError(null);
     if (!wallet || Number(amount) > wallet.balance) {
       setWithdrawError('Insufficient balance');
       return;
     }
+    if (!amount || Number(amount) <= 0) {
+      setWithdrawError('Please enter a valid amount.');
+      return;
+    }
+    setShowPopup(true);
+  };
 
+  const handleWithdrawConfirm = async () => {
+    setShowPopup(false);
     try {
       setWithdrawing(true);
       setWithdrawError(null);
@@ -50,7 +61,7 @@ export default function VendorWalletPage() {
   };
 
   const action = (
-    <form onSubmit={handleWithdraw} className="rounded-[24px] bg-slate-50 p-4">
+    <form onSubmit={handleWithdrawInitiate} className="rounded-[24px] bg-slate-50 p-4">
       <label htmlFor="withdraw" className="mb-1 block text-sm font-medium text-slate-700">Withdraw Amount</label>
       <input
         id="withdraw"
@@ -126,6 +137,15 @@ export default function VendorWalletPage() {
           )}
         </div>
       </main>
+
+      {showPopup && (
+        <ChapaMockPopup
+          type="withdraw"
+          amount={Number(amount)}
+          onConfirm={handleWithdrawConfirm}
+          onCancel={() => setShowPopup(false)}
+        />
+      )}
     </div>
   );
 }

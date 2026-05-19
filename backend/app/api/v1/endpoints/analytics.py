@@ -11,7 +11,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 
 from app.api.v1.deps import get_current_user
-from app.services.analytics_service import get_event_revenue, get_platform_revenue
+from app.services.analytics_service import get_event_revenue, get_platform_revenue, get_platform_commission_receipts
 
 router = APIRouter()
 
@@ -41,4 +41,16 @@ async def platform_revenue_analytics(
         payment_method=payment_method,
         from_date=from_date,
         to_date=to_date,
+    )
+
+@admin_router.get("/receipts", summary="Platform commission fee receipts (admin only)")
+async def platform_commission_receipts(
+    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0),
+    current_user: dict = Depends(get_current_user),
+):
+    return await get_platform_commission_receipts(
+        current_user,
+        limit=limit,
+        skip=skip,
     )

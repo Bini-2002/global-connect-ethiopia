@@ -280,3 +280,44 @@ async def get_platform_revenue(
         "total_events": total_events,
         "generated_at": _utc_now().isoformat(),
     }
+
+
+async def get_platform_commission_receipts(current_user: dict, limit: int = 100, skip: int = 0) -> list[dict]:
+    """Fetch the 10% platform transaction fee receipts."""
+    role = normalize_role(current_user.get("role"))
+    if role not in {UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required.")
+
+    pipeline = [
+        {"$match": {"type": TransactionType.COMMISSION.value}},
+        {"$sort": {"created_at": -1}},
+        {"$skip": skip},
+        {"$limit": limit},
+        {
+            "$lookup": {
+                "from": "contracts",
+                "localField": "reference_id",
+                "foreignField": "_id",
+                "as": "contract_info"
+            }
+        },
+        {"$unwind": {"path": "$contract_info", "preserveNullAndEmptyArrays": True}},
+    ]
+    results = await transaction_collection.aggregate(pipeline).to_list(length=limit)
+    
+    formatted_receipts = []
+    for r in results:
+        receipt = {
+            "id": str(r["_id"]),
+            "amount": r["amount"],
+            "currency": "ETB",
+            "created_at": r["created_at"].isoformat() if hasattr(r["created_at"], "isoformat") else str(r["created_at"]),
+            "contract_id": str(r.get("reference_id")) if r.get("reference_id") else None,
+        }
+        if "contract_info" in r and r["contract_info"]:
+            receipt["contract_price"] = float(r["contract_info"].get("price", 0))
+            receipt["organizer_id"] = str(r["contract_info"].get("organizer_id"))
+            receipt["vendor_id"] = str(r["contract_info"].get("vendor_id"))
+        formatted_receipts.append(receipt)
+        
+    return formatted_receipts

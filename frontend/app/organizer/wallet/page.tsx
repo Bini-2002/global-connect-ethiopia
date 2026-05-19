@@ -5,6 +5,7 @@ import { FormEvent, useState } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import Sidebar from '@/components/Sidebar';
 import WalletCard from '@/components/marketplace/WalletCard';
+import ChapaMockPopup from '@/components/marketplace/ChapaMockPopup';
 import { useWallet, useWalletTransactions } from '@/app/hooks/useMarketplace';
 import marketplaceService from '@/app/services/marketplaceService';
 
@@ -18,44 +19,41 @@ export default function OrganizerWalletPage() {
   } = useWalletTransactions();
 
   const [amount, setAmount] = useState('10000');
+  const [showPopup, setShowPopup] = useState(false);
   const [depositing, setDepositing] = useState(false);
   const [depositError, setDepositError] = useState<string | null>(null);
 
-  const handleDeposit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleDepositInitiate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setDepositError(null);
+    if (!amount || Number(amount) <= 0) {
+      setDepositError('Please enter a valid amount.');
+      return;
+    }
+    setShowPopup(true);
+  };
 
+  const handleDepositConfirm = async () => {
+    setShowPopup(false);
     try {
       setDepositing(true);
       setDepositError(null);
       
-      const returnUrl = window.location.origin + '/organizer/wallet/verify';
-      const token = localStorage.getItem('token');
+      // Hit our mock deposit endpoint
+      await marketplaceService.depositWallet({ deposit_amount: Number(amount) });
       
-      const response = await fetch('/api/v1/wallet/top-up/initialize', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ amount: Number(amount), return_url: returnUrl }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-        throw new Error(errorData.detail || 'Payment initialization failed');
-      }
-
-      const data = await response.json();
-      window.location.href = data.checkout_url;
-      
+      refresh();
+      refreshTransactions();
+      setAmount('');
     } catch (nextError) {
-      setDepositError(nextError instanceof Error ? nextError.message : 'Unable to initiate payment.');
+      setDepositError(nextError instanceof Error ? nextError.message : 'Unable to complete deposit.');
+    } finally {
       setDepositing(false);
     }
   };
 
   const action = (
-    <form onSubmit={handleDeposit} className="rounded-[24px] bg-slate-50 p-4">
+    <form onSubmit={handleDepositInitiate} className="rounded-[24px] bg-slate-50 p-4">
       <label htmlFor="deposit" className="mb-1 block text-sm font-medium text-slate-700">Chapa test deposit amount</label>
       <input
         id="deposit"
@@ -75,7 +73,7 @@ export default function OrganizerWalletPage() {
           <path d="M7 7.00024L4.172 9.82824C3.422 10.5782 3.422 11.7952 4.172 12.5452C4.922 13.2952 6.139 13.2952 6.889 12.5452L9.111 10.3232" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        {depositing ? 'Redirecting to Chapa...' : 'Top Up via Chapa'}
+        {depositing ? 'Processing...' : 'Top Up via Chapa'}
       </button>
       {depositError ? <p className="mt-3 text-sm text-red-600">{depositError}</p> : null}
     </form>
@@ -113,6 +111,15 @@ export default function OrganizerWalletPage() {
           )}
         </div>
       </main>
+
+      {showPopup && (
+        <ChapaMockPopup
+          type="deposit"
+          amount={Number(amount)}
+          onConfirm={handleDepositConfirm}
+          onCancel={() => setShowPopup(false)}
+        />
+      )}
     </div>
   );
 }
