@@ -359,103 +359,85 @@ export default function LandingPage() {
         )}
       </nav>
 
-      {/* Hero Section with Glowing Mesh */}
-      <section className="relative overflow-hidden pt-16 bg-gradient-to-br from-[#041F17] via-[#062E22] to-[#0A4A37] text-white">
-        {/* Animated Background Mesh */}
-        <div className="absolute inset-0 z-0 opacity-15 mix-blend-overlay">
-          <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <defs>
-              <pattern id="grid" width="8" height="8" patternUnits="userSpaceOnUse">
-                <path d="M 8 0 L 0 0 0 8" fill="none" stroke="white" strokeWidth="0.1" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-        </div>
-
-        {/* Ambient Glowing Spheres */}
-        <div className="absolute -left-12 top-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute right-12 bottom-10 h-96 w-96 rounded-full bg-teal-400/10 blur-3xl" />
-
-        <div className="relative z-10 mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
-          <div className="grid gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+      {/* Streamlined Hero Section */}
+      <section className="relative overflow-hidden pt-16 bg-white">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             <div className="space-y-6">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                Ethiopia&apos;s Professional Event Hub
+              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                Ethiopia's Professional Event Hub
               </span>
-              <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl leading-[1.1]">
+
+              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
                 {attendeeMode ? (
                   <>
-                    Reserve your place.
+                    Find events you love.
                     <br />
-                    <span className="bg-gradient-to-r from-emerald-300 to-[#8ECFC0] bg-clip-text text-transparent">Arrive with confidence.</span>
+                    <span className="text-emerald-600">Book with ease. Arrive with confidence.</span>
                   </>
                 ) : (
                   <>
-                    Connect. Create.
+                    One platform for organizers, vendors and attendees.
                     <br />
-                    <span className="bg-gradient-to-r from-emerald-300 to-[#8ECFC0] bg-clip-text text-transparent">Celebrate Events.</span>
+                    <span className="text-emerald-600">Streamline permits, bookings and contracts.</span>
                   </>
                 )}
               </h1>
-              <p className="max-w-xl text-base text-slate-200/80 leading-relaxed">
+
+              <p className="max-w-xl text-base text-slate-600 leading-relaxed">
                 {attendeeMode
-                  ? 'Browse live verified events across the country, check real-time seating availability, and secure your automated QR access pass instantly.'
-                  : 'The comprehensive unified digital framework supporting governance approvals, verified local vendors, and attendee ticketing systems throughout Ethiopia.'}
+                  ? 'Browse verified events across Ethiopia, view safety documentation, and secure QR-based tickets in seconds.'
+                  : 'Create events, manage verified vendors, and connect with municipal approvals using a single secure portal.'}
               </p>
-              <div className="flex flex-wrap gap-4 pt-2">
+
+              <div className="flex flex-wrap gap-3">
                 {attendeeMode ? (
                   <>
-                    <Link href="#discover-events" className="rounded-xl bg-[#8ECFC0] px-6 py-3 font-extrabold text-[#062E22] shadow-lg shadow-emerald-950/20 transition hover:bg-white active:scale-95 duration-200">
+                    <Link href="#discover-events" className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700">
                       Discover Events
                     </Link>
-                    <Link href="/profile" className="rounded-xl border border-white/30 bg-white/5 px-6 py-3 font-semibold text-white backdrop-blur-sm transition hover:bg-white/10 active:scale-95 duration-200">
+                    <Link href="/profile" className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 bg-white">
                       My Portal
                     </Link>
                   </>
                 ) : (
                   <>
-                    <Link href="/register" className="rounded-xl bg-white px-6 py-3 font-extrabold text-[#062E22] shadow-lg transition hover:bg-slate-100 active:scale-95 duration-200">
-                      Register Now
+                    <Link href="/register" className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700">
+                      Create Account
                     </Link>
-                    <Link href="/login" className="rounded-xl border border-white/30 bg-white/5 px-6 py-3 font-semibold text-white backdrop-blur-sm transition hover:bg-white/10 active:scale-95 duration-200">
+                    <Link href="/login" className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 bg-white">
                       Access Portal
                     </Link>
                   </>
                 )}
               </div>
+
+              <div className="mt-6 flex gap-6">
+                {STATS.slice(0, 3).map((s) => (
+                  <div key={s.label} className="flex items-center gap-3">
+                    <div className="rounded-full bg-emerald-50 p-3 text-2xl">{s.icon}</div>
+                    <div>
+                      <div className="text-lg font-extrabold text-slate-900">{s.value}</div>
+                      <div className="text-xs text-slate-500">{s.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Premium Card Display with floating animation */}
-            <div className="hidden lg:block">
-              <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-md relative">
-                {/* Visual Glass Card */}
-                <div className="rounded-2xl bg-white p-6 text-slate-800 shadow-xl space-y-4">
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
-                    Live Platform Progress
-                  </span>
-                  <h3 className="text-2xl font-bold text-[#062E22]">
-                    Proposal Approval to Secure Booking
-                  </h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">
-                    Event licensing is fully automated. Registrants submit proposals directly to municipal authorizers, negotiate active contracts with verified vendors, and initialize live attendee booking.
-                  </p>
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#062E22]">
-                    <span>✓ Government Approved</span>
-                    <span className="text-emerald-600">✓ Real-time QR Verified</span>
-                  </div>
-                </div>
-
-                {/* Sub floating tag */}
-                <div className="absolute -bottom-4 -left-4 rounded-xl bg-[#8ECFC0] p-4 text-[#062E22] shadow-lg flex items-center gap-3">
-                  <span className="text-2xl">🎫</span>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">Attendee System</p>
-                    <p className="text-xs font-extrabold">Instant QR Generation</p>
-                  </div>
-                </div>
-              </div>
+            {/* Simple illustrative SVG */}
+            <div className="flex items-center justify-center">
+              <svg width="420" height="320" viewBox="0 0 420 320" fill="none" xmlns="http://www.w3.org/2000/svg" className="max-w-full">
+                <rect x="0" y="0" width="420" height="320" rx="24" fill="#F8FBF9" />
+                <g transform="translate(20,20)">
+                  <rect x="0" y="0" width="180" height="120" rx="12" fill="#062E22" opacity="0.9" />
+                  <rect x="200" y="0" width="180" height="80" rx="12" fill="#8ECFC0" />
+                  <rect x="0" y="140" width="380" height="140" rx="12" fill="#ffffff" stroke="#E6F6F0" />
+                  <circle cx="60" cy="200" r="18" fill="#062E22" />
+                  <circle cx="120" cy="200" r="10" fill="#8ECFC0" />
+                  <rect x="200" y="160" width="140" height="18" rx="6" fill="#062E22" opacity="0.95" />
+                </g>
+              </svg>
             </div>
           </div>
         </div>
@@ -496,23 +478,20 @@ export default function LandingPage() {
 
         <div className="mt-12 grid gap-6 md:grid-cols-3">
           {PILLARS.map((pillar) => (
-            <div
-              key={pillar.title}
-              className={`${pillar.bg} ${pillar.text} rounded-3xl p-8 transition-all hover:scale-[1.02] duration-300 flex flex-col justify-between h-80 shadow-md`}
-            >
+            <div key={pillar.title} className="rounded-3xl p-6 bg-white shadow-sm hover:shadow-md transition duration-200 flex flex-col justify-between h-72">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#8ECFC0]">
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
                     {pillar.badge}
                   </span>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-emerald-400">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
                     <PillarIcon name={pillar.icon} />
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold">{pillar.title}</h3>
-                <p className="text-xs leading-relaxed opacity-85">{pillar.desc}</p>
+                <h3 className="text-xl font-bold text-slate-900">{pillar.title}</h3>
+                <p className="text-sm leading-relaxed text-slate-600">{pillar.desc}</p>
               </div>
-              <Link href={attendeeMode ? '#discover-events' : '/register'} className="text-xs font-bold underline flex items-center gap-1 mt-4 hover:opacity-80">
+              <Link href={attendeeMode ? '#discover-events' : '/register'} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-600">
                 Explore Portal <span>→</span>
               </Link>
             </div>
@@ -521,42 +500,43 @@ export default function LandingPage() {
       </section>
 
       {/* Dynamic Statistics Bar */}
-      <section className="bg-[#062E22] px-4 py-16 relative overflow-hidden text-white">
-        <div className="absolute inset-0 z-0 opacity-5">
-          <div className="pattern-dots pattern-dots-lg absolute inset-0" />
-        </div>
-        <div className="relative z-10 mx-auto max-w-7xl grid gap-8 text-center sm:grid-cols-2 md:grid-cols-4">
-          {STATS.map((stat) => (
-            <div key={stat.label} className="space-y-2 p-4 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm">
-              <span className="text-2xl block">{stat.icon}</span>
-              <p className="text-4xl font-extrabold text-[#8ECFC0]">{stat.value}</p>
-              <p className="text-xs font-medium text-white/70">{stat.label}</p>
-            </div>
-          ))}
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-4">
+            {STATS.map((stat) => (
+              <div key={stat.label} className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4">
+                <div className="rounded-full bg-emerald-50 p-3 text-2xl">{stat.icon}</div>
+                <div>
+                  <div className="text-xl font-extrabold text-slate-900">{stat.value}</div>
+                  <div className="text-xs text-slate-500">{stat.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Feature Breakdown */}
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="text-center space-y-3">
-          <span className="inline-block rounded-full bg-[#062E22]/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#062E22]">
+          <span className="inline-block rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
             Key Capability
           </span>
-          <h2 className="text-3xl font-extrabold text-[#062E22]">Seamless Event Operations</h2>
+          <h2 className="text-2xl font-extrabold text-slate-900">Seamless Event Operations</h2>
           <p className="mx-auto max-w-xl text-slate-500 text-sm">
             Everything you need, built directly over secure administrative licensing processes.
           </p>
         </div>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+        <div className="mt-10 grid gap-6 md:grid-cols-3">
           {FEATURES.map((feature) => (
-            <div key={feature.title} className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition hover:shadow-md duration-300">
-              <div className="flex h-36 items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-                <span className="text-5xl transform hover:scale-110 transition duration-300">{feature.emoji}</span>
-              </div>
-              <div className="p-6 space-y-2">
-                <h3 className="text-lg font-bold text-[#062E22]">{feature.title}</h3>
-                <p className="text-xs leading-relaxed text-slate-500">{feature.desc}</p>
+            <div key={feature.title} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm hover:shadow-md transition">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 flex items-center justify-center rounded-lg bg-emerald-50 text-2xl">{feature.emoji}</div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">{feature.title}</h3>
+                  <p className="text-sm text-slate-500">{feature.desc}</p>
+                </div>
               </div>
             </div>
           ))}
@@ -724,28 +704,20 @@ export default function LandingPage() {
       </section>
 
       {/* Call to Action Banner */}
-      <section className="px-4 py-20">
-        <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2.5rem] bg-[#062E22] px-8 py-16 text-center shadow-2xl">
-          <div className="absolute inset-0 z-0 opacity-5">
-            <div className="pattern-dots pattern-dots-sm absolute inset-0" />
-          </div>
-          <div className="relative z-10 space-y-6">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              {attendeeMode ? 'Ready to secure your tickets?' : 'Ready to streamline event permits?'}
-            </h2>
-            <p className="mx-auto max-w-lg text-sm text-white/80 leading-relaxed">
-              {attendeeMode
-                ? 'Browse upcoming public sessions, review safety permits, and secure your reservation code now.'
-                : 'Join the premier administrative ecosystem in Ethiopia connecting municipal coordinators, verified local vendors, and attendee platforms.'}
-            </p>
-            <div className="pt-2">
-              <Link
-                href={attendeeMode ? '#discover-events' : '/register'}
-                className="inline-block rounded-xl bg-[#8ECFC0] px-8 py-3.5 text-xs font-extrabold text-[#062E22] shadow-lg shadow-emerald-950/20 hover:bg-white transition active:scale-95 duration-200"
-              >
-                {attendeeMode ? 'Browse Events Now' : 'Create an Account'}
-              </Link>
-            </div>
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-4xl rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 p-10 text-center text-white shadow-lg">
+          <h2 className="text-2xl font-extrabold sm:text-3xl">
+            {attendeeMode ? 'Ready to secure your tickets?' : 'Ready to streamline event permits?'}
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-white/90">
+            {attendeeMode
+              ? 'Browse upcoming public sessions, review safety permits, and secure your reservation code now.'
+              : 'Join the premier administrative ecosystem in Ethiopia connecting municipal coordinators, verified local vendors, and attendee platforms.'}
+          </p>
+          <div className="mt-6">
+            <Link href={attendeeMode ? '#discover-events' : '/register'} className="inline-block rounded-full bg-white px-6 py-3 text-sm font-bold text-emerald-700 shadow hover:opacity-95">
+              {attendeeMode ? 'Browse Events Now' : 'Create an Account'}
+            </Link>
           </div>
         </div>
       </section>
@@ -754,7 +726,7 @@ export default function LandingPage() {
       <Chatbot />
 
       {/* Unified Footer */}
-      <footer className="bg-[#062E22] px-4 py-16 text-white border-t border-white/5 relative z-10">
+      <footer className="bg-slate-900 px-4 py-16 text-white border-t border-white/5 relative z-10">
         <div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-lg font-bold">
