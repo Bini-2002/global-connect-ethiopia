@@ -349,7 +349,17 @@ class AIService:
         from app.db.mongodb import event_collection
         from app.services.marketplace import parse_object_id
         event = await event_collection.find_one({"_id": parse_object_id(event_id)})
-        base_date = event.get("start_date") or utc_now()
+        base_date_val = event.get("start_date") if event else None
+        
+        if isinstance(base_date_val, str):
+            try:
+                base_date = datetime.fromisoformat(base_date_val.replace("Z", "+00:00"))
+            except Exception:
+                base_date = utc_now()
+        elif isinstance(base_date_val, datetime):
+            base_date = base_date_val
+        else:
+            base_date = utc_now()
 
         current_day_offset = 0
         last_time_minutes = -1
