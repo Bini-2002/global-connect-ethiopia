@@ -52,8 +52,8 @@ class EventScheduleItemResponse(BaseModel):
     event_id: str
     session_title: str
     description: str | None = None
-    start_time: datetime
-    end_time: datetime
+    start_time: datetime | None = None
+    end_time: datetime | None = None
     speaker_id: str | None = None
     room_location: str | None = None
     is_ai_suggestion: bool = False

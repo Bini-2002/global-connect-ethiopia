@@ -209,18 +209,20 @@ def _event_base_response(document: dict) -> dict:
 
 
 def _serialize_schedule(document: dict) -> dict:
+    from app.services.marketplace import utc_now
+    now = utc_now()
     return {
         "id": str(document["_id"]),
-        "event_id": document["event_id"],
-        "session_title": document["session_title"],
+        "event_id": str(document.get("event_id", "")),
+        "session_title": document.get("session_title", "Untitled Session"),
         "description": document.get("description"),
-        "start_time": document["start_time"],
-        "end_time": document["end_time"],
+        "start_time": document.get("start_time"),
+        "end_time": document.get("end_time"),
         "speaker_id": document.get("speaker_id"),
         "room_location": document.get("room_location"),
         "is_ai_suggestion": bool(document.get("is_ai_suggestion", False)),
-        "created_at": document["created_at"],
-        "updated_at": document["updated_at"],
+        "created_at": document.get("created_at", now),
+        "updated_at": document.get("updated_at", now),
     }
 def _serialize_invitation(document: dict) -> dict:
     from app.services.marketplace import utc_now
