@@ -65,6 +65,7 @@ class ProposalCreate(BaseModel):
     expected_attendees: int | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
+    budget_estimate: float | None = None
     visibility: str = "public"
 
 
@@ -76,6 +77,7 @@ class ProposalUpdate(BaseModel):
     expected_attendees: int | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
+    budget_estimate: float | None = None
     visibility: str | None = None
 
 
@@ -91,6 +93,7 @@ class ProposalResponse(BaseModel):
     expected_attendees: int | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
+    budget_estimate: float | None = None
     program_overview: str | None = None
     event_objectives: str | None = None
     target_audience: list[str] | None = None

@@ -333,15 +333,51 @@ class AIService:
         if not draft:
             raise ValueError("Draft not found")
 
+        from app.db.mongodb import event_collection
+        from app.services.marketplace import parse_object_id
+        event = await event_collection.find_one({"_id": parse_object_id(event_id)})
+        base_date = event.get("start_date") or utc_now()
+
+        current_day_offset = 0
+        last_time_minutes = -1
+
         # Insert items to actual event schedule collection
         schedule_docs = []
         for item in items:
+            # Parse HH:MM
+            try:
+                start_h, start_m = [int(p) for p in item.start_time.split(":", 1)]
+                end_h, end_m = [int(p) for p in item.end_time.split(":", 1)]
+            except Exception:
+                start_h, start_m = 9, 0
+                end_h, end_m = 10, 0
+
+            start_total_mins = start_h * 60 + start_m
+            end_total_mins = end_h * 60 + end_m
+
+            # If time drops (e.g. from 17:00 back to 09:00), we moved to the next day
+            if last_time_minutes != -1 and start_total_mins < (last_time_minutes - 120):
+                current_day_offset += 1
+
+            last_time_minutes = end_total_mins
+
+            item_start_date = base_date + timedelta(days=current_day_offset)
+            start_dt = item_start_date.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+            
+            # If end time is before start time, it might be past midnight
+            end_day_offset = current_day_offset
+            if end_total_mins < start_total_mins:
+                end_day_offset += 1
+                
+            item_end_date = base_date + timedelta(days=end_day_offset)
+            end_dt = item_end_date.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
+
             schedule_docs.append({
                 "event_id": event_id,
                 "session_title": item.title,
                 "description": item.description,
-                "start_time": item.start_time,
-                "end_time": item.end_time,
+                "start_time": start_dt,
+                "end_time": end_dt,
                 "is_ai_suggestion": True,
                 "created_at": now,
                 "updated_at": now
