@@ -238,3 +238,64 @@ def test_phase4_event_cloning(client: TestClient, monkeypatch: pytest.MonkeyPatc
     assert cloned_tasks[0]["title"] == "Task 1"
     assert cloned_tasks[0]["assignee_user_id"] is None
     assert cloned_tasks[0]["status"] == "open"
+
+
+def test_phase4_apply_ai_schedule_draft_handles_string_event_dates(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.api.v1.endpoints import events
+    from app.services import ai_service
+
+    event_id = ObjectId()
+    organizer_id = ObjectId()
+    draft_id = "draft-123"
+
+    event_collection = FakeCollection([
+        {
+            "_id": event_id,
+            "organizer_id": str(organizer_id),
+            "title": "Schedule Event",
+            "status": EventStatus.PUBLISHED,
+            "start_date": "2026-05-21T09:00:00",
+        }
+    ])
+    draft_collection = FakeCollection([
+        {
+            "id": draft_id,
+            "event_id": str(event_id),
+            "organizer_id": str(organizer_id),
+            "input_constraints": {"event_type": "conference", "duration_days": 1, "start_time": "09:00"},
+            "provider": "mock",
+            "status": "pending_review",
+            "created_at": datetime.now(timezone.utc),
+            "expires_at": datetime.now(timezone.utc),
+            "can_apply": True,
+        }
+    ])
+    schedule_collection = FakeCollection([])
+
+    monkeypatch.setattr(events, "event_collection", event_collection)
+    monkeypatch.setattr(ai_service, "ai_schedule_draft_collection", draft_collection)
+    monkeypatch.setattr(ai_service, "event_schedule_collection", schedule_collection)
+    monkeypatch.setattr(ai_service, "event_collection", event_collection)
+
+    app.dependency_overrides[deps.get_current_user] = lambda: _user("organizer", user_id=organizer_id)
+
+    response = client.post(
+        f"/api/v1/events/{event_id}/schedule/apply-ai-draft",
+        json={
+            "draft_id": draft_id,
+            "items": [
+                {
+                    "title": "Welcome & Registration",
+                    "start_time": "09:00",
+                    "end_time": "10:00",
+                    "category": "Registration",
+                    "description": "Arrival and registration",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+    assert len(schedule_collection.docs) == 1
+    assert isinstance(schedule_collection.docs[0]["start_time"], datetime)
