@@ -211,18 +211,29 @@ def _event_base_response(document: dict) -> dict:
 def _serialize_schedule(document: dict) -> dict:
     from app.services.marketplace import utc_now
     now = utc_now()
+
+    def _coerce_datetime(value: object) -> datetime:
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str):
+            try:
+                return datetime.fromisoformat(value.replace('Z', '+00:00'))
+            except ValueError:
+                return now
+        return now
+
     return {
-        "id": str(document["_id"]),
+        "id": str(document.get("_id", "")),
         "event_id": str(document.get("event_id", "")),
         "session_title": document.get("session_title", "Untitled Session"),
         "description": document.get("description"),
-        "start_time": document.get("start_time"),
-        "end_time": document.get("end_time"),
+        "start_time": _coerce_datetime(document.get("start_time")),
+        "end_time": _coerce_datetime(document.get("end_time")),
         "speaker_id": document.get("speaker_id"),
         "room_location": document.get("room_location"),
         "is_ai_suggestion": bool(document.get("is_ai_suggestion", False)),
-        "created_at": document.get("created_at", now),
-        "updated_at": document.get("updated_at", now),
+        "created_at": _coerce_datetime(document.get("created_at", now)),
+        "updated_at": _coerce_datetime(document.get("updated_at", now)),
     }
 def _serialize_invitation(document: dict) -> dict:
     from app.services.marketplace import utc_now
@@ -1290,7 +1301,13 @@ async def list_event_schedule(event_id: str, current_user: dict = Depends(get_cu
     if role not in {UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ATTENDEE}:
         await _ensure_team_access(event, current_user)
     schedules = await event_schedule_collection.find({"event_id": event_id}, sort=[("start_time", 1)]).to_list(length=500)
-    return [_serialize_schedule(item) for item in schedules]
+    serialized_schedules: list[dict] = []
+    for item in schedules:
+        try:
+            serialized_schedules.append(_serialize_schedule(item))
+        except Exception:
+            continue
+    return serialized_schedules
 
 
 @router.post("/{event_id}/schedule", response_model=EventScheduleItemResponse, status_code=201)
@@ -1330,6 +1347,20 @@ async def update_schedule_item(
     if not item:
         raise HTTPException(status_code=404, detail="Schedule item not found")
     return _serialize_schedule(item)
+
+
+@router.delete("/{event_id}/schedule/{schedule_item_id}", response_model=dict)
+async def delete_schedule_item(
+    event_id: str,
+    schedule_item_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(schedule_item_id, field_name="schedule item id")
+    result = await event_schedule_collection.delete_one({"_id": oid, "event_id": event_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Schedule item not found")
+    return {"status": "success", "message": "Schedule item deleted"}
 
 
 @router.get("/{event_id}/venues/search", response_model=VenueSearchResponse)

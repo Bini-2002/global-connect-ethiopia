@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Bot, CalendarPlus2, Sparkles } from 'lucide-react';
+import { Bot, CalendarPlus2, Sparkles, Trash2 } from 'lucide-react';
 import { useEventWorkspace } from '@/app/hooks/useEventWorkspace';
 import { eventsService } from '@/app/services/eventsService';
 import { EventScheduleItemRecord } from '@/app/types/event';
@@ -43,6 +43,7 @@ export default function EventSchedulePage() {
   const [savingSession, setSavingSession] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sessionForm, setSessionForm] = useState<ScheduleFormState>(buildDefaultSessionForm());
   const [aiDraftSettings, setAiDraftSettings] = useState({
     event_type: '',
@@ -167,6 +168,21 @@ export default function EventSchedulePage() {
       setError(err instanceof Error ? err.message : 'Failed to update session');
     } finally {
       setReviewingId(null);
+    }
+  };
+
+  const handleDeleteSession = async (item: EventScheduleItemRecord) => {
+    if (!event) return;
+    if (!confirm('Are you sure you want to delete this schedule item?')) return;
+    try {
+      setDeletingId(item.id);
+      setError(null);
+      await eventsService.deleteEventScheduleItem(event.id, item.id);
+      setSchedule((current) => current.filter((entry) => entry.id !== item.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete session');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -407,17 +423,27 @@ export default function EventSchedulePage() {
                     </p>
                     {item.description ? <p className="text-sm text-slate-600 mt-3">{item.description}</p> : null}
                   </div>
-                  {item.is_ai_suggestion ? (
+                  <div className="flex items-center gap-2">
+                    {item.is_ai_suggestion ? (
+                      <button
+                        onClick={() => void markReviewed(item)}
+                        disabled={reviewingId === item.id}
+                        className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                      >
+                        {reviewingId === item.id ? 'Saving...' : 'Mark Reviewed'}
+                      </button>
+                    ) : (
+                      <span className="text-sm font-medium text-emerald-700 px-4">{sentenceCase('reviewed')}</span>
+                    )}
                     <button
-                      onClick={() => void markReviewed(item)}
-                      disabled={reviewingId === item.id}
-                      className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                      onClick={() => void handleDeleteSession(item)}
+                      disabled={deletingId === item.id}
+                      className="inline-flex items-center justify-center p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition disabled:opacity-50"
+                      title="Delete Session"
                     >
-                      {reviewingId === item.id ? 'Saving...' : 'Mark Reviewed'}
+                      <Trash2 className="w-5 h-5" />
                     </button>
-                  ) : (
-                    <span className="text-sm font-medium text-emerald-700">{sentenceCase('reviewed')}</span>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}

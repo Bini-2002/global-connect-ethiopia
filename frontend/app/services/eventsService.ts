@@ -274,9 +274,13 @@ export const eventsService = {
   updateEventScheduleItem: async (
     eventId: string,
     scheduleItemId: string,
-    payload: EventScheduleUpdatePayload
+    payload: Partial<EventScheduleItemRecord>
   ): Promise<EventScheduleItemRecord> => {
     return api.patch<EventScheduleItemRecord>(`/events/${eventId}/schedule/${scheduleItemId}`, payload);
+  },
+
+  deleteEventScheduleItem: async (eventId: string, scheduleItemId: string): Promise<{ status: string; message: string }> => {
+    return api.delete<{ status: string; message: string }>(`/events/${eventId}/schedule/${scheduleItemId}`);
   },
 
   getTicketTypes: async (eventId: string): Promise<TicketTypeRecord[]> => {
