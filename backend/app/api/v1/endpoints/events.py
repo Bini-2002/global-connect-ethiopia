@@ -1112,86 +1112,67 @@ async def update_event_budget(
     return _event_base_response(updated)
 
 
-@router.get("/{event_id}/schedule/ai-draft", response_model=list[EventScheduleItemResponse])
+@router.get("/{event_id}/schedule/ai-draft", response_model=AiScheduleDraftResponse)
 async def get_ai_schedule_draft(
     event_id: str,
-    duration_days: int = Query(default=1, ge=1, le=30),
-    sessions_per_day: int = Query(default=4, ge=1, le=12),
-    start_time: str = Query(default="09:00"),
+    draft_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    base_date = event.get("start_date") or utc_now()
+    await _get_owned_event_or_403(event_id, current_user)
+    draft = await AIService.get_schedule_draft(draft_id)
+    if not draft or draft.event_id != event_id:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return draft
+
+
+@router.post("/{event_id}/schedule/ai-draft", response_model=AiScheduleDraftResponse)
+async def generate_ai_schedule_draft(
+    event_id: str,
+    payload: AiScheduleDraftCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    await _get_owned_event_or_403(event_id, current_user)
     try:
-        start_hour, start_minute = [int(part) for part in start_time.split(":", 1)]
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="start_time must use HH:MM format") from exc
-
-    drafts: list[dict] = []
-    for day_index in range(duration_days):
-        day_start = (base_date + timedelta(days=day_index)).replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
-        for session_index in range(sessions_per_day):
-            slot_start = day_start + timedelta(hours=session_index * 2)
-            slot_end = slot_start + timedelta(hours=1, minutes=30)
-            drafts.append(
-                {
-                    "_id": secrets.token_hex(12),
-                    "event_id": event_id,
-                    "session_title": f"{event.get('category') or 'Event'} Session {session_index + 1}",
-                    "description": "AI generated schedule draft",
-                    "start_time": slot_start,
-                    "end_time": slot_end,
-                    "speaker_id": None,
-                    "room_location": event.get("location"),
-                    "is_ai_suggestion": True,
-                    "created_at": utc_now(),
-                    "updated_at": utc_now(),
-                }
-            )
-    return [_serialize_schedule(item) for item in drafts]
+        draft = await AIService.generate_schedule_draft(
+            event_id=event_id,
+            organizer_id=current_user["id"],
+            constraints=payload
+        )
+        return draft
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{event_id}/schedule/ai-draft", response_model=list[EventScheduleItemResponse])
+@router.put("/{event_id}/schedule/ai-draft/{draft_id}", response_model=AiScheduleDraftResponse)
+async def update_ai_schedule_draft(
+    event_id: str,
+    draft_id: str,
+    payload: AiScheduleDraftResponse,
+    current_user: dict = Depends(get_current_user),
+):
+    await _get_owned_event_or_403(event_id, current_user)
+    try:
+        await AIService.update_schedule_draft(draft_id, payload.generated_items)
+        draft = await AIService.get_schedule_draft(draft_id)
+        return draft
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{event_id}/schedule/apply-ai-draft")
 async def apply_ai_schedule_draft(
     event_id: str,
-    payload: EventAIDraftRequest,
+    payload: AiScheduleApplyRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    duration_days = payload.duration_days or max(
-        ((event.get("end_date") or event.get("start_date") or utc_now()) - (event.get("start_date") or utc_now())).days + 1,
-        1,
-    )
+    await _get_owned_event_or_403(event_id, current_user)
     try:
-        start_hour, start_minute = [int(part) for part in (payload.start_time or "09:00").split(":", 1)]
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="start_time must use HH:MM format") from exc
-
-    created: list[dict] = []
-    base_date = event.get("start_date") or utc_now()
-    now = utc_now()
-    for day_index in range(duration_days):
-        day_start = (base_date + timedelta(days=day_index)).replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
-        for session_index in range(payload.sessions_per_day):
-            slot_start = day_start + timedelta(hours=session_index * 2)
-            slot_end = slot_start + timedelta(hours=1, minutes=30)
-            doc = {
-                "event_id": event_id,
-                "session_title": f"{event.get('category') or 'Event'} Session {session_index + 1}",
-                "description": "AI generated schedule draft",
-                "start_time": slot_start,
-                "end_time": slot_end,
-                "speaker_id": None,
-                "room_location": event.get("location"),
-                "is_ai_suggestion": True,
-                "created_at": now,
-                "updated_at": now,
-            }
-            result = await event_schedule_collection.insert_one(doc)
-            doc["_id"] = result.inserted_id
-            created.append(doc)
-    await event_collection.update_one({"_id": event["_id"]}, {"$set": {"updated_at": now}})
-    return [_serialize_schedule(item) for item in created]
+        await AIService.apply_schedule_draft(payload.draft_id, event_id, payload.items)
+        return {"status": "success", "message": "Draft applied"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{event_id}/schedule", response_model=list[EventScheduleItemResponse])

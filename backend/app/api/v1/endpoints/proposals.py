@@ -44,6 +44,7 @@ def _to_response(proposal: dict) -> dict:
         "expected_attendees": proposal.get("expected_attendees"),
         "start_date": proposal.get("start_date"),
         "end_date": proposal.get("end_date"),
+        "budget_estimate": proposal.get("budget_estimate"),
         "program_overview": proposal.get("program_overview"),
         "event_objectives": proposal.get("event_objectives"),
         "target_audience": proposal.get("target_audience"),
@@ -147,6 +148,7 @@ async def create_proposal(
     expected_attendees: Optional[int] = Form(None),
     start_date: Optional[str] = Form(None),
     end_date: Optional[str] = Form(None),
+    budget_estimate: Optional[float] = Form(None),
     program_overview: Optional[str] = Form(None),
     event_objectives: Optional[str] = Form(None),
     target_audience: Optional[str] = Form(None),
@@ -201,6 +203,7 @@ async def create_proposal(
         "expected_attendees": expected_attendees,
         "start_date": datetime.fromisoformat(start_date) if start_date else None,
         "end_date": datetime.fromisoformat(end_date) if end_date else None,
+        "budget_estimate": budget_estimate,
         "program_overview": program_overview,
         "event_objectives": event_objectives,
         "target_audience": target_audience.split(",") if target_audience else None,
@@ -231,6 +234,7 @@ async def update_proposal(
     expected_attendees: Optional[int] = Form(None),
     start_date: Optional[str] = Form(None),
     end_date: Optional[str] = Form(None),
+    budget_estimate: Optional[float] = Form(None),
     program_overview: Optional[str] = Form(None),
     event_objectives: Optional[str] = Form(None),
     target_audience: Optional[str] = Form(None),
@@ -255,10 +259,10 @@ async def update_proposal(
             detail="Access denied. You do not own this proposal."
         )
 
-    if proposal["status"] not in {ProposalStatus.DRAFT, ProposalStatus.CHANGES_REQUESTED}:
+    if proposal["status"] not in {ProposalStatus.DRAFT, ProposalStatus.CHANGES_REQUESTED, ProposalStatus.REJECTED}:
         raise HTTPException(
             status_code=400,
-            detail="Only draft or changes requested proposals can be updated."
+            detail="Only draft, changes requested, or rejected proposals can be updated."
         )
 
     update_data = {
@@ -281,6 +285,8 @@ async def update_proposal(
         update_data["start_date"] = datetime.fromisoformat(start_date) if start_date else None
     if end_date is not None:
         update_data["end_date"] = datetime.fromisoformat(end_date) if end_date else None
+    if budget_estimate is not None:
+        update_data["budget_estimate"] = budget_estimate
     if program_overview is not None:
         update_data["program_overview"] = program_overview
     if event_objectives is not None:
@@ -331,8 +337,8 @@ async def submit_proposal(
     if proposal["organizer_id"] != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    if proposal.get("status") not in {ProposalStatus.DRAFT, ProposalStatus.CHANGES_REQUESTED}:
-        raise HTTPException(status_code=400, detail="Only draft or changes requested proposals can be submitted")
+    if proposal.get("status") not in {ProposalStatus.DRAFT, ProposalStatus.CHANGES_REQUESTED, ProposalStatus.REJECTED}:
+        raise HTTPException(status_code=400, detail="Only draft, changes requested, or rejected proposals can be submitted")
 
     missing_review_offices = _missing_review_offices(proposal.get("office_assignments"))
     if missing_review_offices:
@@ -449,10 +455,10 @@ async def upload_proposal_document(
     if proposal["organizer_id"] != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    if proposal["status"] not in {ProposalStatus.DRAFT, ProposalStatus.CHANGES_REQUESTED}:
+    if proposal["status"] not in {ProposalStatus.DRAFT, ProposalStatus.CHANGES_REQUESTED, ProposalStatus.REJECTED}:
         raise HTTPException(
             status_code=400,
-            detail="Cannot upload document to a non-draft proposal."
+            detail="Cannot upload document to this proposal right now."
         )
 
     if document.size and document.size > 5 * 1024 * 1024:
