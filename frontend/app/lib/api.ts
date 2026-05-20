@@ -86,10 +86,11 @@ async function executeRequest<T>(
       throw new Error('FORBIDDEN');
     }
     const err = await res.json().catch(() => ({ detail: res.statusText }));
+    const detail = typeof err.detail === 'string'
+      ? err.detail
+      : JSON.stringify(err.detail) || 'Request failed';
     throw new Error(
-      typeof err.detail === 'string'
-        ? err.detail
-        : JSON.stringify(err.detail) || 'Request failed'
+      `${res.status} ${res.statusText}${path ? ` for ${path}` : ''}: ${detail}`
     );
   }
 
@@ -132,10 +133,11 @@ async function requestBlob(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
+    const detail = typeof err.detail === 'string'
+      ? err.detail
+      : JSON.stringify(err.detail) || 'Request failed';
     throw new Error(
-      typeof err.detail === 'string'
-        ? err.detail
-        : JSON.stringify(err.detail) || 'Request failed'
+      `${res.status} ${res.statusText}${path ? ` for ${path}` : ''}: ${detail}`
     );
   }
 

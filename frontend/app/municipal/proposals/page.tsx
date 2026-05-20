@@ -11,11 +11,19 @@ import { ProposalRecord } from '@/app/types/proposal';
 export default function MunicipalProposalsPage() {
   const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    api.get<ProposalRecord[]>('/municipal/proposals/').then(setProposals).catch(console.error).finally(() => setLoading(false));
+    setError(null);
+    api.get<ProposalRecord[]>('/municipal/proposals/')
+      .then(setProposals)
+      .catch((err) => {
+        console.error(err);
+        setError(err instanceof Error ? err.message : 'Unable to load proposals.');
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = proposals.filter(p => {
@@ -64,6 +72,12 @@ export default function MunicipalProposalsPage() {
             </button>
           ))}
         </div>
+
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 mb-6 animate-fade-in delay-200">
           <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wide">

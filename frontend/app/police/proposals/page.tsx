@@ -10,12 +10,17 @@ import { PoliceNotificationRecord } from '@/app/types/proposal';
 export default function PoliceProposalsPage() {
   const [notifications, setNotifications] = useState<PoliceNotificationRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
+    setError(null);
     api.get<PoliceNotificationRecord[]>('/police/proposals/')
       .then(setNotifications)
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        setError(err instanceof Error ? err.message : 'Unable to load police notifications.');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -42,6 +47,12 @@ export default function PoliceProposalsPage() {
             {filtered.length} Assigned Events
           </div>
         </div>
+
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 animate-fade-in delay-100">
           <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wide">
