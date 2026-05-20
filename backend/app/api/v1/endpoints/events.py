@@ -85,9 +85,10 @@ from app.schemas.event import (
     IncidentUpdate,
     TicketCheckoutRequest,
     TicketPaymentConfirmRequest,
-    TicketTypeCreate,
     TicketTypeResponse,
     TicketTypeUpdate,
+    EventCancelRequest,
+    EventPostponeRequest,
 )
 from app.schemas.ai import (
     AiScheduleDraftCreate,
@@ -1019,6 +1020,111 @@ async def complete_event(event_id: str, current_user: dict = Depends(get_current
     updated = await event_collection.find_one({"_id": event["_id"]})
     if not updated:
         raise HTTPException(status_code=404, detail="Event not found")
+    return _event_base_response(updated)
+
+
+@router.post("/{event_id}/cancel", response_model=EventResponse)
+async def cancel_event(
+    event_id: str,
+    payload: EventCancelRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    event = await _get_owned_event_or_403(event_id, current_user)
+    if event.get("status") in {EventStatus.CANCELLED, EventStatus.ARCHIVED, EventStatus.COMPLETED}:
+        raise HTTPException(status_code=400, detail="Event is already cancelled, completed, or archived")
+
+    now = utc_now()
+    
+    # Update event status
+    await event_collection.update_one(
+        {"_id": event["_id"]},
+        {
+            "$set": {
+                "status": EventStatus.CANCELLED,
+                "cancellation_reason": payload.reason,
+                "updated_at": now,
+            }
+        },
+    )
+    
+    # Release venue reservations
+    await venue_reservation_collection.update_many(
+        {"event_id": event_id, "status": "confirmed"},
+        {"$set": {"status": "cancelled", "updated_at": now}}
+    )
+
+    # Auto-generate announcement for attendees
+    bookings = await ticket_purchase_collection.find(
+        {"event_id": event_id, "booking_status": "confirmed"}
+    ).to_list(length=1000)
+    
+    for booking in bookings:
+        doc = {
+            "id": secrets.token_hex(12),
+            "announcement_id": "auto_cancel_" + secrets.token_hex(4),
+            "event_id": event_id,
+            "recipient_user_id": booking["attendee_id"],
+            "recipient_email": booking.get("attendee_email"),
+            "subject": f"Event Cancelled: {event.get('title')}",
+            "body": f"We regret to inform you that {event.get('title')} has been cancelled. Reason: {payload.reason}.",
+            "status": "delivered",
+            "delivered_at": now,
+            "created_at": now,
+            "updated_at": now,
+        }
+        await announcement_delivery_collection.insert_one(doc)
+
+    updated = await event_collection.find_one({"_id": event["_id"]})
+    return _event_base_response(updated)
+
+
+@router.post("/{event_id}/postpone", response_model=EventResponse)
+async def postpone_event(
+    event_id: str,
+    payload: EventPostponeRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    event = await _get_owned_event_or_403(event_id, current_user)
+    if event.get("status") in {EventStatus.CANCELLED, EventStatus.ARCHIVED, EventStatus.COMPLETED}:
+        raise HTTPException(status_code=400, detail="Cannot postpone a cancelled, completed, or archived event")
+
+    now = utc_now()
+    
+    # Update event dates
+    await event_collection.update_one(
+        {"_id": event["_id"]},
+        {
+            "$set": {
+                "start_date": payload.new_start_date,
+                "end_date": payload.new_end_date,
+                "postponement_reason": payload.reason,
+                "updated_at": now,
+            }
+        },
+    )
+
+    # Auto-generate announcement for attendees
+    bookings = await ticket_purchase_collection.find(
+        {"event_id": event_id, "booking_status": "confirmed"}
+    ).to_list(length=1000)
+    
+    for booking in bookings:
+        doc = {
+            "id": secrets.token_hex(12),
+            "announcement_id": "auto_postpone_" + secrets.token_hex(4),
+            "event_id": event_id,
+            "recipient_user_id": booking["attendee_id"],
+            "recipient_email": booking.get("attendee_email"),
+            "subject": f"Event Postponed: {event.get('title')}",
+            "body": f"{event.get('title')} has been postponed. New Dates: {payload.new_start_date.strftime('%Y-%m-%d %H:%M')} to {payload.new_end_date.strftime('%Y-%m-%d %H:%M')}. Reason: {payload.reason or 'Not specified'}.",
+            "status": "delivered",
+            "delivered_at": now,
+            "created_at": now,
+            "updated_at": now,
+        }
+        await announcement_delivery_collection.insert_one(doc)
+
+    updated = await event_collection.find_one({"_id": event["_id"]})
     return _event_base_response(updated)
 
 

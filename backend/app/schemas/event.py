@@ -470,3 +470,13 @@ class VipReservationResponse(VipReservationCreate):
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class EventCancelRequest(BaseModel):
+    reason: str
+
+
+class EventPostponeRequest(BaseModel):
+    new_start_date: datetime
+    new_end_date: datetime
+    reason: str | None = None

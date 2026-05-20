@@ -175,6 +175,14 @@ export const eventsService = {
     return api.post<EventRecord>(`/events/${eventId}/archive`);
   },
 
+  cancelEvent: async (eventId: string, payload: { reason: string }): Promise<EventRecord> => {
+    return api.post<EventRecord>(`/events/${eventId}/cancel`, payload);
+  },
+
+  postponeEvent: async (eventId: string, payload: { new_start_date: string; new_end_date: string; reason?: string }): Promise<EventRecord> => {
+    return api.post<EventRecord>(`/events/${eventId}/postpone`, payload);
+  },
+
   getApprovedProposals: async (authToken?: string | null): Promise<ApprovedProposal[]> => {
     const proposals = await api.get<ProposalRecord[]>('/proposals/', { authToken });
     return proposals

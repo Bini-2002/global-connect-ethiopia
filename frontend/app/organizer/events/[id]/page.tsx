@@ -113,6 +113,14 @@ export default function OrganizerEventDetailPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [cloning, setCloning] = useState(false);
 
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  
+  const [showPostponeModal, setShowPostponeModal] = useState(false);
+  const [postponeStart, setPostponeStart] = useState('');
+  const [postponeEnd, setPostponeEnd] = useState('');
+  const [postponeReason, setPostponeReason] = useState('');
+
   const role = typeof window !== 'undefined' ? localStorage.getItem('role') : 'organizer';
   const isTeamMember = role === 'team_member';
 
@@ -151,6 +159,42 @@ export default function OrganizerEventDetailPage() {
       setEvent(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCancelSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!event) return;
+    try {
+      setActionLoading('cancel');
+      setError(null);
+      const updated = await eventsService.cancelEvent(event.id, { reason: cancelReason });
+      setEvent(updated);
+      setShowCancelModal(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Cancel failed');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handlePostponeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!event) return;
+    try {
+      setActionLoading('postpone');
+      setError(null);
+      const updated = await eventsService.postponeEvent(event.id, { 
+        new_start_date: new Date(postponeStart).toISOString(), 
+        new_end_date: new Date(postponeEnd).toISOString(), 
+        reason: postponeReason 
+      });
+      setEvent(updated);
+      setShowPostponeModal(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Postpone failed');
     } finally {
       setActionLoading(null);
     }
@@ -202,6 +246,24 @@ export default function OrganizerEventDetailPage() {
               {actionLoading === 'archive' ? 'Archiving...' : 'Archive'}
             </button>
           ) : null}
+          {(event.status === 'published' || event.status === 'private_published' || event.status === 'live') && (
+            <>
+              <button
+                onClick={() => setShowPostponeModal(true)}
+                disabled={!!actionLoading}
+                className="px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition disabled:opacity-50"
+              >
+                Postpone
+              </button>
+              <button
+                onClick={() => setShowCancelModal(true)}
+                disabled={!!actionLoading}
+                className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50"
+              >
+                Cancel Event
+              </button>
+            </>
+          )}
           <button
             onClick={() => void handleClone()}
             disabled={cloning || !!actionLoading}
@@ -380,6 +442,109 @@ export default function OrganizerEventDetailPage() {
           </div>
         </>
       ) : null}
+
+      {/* Cancel Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <h3 className="text-xl font-bold text-red-600 mb-2">Cancel Event</h3>
+            <p className="text-sm text-slate-500 mb-6">
+              Are you sure you want to cancel this event? This action will notify attendees and release venue reservations.
+            </p>
+            <form onSubmit={(e) => void handleCancelSubmit(e)}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Reason for Cancellation</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                  placeholder="Explain why the event is being cancelled..."
+                />
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading === 'cancel'}
+                  className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 disabled:opacity-50"
+                >
+                  {actionLoading === 'cancel' ? 'Cancelling...' : 'Confirm Cancel'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Postpone Modal */}
+      {showPostponeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <h3 className="text-xl font-bold text-amber-600 mb-2">Postpone Event</h3>
+            <p className="text-sm text-slate-500 mb-6">
+              Update the event dates and notify all confirmed attendees.
+            </p>
+            <form onSubmit={(e) => void handlePostponeSubmit(e)}>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">New Start Date</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={postponeStart}
+                    onChange={(e) => setPostponeStart(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">New End Date</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={postponeEnd}
+                    onChange={(e) => setPostponeEnd(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Reason (Optional)</label>
+                  <input
+                    type="text"
+                    value={postponeReason}
+                    onChange={(e) => setPostponeReason(e.target.value)}
+                    placeholder="e.g. Due to bad weather..."
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPostponeModal(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading === 'postpone'}
+                  className="px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 disabled:opacity-50"
+                >
+                  {actionLoading === 'postpone' ? 'Postponing...' : 'Confirm Postpone'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </EventWorkspaceShell>
   );
 }
