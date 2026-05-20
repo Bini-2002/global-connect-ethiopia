@@ -173,7 +173,6 @@ export default function EventSchedulePage() {
 
   const handleDeleteSession = async (item: EventScheduleItemRecord) => {
     if (!event) return;
-    if (!confirm('Are you sure you want to delete this schedule item?')) return;
     try {
       setDeletingId(item.id);
       setError(null);
@@ -199,26 +198,10 @@ export default function EventSchedulePage() {
             <div className="space-y-4 mt-4">
               <div>
                 <label className="text-sm font-medium text-slate-700">Event Type</label>
-                <select
-                  value={aiDraftSettings.event_type}
-                  onChange={(eventValue) =>
-                    setAiDraftSettings((current) => ({
-                      ...current,
-                      event_type: eventValue.target.value,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
-                  title="Select event type for AI scheduling"
-                >
-                  <option value="">— Select event type —</option>
-                  <option value="conference">🎤 Conference</option>
-                  <option value="wedding">💍 Wedding</option>
-                  <option value="trade_fair">🏪 Trade Fair / Exhibition</option>
-                  <option value="cultural_festival">🎭 Cultural Festival</option>
-                  <option value="corporate_workshop">📋 Corporate Workshop</option>
-                  <option value={event?.category || 'other'}>🗂️ Use Event Category ({event?.category || 'custom'})</option>
-                </select>
-                <p className="mt-1 text-[11px] text-slate-400">AI uses specialized prompts per type.</p>
+                <div className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 font-medium capitalize">
+                  {event?.category ? event.category.replace('_', ' ') : 'General Event'}
+                </div>
+                <p className="mt-1 text-[11px] text-slate-400">Auto-detected from event settings.</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700">Duration (days)</label>

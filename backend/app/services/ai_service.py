@@ -85,39 +85,33 @@ class AIService:
                         "You are an expert conference planner. Design a professional multi-track conference schedule.\n"
                         "Include: Registration & Networking, Opening Keynote (high-profile speaker), 2-3 breakout/panel sessions per half-day, "
                         "sponsored lunch break with sponsor showcase, afternoon sessions with Q&A, Closing Remarks, and optional Evening Networking Dinner.\n"
-                        "Each session should feel like a real international conference — include specific track names such as Innovation Track, Policy Track, Technology Track."
+                        "CRITICAL: Do NOT generate generic titles like 'Session 1'. Generate specific, creative session names (e.g., 'The Future of AI Innovation', 'Panel: Global Economic Trends')."
                     ),
-                    "wedding": (
-                        "You are an expert wedding coordinator. Design a detailed, elegant wedding day timeline.\n"
-                        "Include: Bridal party preparation & photography, Guest arrival & seating, Processional & Ceremony, Ring exchange & vows, "
-                        "Recessional & cocktail hour with canapés, Receiving line or photo sessions, Grand entrance into reception hall, "
-                        "Welcome toast by parents, Multi-course dinner service, First dance, Parent dances, Bouquet toss, Cake cutting, "
-                        "Open dancing, Last dance & grand exit. Add cultural Ethiopian traditions if the event type suggests it.\n"
-                        "Tone should be warm, joyful, and formal."
+                    "summit_forum": (
+                        "You are an expert executive summit and forum planner. Design a high-level summit schedule.\n"
+                        "Include: VIP Breakfast Briefing, Plenary Session, Expert Panel Discussions, Closed-door roundtable, "
+                        "Press conference, and a formal closing declaration.\n"
+                        "CRITICAL: Do NOT generate generic titles like 'Session 1'. Generate specific, high-level session names (e.g., 'Ministerial Dialogue on Policy', 'CEO Roundtable: Investment Opportunities')."
                     ),
-                    "trade_fair": (
+                    "workshop_training": (
+                        "You are an expert corporate L&D facilitator. Design a focused training workshop agenda.\n"
+                        "Include: Welcome & icebreaker activity, Pre-assessment or knowledge check, Theory presentation, "
+                        "Group discussion & case study, Hands-on workshop exercise, Team presentation of findings, Expert feedback session.\n"
+                        "CRITICAL: Do NOT generate generic titles like 'Session 1'. Generate specific, actionable session names (e.g., 'Mastering Python Data Structures', 'Interactive Case Study: Crisis Management')."
+                    ),
+                    "expo_trade_fair": (
                         "You are an expert trade fair and exhibition organizer. Design a commercial B2B trade fair schedule.\n"
                         "Include: VIP early access hour, Official opening ceremony with ribbon cutting, Exhibition hall open to public, "
-                        "Hourly exhibitor spotlight presentations (15 min each), Business matchmaking sessions, Product demonstration slots, "
-                        "Press briefing hour, Industry panel discussion, Networking lunch, Afternoon investor pitch competition, "
-                        "Award ceremony for best exhibitor, Closing ceremony & official end time.\n"
-                        "Focus on maximizing exhibitor visibility and buyer-seller interactions."
+                        "Hourly exhibitor spotlight presentations, Business matchmaking sessions, Product demonstration slots, "
+                        "Award ceremony for best exhibitor, Closing ceremony.\n"
+                        "CRITICAL: Do NOT generate generic titles like 'Session 1'. Generate specific, commercial session names (e.g., 'Product Showcase: Green Tech', 'B2B Matchmaking Mixer')."
                     ),
-                    "cultural_festival": (
-                        "You are an expert cultural festival programmer. Design a vibrant multi-day cultural festival schedule.\n"
-                        "Include: Opening procession & cultural flag ceremony, Traditional music & dance performances (with artist names as placeholders), "
-                        "Cultural food market hours, Craft and art exhibition tours, Children's cultural activity zones, "
-                        "Main stage headline performances (afternoon & evening), Film screening or storytelling session, "
-                        "Inter-cultural dialogue panel, Traditional cooking demonstration, Closing bonfire/ceremony with community gather.\n"
-                        "Reflect Ethiopian cultural richness — mention timkat, coffee ceremony, or similar traditions where appropriate."
-                    ),
-                    "corporate_workshop": (
-                        "You are an expert corporate L&D facilitator. Design a focused corporate workshop agenda.\n"
-                        "Include: Welcome & icebreaker activity, Pre-assessment or knowledge check, Module 1: Theory presentation, "
-                        "Group discussion & case study, Coffee break with informal networking, Module 2: Hands-on workshop exercise, "
-                        "Team presentation of findings, Expert feedback session, Lunch & informal Q&A, Module 3: Advanced application, "
-                        "Role-playing scenario exercise, Debrief and lessons learned, Action planning worksheet, Closing evaluation & certificates.\n"
-                        "Keep it practical — each session should have a clear learning objective."
+                    "networking_gala": (
+                        "You are an expert gala and networking event coordinator. Design a formal networking gala timeline.\n"
+                        "Include: Red carpet arrivals, Welcome reception with cocktails/mocktails, Opening address by host, "
+                        "Dinner service (multi-course), Keynote speech or entertainment segment, Awards presentation ceremony, "
+                        "Open networking & dessert, Closing toast.\n"
+                        "CRITICAL: Do NOT generate generic titles like 'Session 1'. Generate specific, elegant session names (e.g., 'Annual Excellence Awards Presentation', 'VIP Champagne Reception')."
                     ),
                 }
 
