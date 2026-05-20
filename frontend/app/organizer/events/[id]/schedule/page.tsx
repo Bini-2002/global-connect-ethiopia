@@ -52,6 +52,7 @@ export default function EventSchedulePage() {
   });
   const [pendingDraftId, setPendingDraftId] = useState<string | null>(null);
   const [pendingDraftItems, setPendingDraftItems] = useState<any[]>([]);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (event && !aiDraftSettings.event_type) {
@@ -71,6 +72,13 @@ export default function EventSchedulePage() {
       setLoadingSchedule(false);
     }
   };
+
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   useEffect(() => {
     void loadSchedule();
@@ -138,9 +146,10 @@ export default function EventSchedulePage() {
       setSavingSession(true);
       setError(null);
       await eventsService.applyScheduleAIDraft(event.id, pendingDraftId, pendingDraftItems);
-      await loadSchedule();
       setPendingDraftId(null);
       setPendingDraftItems([]);
+      setSuccessMessage('AI Draft successfully applied to your calendar!');
+      await loadSchedule();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply schedule draft');
     } finally {
@@ -255,6 +264,13 @@ export default function EventSchedulePage() {
         </div>
       }
     >
+      {successMessage && (
+        <div className="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-4">
+          <Sparkles className="w-5 h-5" />
+          <span className="text-sm font-semibold">{successMessage}</span>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-[#062E22]/10 text-[#062E22] flex items-center justify-center">
@@ -366,7 +382,7 @@ export default function EventSchedulePage() {
                      <div>
                        <h4 className="font-semibold text-amber-900">{item.title}</h4>
                        <p className="text-xs text-amber-700 mt-1">
-                         {formatDateTime(item.start_time)} to {formatDateTime(item.end_time)}
+                         {item.start_time} to {item.end_time}
                        </p>
                        {item.description && <p className="text-sm text-slate-700 mt-2">{item.description}</p>}
                      </div>
