@@ -28,6 +28,10 @@ This plan is divided into two distinct phases for two developers to execute sequ
 ### 3. Event Creation & Configuration
 - [ ] **Action:** Back as the Organizer, convert the approved proposal into an active **Event**.
 - [ ] **Action:** Navigate to the **Schedule Tab**. Use the **AI Scheduler** to auto-generate a 3-day itinerary based on the event description. Apply the drafted AI schedule to the live event.
+
+----------------------------------------------------------------------------------------------------------------------------------------------
+
+
 - [ ] **Action:** Navigate to the **Ticketing Tab**. Create at least two ticket types: "General Admission" and "VIP Pass".
 
 ### 4. Marketplace Interaction: Opportunities & Bidding
