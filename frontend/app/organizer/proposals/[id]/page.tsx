@@ -57,8 +57,8 @@ export default function ProposalDetailPage() {
     router.push('/organizer/proposals/create');
   };
 
-  const canEdit = proposal && ['draft', 'changes_requested'].includes(proposal.status);
-  const canSubmit = proposal && ['draft', 'changes_requested'].includes(proposal.status);
+  const canEdit = proposal && ['draft', 'changes_requested', 'rejected'].includes(proposal.status);
+  const canSubmit = proposal && ['draft', 'changes_requested', 'rejected'].includes(proposal.status);
   const isApproved = proposal?.status === 'approved';
 
   const currentStepIndex = TIMELINE_STEPS.findIndex(s => s.key === proposal?.status);

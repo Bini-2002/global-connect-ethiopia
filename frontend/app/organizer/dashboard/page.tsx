@@ -38,6 +38,19 @@ interface UserProfile {
   phone?: string;
 }
 
+interface OrganizerVerificationStatusResponse {
+  profile_type?: "organization" | "individual";
+  onboarding_status?: string;
+  verification_status?: string;
+  status?: string;
+  rejection_comment?: string;
+  queue_status?: string;
+  verification_decision?: {
+    decision?: string;
+    note?: string;
+  };
+}
+
 interface OrganizerFeedItem {
   proposalId: string;
   proposalTitle: string;
@@ -69,18 +82,21 @@ export default function OrganizerDashboard() {
   const [loading, setLoading] = useState(true);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<OrganizerVerificationStatusResponse | null>(null);
 
   useEffect(() => {
     const loadDashboard = async () => {
       const token = getToken();
 
       try {
-        const [proposalData, profileData] = await Promise.all([
+        const [proposalData, profileData, verificationStatusData] = await Promise.all([
           api.get<ProposalRecord[]>('/proposals/', { authToken: token ?? undefined }),
           api.get<UserProfile>('/users/me', { authToken: token ?? undefined }),
+          api.get<OrganizerVerificationStatusResponse>('/organizers/verification-status', { authToken: token ?? undefined }).catch(() => null),
         ]);
         setProposals(proposalData);
         setUserProfile(profileData);
+        setVerificationStatus(verificationStatusData);
         setError(null);
       } catch (err) {
         if (err instanceof Error && err.message === 'Not authenticated') {
@@ -107,6 +123,9 @@ export default function OrganizerDashboard() {
     if (!proposal.end_date) return true;
     return new Date(proposal.end_date) >= today;
   });
+  const rejectedProposals = proposals
+    .filter((proposal) => proposal.status === 'rejected')
+    .sort((a, b) => compareByNewest(a.updated_at, b.updated_at));
   const recentUpdates: OrganizerFeedItem[] = proposals
     .flatMap((proposal) =>
       (proposal.organizer_updates || []).map((update) => ({
@@ -168,6 +187,41 @@ export default function OrganizerDashboard() {
               </div>
             </div>
           </div>
+
+          {verificationStatus?.verification_decision?.note && (verificationStatus.verification_status === 'approved' || verificationStatus.status === 'approved') && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-blue-900">Admin Note from Verification</p>
+                <p className="text-blue-800 text-sm mt-1">{verificationStatus.verification_decision.note}</p>
+              </div>
+            </div>
+          )}
+
+          {rejectedProposals.length > 0 && (
+            <div className="mb-6 rounded-xl bg-red-50 border border-red-200 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center shadow-sm">
+                  <TriangleAlert className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-red-900 text-sm">Action Required: {rejectedProposals.length} Rejected Proposal{rejectedProposals.length > 1 ? 's' : ''}</h3>
+                  <p className="text-red-700 text-xs mt-0.5">Please review the feedback and update your event details.</p>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {rejectedProposals.map(rp => (
+                  <Link 
+                    key={rp.id} 
+                    href={`/organizer/proposals/${rp.id}`} 
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-red-200 rounded-lg text-xs font-semibold text-red-700 hover:bg-red-50 transition-colors shadow-sm"
+                  >
+                    Fix <span className="truncate max-w-[120px]">{rp.title}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">

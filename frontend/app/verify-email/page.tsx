@@ -99,6 +99,7 @@ function VerifyEmailPageContent() {
       const res = await fetch(`${BASE_URL}/auth/verify-email-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, otp_code: enteredOtp }),
       });
       const data: VerifyEmailResponse = await res.json().catch(() => ({
