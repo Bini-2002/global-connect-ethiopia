@@ -78,7 +78,11 @@ This plan is divided into two distinct phases for two developers to execute sequ
 - [ ] **Action:** Log in as the Vendor. Check your Wallet. Verify that you received the funds minus the 10% platform transaction fee (should receive 450,000 ETB).
 - [ ] **Action:** Initiate a **Withdrawal** from the Vendor Wallet using the Mock Chapa Popup.
 
-### 7. Global Analytics & Admin Receipts
+### 7. Event Postponement & Cancellation
+- [ ] **Action (Postpone):** As the Organizer, navigate to the **Event Overview** page. Click the **Postpone** button and set new future dates. Verify that an automated postponement announcement is queued for the registered VIP attendee.
+- [ ] **Action (Cancel):** Back on the **Event Overview** page, click **Cancel Event**, provide a reason, and submit. Verify that the event status updates to `CANCELLED` and any active venue reservations are automatically released.
+
+### 8. Global Analytics & Admin Receipts
 - [ ] **Action (Organizer Analytics):** As the Organizer, go to the Event Analytics dashboard. Verify the revenue charts show ticket sales, escrow locks, and team payouts accurately.
 - [ ] **Action (Admin Analytics):** Log in as the Admin. Navigate to **Admin Analytics**. Verify the global revenue metrics.
 - [ ] **Action (Platform Fees):** Scroll to the **Platform Fee Receipts** table. Confirm the exact 10% cut (50,000 ETB) from the catering contract is logged with its timestamp and transaction ID.
@@ -96,3 +100,4 @@ This plan is divided into two distinct phases for two developers to execute sequ
 | **AI Features** | "Failed to generate schedule / recommendations" | Check Render logs. Gemini API requests might time out on free tier. If it fails, click "Retry". |
 | **Notifications** | Socket connection failed / Notification not appearing | Refresh the page. The app falls back to polling `/api/v1/notifications` every 30 seconds if real-time sockets fail. |
 | **Mock Chapa** | Modal hangs on loading spinner | The mock simulates a 2.5s network delay. Do not click outside the modal until the green success checkmark appears and auto-closes. |
+| **Event Status** | "Event is already cancelled" or "Cannot postpone" HTTP 400 Error | State transitions are one-way. You cannot postpone or cancel an event that is already cancelled or archived. If you hit a dead-end during testing, use the **Clone Event** button to spin up a fresh copy of the event. |
