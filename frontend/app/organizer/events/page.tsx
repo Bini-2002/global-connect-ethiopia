@@ -9,6 +9,8 @@ import {
   CheckCircle,
   Filter,
   Loader2,
+  X,
+  Plus,
 } from 'lucide-react';
 import Image from 'next/image';
 import Sidebar from '@/components/Sidebar';
@@ -16,7 +18,7 @@ import DashboardHeader from '@/components/DashboardHeader';
 import AIModal from '@/components/organizer/AIModal';
 import { eventsService, EVENT_STATUS_CONFIG } from '@/app/services/eventsService';
 import { EventListItem, ApprovedProposal } from '@/app/types/event';
-import { EventCard, EventsSidebar, AIFloatingButton } from '@/components/organizer/events';
+import { EventCard, AIFloatingButton } from '@/components/organizer/events';
 
 export default function MyEvents() {
   const [events, setEvents] = useState<EventListItem[]>([]);
@@ -26,6 +28,8 @@ export default function MyEvents() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [showProposals, setShowProposals] = useState(false);
+  const [showDeadlines, setShowDeadlines] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,21 +105,30 @@ export default function MyEvents() {
               />
             </div>
 
-      <div className="flex flex-col lg:flex-row items-stretch gap-8 md:ml-60 md:pl-6 md:pt-6 ">
-        <div className="flex-1 space-y-6 pt-16">
+      <div className="md:ml-60 md:pt-6">
+        <div className="space-y-6 pt-16 px-4 md:px-6">
           {/* ===== HEADER ===== */}
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <h1 className="text-3xl font-bold text-[#062E22]">My Events</h1>
               <p className="text-gray-500">Manage and monitor all your events across Ethiopia</p>
             </div>
-            <Link
-              href="/organizer/proposals"
-              className="flex items-center gap-2 px-4 py-2.5 bg-white text-[#062E22] border border-[#062E22] text-sm font-semibold rounded-xl hover:bg-gray-50 transition shadow-sm"
-            >
-              <FileText className="w-4 h-4" />
-              My Proposals
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/organizer/create-event"
+                className="flex items-center gap-2 px-4 py-2.5 bg-[#062E22] text-white text-sm font-semibold rounded-xl hover:bg-[#0a4a37] transition shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Create Event
+              </Link>
+              <Link
+                href="/organizer/proposals"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white text-[#062E22] border border-[#062E22] text-sm font-semibold rounded-xl hover:bg-gray-50 transition shadow-sm"
+              >
+                <FileText className="w-4 h-4" />
+                My Proposals
+              </Link>
+            </div>
           </div>
 
           {/* Error Message */}
@@ -126,37 +139,45 @@ export default function MyEvents() {
           )}
 
           {/* ===== STATS CARDS ===== */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
-              <div className="p-2 rounded bg-green-100 text-green-600 w-fit mb-2">
-                <Calendar className="w-4 h-4" />
-              </div>
-              <p className="text-xs text-slate-500 uppercase tracking-wide">Total Events</p>
-              <p className="text-2xl font-bold text-[#062E22]">{stats.total}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-white rounded-xl shadow-sm p-3">
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Total Events</p>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-emerald-50">
+                    <Calendar className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <p className="text-xl font-bold text-gray-900">{stats.total}</p>
+                </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-[#FCD116]">
-              <div className="p-2 rounded bg-yellow-100 text-[#FCD116] w-fit mb-2">
-                <Clock className="w-4 h-4" />
-              </div>
-              <p className="text-xs text-slate-500 uppercase tracking-wide">Draft</p>
-              <p className="text-2xl font-bold text-[#FCD116]">{stats.draft}</p>
+            <div className="bg-white rounded-xl shadow-sm p-3">
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Draft</p>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-yellow-50">
+                    <Clock className="w-4 h-4 text-yellow-600" />
+                  </div>
+                  <p className="text-xl font-bold text-gray-900">{stats.draft}</p>
+                </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-[#EC5B13]">
-              <div className="p-2 rounded bg-[#EC5B13]/10 text-[#EC5B13] w-fit mb-2">
-                <Calendar className="w-4 h-4" />
-              </div>
-              <p className="text-xs text-slate-500 uppercase tracking-wide">Upcoming</p>
-              <p className="text-2xl font-bold text-[#EC5B13]">{stats.upcoming}</p>
+            <div className="bg-white rounded-xl shadow-sm p-3">
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Upcoming</p>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-orange-50">
+                    <Calendar className="w-4 h-4 text-[#EC5B13]" />
+                  </div>
+                  <p className="text-xl font-bold text-gray-900">{stats.upcoming}</p>
+                </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-[#062E22]">
-              <div className="p-2 rounded bg-[#062E22]/10 text-[#062E22] w-fit mb-2">
-                <CheckCircle className="w-4 h-4" />
-              </div>
-              <p className="text-xs text-slate-500 uppercase tracking-wide">Live</p>
-              <p className="text-2xl font-bold text-[#062E22]">{stats.live}</p>
+            <div className="bg-white rounded-xl shadow-sm p-3">
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Live</p>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-[#062E22]/10">
+                    <CheckCircle className="w-4 h-4 text-[#062E22]" />
+                  </div>
+                  <p className="text-xl font-bold text-gray-900">{stats.live}</p>
+                </div>
             </div>
           </div>
 
@@ -266,7 +287,7 @@ export default function MyEvents() {
                 <Link href="/organizer/proposals/create" className="mt-4 inline-block text-sm text-[#062E22] font-semibold underline">Create your first proposal →</Link>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-3 gap-6">
                 {filteredEvents.map((event, index) => (
                   <EventCard
                     key={event.id}
@@ -279,13 +300,102 @@ export default function MyEvents() {
             )}
           </div>
         </div>
-
-        {/* ===== RIGHT COLUMN: Sidebar ===== */}
-        <EventsSidebar
-          events={events}
-          approvedProposals={approvedProposals}
-        />
       </div>
+
+      {/* Right Toggle Buttons */}
+      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-40 space-y-2">
+        <button
+          onClick={() => setShowProposals(true)}
+          className="flex flex-col items-center gap-1 px-3 py-2.5 bg-[#062E22]/40 backdrop-blur-xl border border-[#062E22]/30 rounded-l-xl hover:bg-[#062E22]/60 transition shadow-lg"
+        >
+          <FileText className="w-4 h-4 text-gray-900" />
+          <span className="text-[10px] font-semibold leading-tight text-gray-900">Proposals</span>
+        </button>
+        <button
+          onClick={() => setShowDeadlines(true)}
+          className="flex flex-col items-center gap-1 px-3 py-2.5 bg-[#EC5B13]/40 backdrop-blur-xl border border-[#EC5B13]/30 rounded-l-xl hover:bg-[#EC5B13]/60 transition shadow-lg"
+        >
+          <Calendar className="w-4 h-4 text-gray-900" />
+          <span className="text-[10px] font-semibold leading-tight text-gray-900">Deadlines</span>
+        </button>
+      </div>
+
+      {/* Proposals Panel */}
+      {showProposals && (
+        <>
+          <div className="fixed inset-0 z-30 bg-black/20" onClick={() => setShowProposals(false)} />
+          <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-xl rounded-l-2xl z-40 p-5 overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-[#062E22]">Approved Proposals ({approvedProposals.length})</h2>
+              <button onClick={() => setShowProposals(false)} className="p-1 hover:bg-gray-100 rounded-lg transition">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {approvedProposals
+                .sort((a, b) => new Date(b.approved_date).getTime() - new Date(a.approved_date).getTime())
+                .map(proposal => (
+                  <Link
+                    key={proposal.id}
+                    href={proposal.event_id ? `/organizer/events/${proposal.event_id}` : `/organizer/create-event/${proposal.id}`}
+                    className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                  >
+                    <p className="font-semibold text-sm text-[#062E22] truncate">{proposal.title}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Approved: {new Date(proposal.approved_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      {proposal.event_id ? 'Event workspace ready' : 'Create event workspace'}
+                    </p>
+                  </Link>
+                ))}
+              {approvedProposals.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-8">No approved proposals yet.</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Deadlines Panel */}
+      {showDeadlines && (
+        <>
+          <div className="fixed inset-0 z-30 bg-black/20" onClick={() => setShowDeadlines(false)} />
+          <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-xl rounded-l-2xl z-40 p-5 overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-[#062E22]">Upcoming Deadlines</h2>
+              <button onClick={() => setShowDeadlines(false)} className="p-1 hover:bg-gray-100 rounded-lg transition">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {events.filter(e => e.status === 'LIVE' || e.status === 'UPCOMING').length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">No upcoming deadlines.</p>
+              ) : (
+                events.filter(e => e.status === 'LIVE' || e.status === 'UPCOMING')
+                  .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                  .map(event => (
+                    <Link
+                      key={event.id}
+                      href={`/organizer/events/${event.id}`}
+                      className={`block p-3 rounded-lg hover:bg-gray-100 transition ${
+                        event.status === 'LIVE' ? 'bg-red-50 border-l-2 border-red-500' : 'bg-amber-50 border-l-2 border-amber-300'
+                      }`}
+                    >
+                      <p className="font-semibold text-sm text-[#062E22]">{event.title}</p>
+                      <p className="text-xs text-gray-500 mt-1">{event.date}</p>
+                      <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full font-medium ${
+                        event.status === 'LIVE' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                      }`}>
+                        {event.status}
+                      </span>
+                    </Link>
+                  ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* AI Floating Button */}
       <AIFloatingButton isOpen={isAIModalOpen} onToggle={() => setIsAIModalOpen(true)} />
