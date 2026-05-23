@@ -84,8 +84,6 @@ from app.schemas.event import (
     IncidentUpdate,
     EventCancelRequest,
     EventPostponeRequest,
-    EventCancelRequest,
-    EventPostponeRequest,
 )
 from app.schemas.ai import (
     AiScheduleDraftCreate,
@@ -2273,106 +2271,21 @@ async def register_manual_attendee(
 @router.post("/{event_id}/tickets/checkout", response_model=EventBookingResponse, status_code=201)
 async def checkout_ticket(
     event_id: str,
-    payload: TicketCheckoutRequest,
+    payload: dict,
     current_user: dict = Depends(get_current_user),
 ):
-    _require_role(current_user, UserRole.ATTENDEE)
-    event = await _get_event_or_404(event_id)
-    if event.get("visibility") != "public" or event.get("status") not in {EventStatus.PUBLISHED, EventStatus.LIVE}:
-        raise HTTPException(status_code=400, detail="Ticket sales are only available for public published or live events")
-
-    ticket_type = await ticket_type_collection.find_one({"_id": parse_object_id(payload.ticket_type_id, field_name="ticket type id"), "event_id": event_id})
-    if not ticket_type or not ticket_type.get("is_active", True):
-        raise HTTPException(status_code=404, detail="Ticket type not found")
-
-    now = utc_now()
-    sales_start = _to_utc_datetime(ticket_type.get("sales_start"))
-    sales_end = _to_utc_datetime(ticket_type.get("sales_end"))
-    if sales_start and sales_start > now:
-        raise HTTPException(status_code=400, detail="Ticket sales have not started yet")
-    if sales_end and sales_end <= now:
-        raise HTTPException(status_code=400, detail="Ticket sales have ended")
-
-    quantity = int(payload.quantity)
-    available_quantity = int(ticket_type.get("quantity", 0)) - int(ticket_type.get("sold_quantity", 0)) - int(ticket_type.get("reserved_quantity", 0))
-    if quantity > available_quantity:
-        raise HTTPException(status_code=409, detail="Not enough ticket inventory available")
-
-    attendee_profile = {str(key): str(value).strip() for key, value in (payload.attendee_profile or {}).items()}
-    doc = {
-        "event_id": event_id,
-        "ticket_type_id": str(ticket_type["_id"]),
-        "booking_reference": _generate_ticket_code("TKT"),
-        "attendee_id": current_user["id"],
-        "attendee_name": payload.attendee_name or current_user.get("full_name"),
-        "attendee_email": payload.attendee_email or current_user.get("email"),
-        "slots_requested": quantity,
-        "notes": payload.notes,
-        "attendee_profile": attendee_profile,
-        "qr_code": None,
-        "booking_status": "pending_payment",
-        "check_in_status": "pending",
-        "checked_in_at": None,
-        "payment_reference_id": None,
-        "payment_method": None,
-        "created_at": now,
-        "updated_at": now,
-    }
-    result = await ticket_purchase_collection.insert_one(doc)
-    doc["_id"] = result.inserted_id
-    await ticket_type_collection.update_one(
-        {"_id": ticket_type["_id"]},
-        {"$inc": {"reserved_quantity": quantity}, "$set": {"updated_at": now}},
-    )
-    return _serialize_booking(doc, event)
+    # Ticket checkout flow removed — ticket sales are deprecated in this project.
+    raise HTTPException(status_code=410, detail="Ticket purchase/checkout feature removed")
 
 
 @router.post("/{event_id}/tickets/confirm-payment", response_model=EventBookingResponse)
 async def confirm_ticket_payment(
     event_id: str,
-    payload: TicketPaymentConfirmRequest,
+    payload: dict,
     current_user: dict = Depends(get_current_user),
 ):
-    _require_role(current_user, UserRole.ATTENDEE)
-    event = await _get_event_or_404(event_id)
-    booking = await ticket_purchase_collection.find_one(
-        {"event_id": event_id, "attendee_id": current_user["id"], "booking_status": "pending_payment"}
-    )
-    if not booking:
-        raise HTTPException(status_code=404, detail="Pending ticket purchase not found")
-
-    ticket_type = await ticket_type_collection.find_one({"_id": parse_object_id(booking["ticket_type_id"], field_name="ticket type id"), "event_id": event_id})
-    if not ticket_type:
-        raise HTTPException(status_code=404, detail="Ticket type not found")
-
-    now = utc_now()
-    quantity = int(booking.get("slots_requested", 1))
-    qr_code = _generate_ticket_code("QR")
-    await ticket_purchase_collection.update_one(
-        {"_id": booking["_id"]},
-        {
-            "$set": {
-                "booking_status": "confirmed",
-                "check_in_status": "pending",
-                "qr_code": qr_code,
-                "payment_reference_id": payload.payment_reference_id,
-                "payment_method": payload.payment_method,
-                "updated_at": now,
-            }
-        },
-    )
-    await ticket_type_collection.update_one(
-        {"_id": ticket_type["_id"]},
-        {"$inc": {"reserved_quantity": -quantity, "sold_quantity": quantity}, "$set": {"updated_at": now}},
-    )
-    await event_collection.update_one(
-        {"_id": event["_id"]},
-        {"$inc": {"booked_count": quantity}, "$set": {"updated_at": now}},
-    )
-    updated = await ticket_purchase_collection.find_one({"_id": booking["_id"]})
-    if not updated:
-        raise HTTPException(status_code=404, detail="Ticket purchase not found")
-    return _serialize_booking(updated, await event_collection.find_one({"_id": event["_id"]}) or event)
+    # Ticket payment confirmation removed — ticket sales are deprecated.
+    raise HTTPException(status_code=410, detail="Ticket purchase/confirmation feature removed")
 
 
 @router.get("/{event_id}/bookings/{booking_id}/qr-code")

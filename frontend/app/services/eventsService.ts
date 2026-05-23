@@ -12,8 +12,6 @@ import {
   EventBookingCreatePayload,
   EventBookingRecord,
   EventBudgetUpdatePayload,
-  TicketCheckoutRequest,
-  TicketPaymentConfirmRequest,
   EventCreateFromProposalResponse,
   EventListItem,
   EventRecord,
@@ -283,24 +281,7 @@ export const eventsService = {
     return api.delete<{ status: string; message: string }>(`/events/${eventId}/schedule/${scheduleItemId}`);
   },
 
-  getTicketTypes: async (eventId: string): Promise<TicketTypeRecord[]> => {
-    return api.get<TicketTypeRecord[]>(`/events/${eventId}/ticket-types`);
-  },
-
-  createTicketType: async (
-    eventId: string,
-    payload: TicketTypeCreatePayload
-  ): Promise<TicketTypeRecord> => {
-    return api.post<TicketTypeRecord>(`/events/${eventId}/ticket-types`, payload);
-  },
-
-  updateTicketType: async (
-    eventId: string,
-    ticketTypeId: string,
-    payload: TicketTypeUpdatePayload
-  ): Promise<TicketTypeRecord> => {
-    return api.patch<TicketTypeRecord>(`/events/${eventId}/ticket-types/${ticketTypeId}`, payload);
-  },
+  // Ticket type management removed — ticketing feature deprecated
 
   /** Phase 2: search returns real venue listing records with `id` field */
   searchEventVenues: async (eventId: string, city?: string, q?: string): Promise<VenueSearchResult> => {
@@ -426,19 +407,7 @@ export const eventsService = {
     return api.post<EventBookingRecord>(`/events/${eventId}/bookings`, payload);
   },
 
-  checkoutTicket: async (
-    eventId: string,
-    payload: TicketCheckoutRequest
-  ): Promise<EventBookingRecord> => {
-    return api.post<EventBookingRecord>(`/events/${eventId}/tickets/checkout`, payload);
-  },
-
-  confirmTicketPayment: async (
-    eventId: string,
-    payload: TicketPaymentConfirmRequest
-  ): Promise<EventBookingRecord> => {
-    return api.post<EventBookingRecord>(`/events/${eventId}/tickets/confirm-payment`, payload);
-  },
+  // Ticket checkout and payment endpoints removed — use booking endpoints instead
 
   getBadges: async (eventId: string): Promise<BadgeRecord[]> => {
     return api.get<BadgeRecord[]>(`/events/${eventId}/badges`);

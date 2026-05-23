@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/app/lib/api';
 import { eventsService } from '@/app/services/eventsService';
-import { EventRecord, TicketTypeRecord, EventBookingRecord } from '@/app/types/event';
+import { EventRecord, EventBookingRecord } from '@/app/types/event';
 import { formatCurrency } from '@/components/organizer/events';
 import { 
   CheckCircle2, 
@@ -29,7 +29,7 @@ export default function BookingDetailPage() {
 
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [booking, setBooking] = useState<EventBookingRecord | null>(null);
-  const [ticketType, setTicketType] = useState<TicketTypeRecord | null>(null);
+  // Ticket types removed; booking records drive the display
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,13 +51,7 @@ export default function BookingDetailPage() {
         if (!active) return;
         setEvent(eventData);
 
-        if (bookingData.ticket_type_id) {
-          const tickets = await eventsService.getTicketTypes(eventId);
-          const matched = tickets.find((t) => t.id === bookingData.ticket_type_id);
-          if (matched && active) {
-            setTicketType(matched);
-          }
-        }
+        // no-op: ticket types deprecated
       } catch (err) {
         if (active) {
           setError(err instanceof Error ? err.message : 'Failed to load booking details');
@@ -110,8 +104,7 @@ export default function BookingDetailPage() {
 
   const isOffline = booking.payment_method === 'bank' || booking.payment_method === 'cash';
   const isPending = booking.booking_status === 'pending_payment' || (isOffline && booking.booking_status === 'pending_confirmation');
-  const price = ticketType ? ticketType.price : 0;
-  const totalAmount = price * booking.slots_requested;
+  const totalAmount = (booking as any).total_amount || 0;
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
