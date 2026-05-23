@@ -4,6 +4,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Eye, EyeOff } from 'lucide-react'
 import LoginHeader from "../../components/loginHeader"
 import { getRoleFromToken, ROLE_DASHBOARDS, saveAuthSession, getVendorPortalRoute, getOrganizerPortalRoute } from '@/app/lib/auth'
 
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [keepLoggedIn, setKeepLoggedIn] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -108,15 +110,25 @@ export default function LoginPage() {
               <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border text-[#0F172A] border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0F172A] outline-none transition"
-                required
-                disabled={isLoading}
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-2 pr-10 border text-[#0F172A] border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0F172A] outline-none transition"
+                  required
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
 
             {/** Forgot Password */}
