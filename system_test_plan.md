@@ -11,6 +11,19 @@ This document breaks down the entire developed system into testable components a
 - [ ] Organizer registration and login.
 - [ ] OTP-based email verification for Organizers.
 - [ ] Direct login for Government Roles (Ministry, Municipal, Police) without email verification.
+## Global Connect Ethiopia - End-to-End System Test Plan
+
+This document breaks down the developed system into testable components across Phase 1 and Phase 2, focused on bookings (ticketing deprecated), venue reservations, and AI-powered features.
+
+---
+
+## Phase 1: Core Event Lifecycle & Multi-Authority Approvals
+
+### 1. Authentication & Role Management
+**Functionalities:**
+- [ ] Organizer registration and login.
+- [ ] OTP-based email verification for Organizers.
+- [ ] Direct login for Government Roles (Ministry, Municipal, Police) without email verification.
 - [ ] Admin login and dashboard routing.
 - [ ] Vendor registration and login.
 
@@ -40,7 +53,7 @@ This document breaks down the entire developed system into testable components a
 - [ ] **Team Setup**: Invite team members via email, assign them roles, and accept invitations.
 - [ ] **Tasks Tracker**: Create, assign, and update statuses of operational tasks.
 - [ ] **Booking Settings**: Configure public booking links, capacities, and required fields.
-- [ ] **Ticketing & QR Codes**: Register an attendee and verify that a QR code pass is generated.
+- [ ] **Bookings & QR Codes**: Create a booking (attendee registration) and verify that a QR code pass is generated.
 - [ ] **Operations (Check-In & Incidents)**:
   - [ ] Scan/simulate QR check-in to update attendee status.
   - [ ] Log an incident (e.g., Medical, Security) with a severity level.
@@ -48,7 +61,7 @@ This document breaks down the entire developed system into testable components a
 - [ ] **Wrap-Up**: Complete final event reports and view post-event feedback surveys.
 
 **Expected Errors / Edge Cases:**
-- `Capacity Exceeded`: Attempting to book a ticket when `remaining_slots` is 0.
+- `Capacity Exceeded`: Attempting to create a booking when `remaining_slots` is 0.
 - Scheduling a session that ends before it starts.
 - Attempting to check-in an invalid or already used QR code.
 
@@ -96,7 +109,7 @@ This document breaks down the entire developed system into testable components a
   - [ ] Toggle AI mock mode via API endpoints to test offline demonstration stability.
 
 **Expected Errors / Edge Cases:**
-- Gemini API timeout or API Key invalid: The system should cleanly gracefully degrade and offer the `fallback_action` to visit the FAQ or contact the Ministry.
+- Gemini API timeout or API Key invalid: The system should gracefully degrade and offer the `fallback_action` to visit the FAQ or contact the Ministry.
 
 ---
 
@@ -132,33 +145,6 @@ This document breaks down the entire developed system into testable components a
 
 ### Test Case 2: Phase 1 - Proposal & Approval Pipeline
 **Objective:** Verify the multi-authority approval pipeline creates a live event.
-**Steps:**
-1. As an Organizer, go to `Proposals` and click `Create Proposal`. Fill details and submit.
-2. Log out and log in as `Ministry`. Go to the review queue.
-3. Open the pending proposal, add a review note, and click `Approve`.
-4. Log out and log in as `Municipal`. Find the ministry-approved proposal and `Approve` it.
-5. Log out and log in as `Police`. Verify the approved event appears in the security dashboard.
-6. Log in as `Organizer`. Verify the proposal status is `Approved` and click `Open Event Workspace`.
-
-### Test Case 3: Phase 1 - Event Workspace & Operations
-**Objective:** Verify that organizers can manage their event post-approval.
-**Steps:**
-1. In the Event Workspace, navigate to the `Team` tab. Invite a new user and assign a role.
-2. Navigate to the `Budget` tab. Add an estimated expense and an actual expense.
-3. Navigate to the `Tasks` tab. Create a new task and move it from `To Do` to `In Progress`.
-4. Navigate to `Booking` and copy the public booking link. Open it in a new window and register as an attendee.
-5. In the `Operations` tab, simulate checking in the attendee using their generated QR code string.
-6. Still in `Operations`, log a "Medical" incident and ensure it appears in the incident log.
-
-### Test Case 4: Phase 2 - Venue Reservation
-**Objective:** Verify the venue handshake between Vendors and Organizers.
-**Steps:**
-1. Log in as a `Vendor`. Navigate to `Venue Listings` and create a new venue with a set capacity and deposit price.
-2. Log in as an `Organizer`. Go to the Event Workspace `Venue` tab and search for the venue. Click `Request Booking`.
-3. Switch back to the `Vendor`. Go to `Requests`, review the incoming reservation, and click `Accept`.
-4. Switch back to the `Organizer`. Go to the `Venue` tab and click `Confirm Reservation`.
-
-### Test Case 5: Phase 2 - Marketplace Contracts
 **Objective:** Verify that organizers can post opportunities and award contracts to vendors.
 **Steps:**
 1. As an Organizer, go to `Opportunities` and create a request (e.g., Catering).

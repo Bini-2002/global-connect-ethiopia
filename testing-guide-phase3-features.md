@@ -27,7 +27,7 @@ This guide isolates the exact features requested in the Phase 3 prompt to ensure
 
 ### Test 3: Revenue Analytics Graph Rendering
 1. **Action:** Log in as Organizer → Event Workspace → **Analytics** tab.
-2. **Verify:** The page must render a **Revenue vs. Budget** bar chart showing Tickets, Vendor Fees, Sponsorships, and Total.
+2. **Verify:** The page must render a **Revenue vs. Budget** bar chart showing Bookings (or ticket-derived revenue), Vendor Fees, Sponsorships, and Total.
 3. **Verify:** The "Last updated: [Timestamp]" label is visible and shows when the data was fetched.
 
 ### Test 4: Payment Method Filter
@@ -102,8 +102,8 @@ use globalconnect
 // Check if notifications are saving
 db.notifications.find().sort({created_at: -1}).limit(2)
 
-// Check if manual attendee ticket exists
-db.ticket_purchases.find({registration_type: "manual"}).limit(1)
+// Check if manual attendee booking exists
+db.bookings.find({registration_type: "manual"}).limit(1)
 
 // Check if VIP reservation saved
 db.vip_hotel_reservations.find().limit(1)

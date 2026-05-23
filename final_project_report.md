@@ -48,8 +48,8 @@
 
 | UC | Title | What's Missing |
 |----|-------|----------------|
-| UC-10 | Publish Ticketed Event & Configure Inventory | **N.B. Replaced by Organizer Role** — Backend ticket types exist (`POST /events/{id}/ticket-types`). Frontend ticket config UI is present but the "Organizer books on behalf of attendees" flow using wallet payment is missing the dedicated UI panel. |
-| UC-11 | Purchase Paid Ticket (→ Organizer Role) | Backend: `POST /events/{id}/tickets/checkout` + `/confirm-payment` fully exists. Frontend: The organizer booking/checkout page needs a dedicated "Book Attendee" form that uses the organizer wallet to pay. |
+| UC-10 | Publish Event & Configure Booking Capacity | **Note:** Public paid ticket sales have been deprecated. Use booking/capacity settings and organizer-managed bookings instead. |
+| UC-11 | Attendee Booking / Organizer Registrations | Backend: booking endpoints remain. Traditional `tickets/checkout` and `tickets/confirm-payment` routes are deprecated; organizer-managed booking flows should be used. |
 | UC-12 | Prevent Overbooking | Backend: optimistic concurrency on `booked_count` exists. Frontend: `remaining_slots` is returned but not prominently shown on event listing. Minor UI gap. |
 | UC-13 | Publish Accommodation Vacancy | Backend: `POST /venues/` exists (serves both venue & accommodation). Hotel-specific listing (`Hotel` category) fully works. Frontend: `/vendor/venue-listings` exists but **no dedicated "Hotel Accommodation" listing form** — uses generic venue form. |
 | UC-14 | Reserve Accommodation | Backend: VIP hotel room reservation (`/events/{id}/vip/hotel-reservations`) fully built. Frontend: `/vendor/hotel-reservations` page exists. Gap: **regular (non-VIP) accommodation booking** by attendees has no dedicated frontend page. |
@@ -145,14 +145,14 @@ File: `frontend/app/police/proposals/page.tsx`
 
 The police proposals list page needs to call `POST /api/v1/police/proposals/{id}/acknowledge` when the officer reviews a proposal. Add an "Acknowledge" button to each proposal row.
 
-**Step 5: Organizer Ticket Booking UI**
+**Step 5: Organizer Booking / Registration UI**
 
-Since ticketing is replaced by the organizer role, add a simple form in the event detail page that allows the organizer to:
-1. Select a ticket type
-2. Enter attendee name + email
-3. Submit via `POST /events/{id}/tickets/checkout` then `confirm-payment`
+Since public ticket sales have been deprecated, add a simple organizer-managed booking form in the event detail page that allows the organizer to:
+1. Enter attendee name + email and optional booking details
+2. Create the booking via the booking endpoint (e.g., `POST /events/{id}/bookings`)
+3. Record payment in the organizer accounting or wallet workflow if needed (offline or wallet-based flows)
 
-This replaces the traditional attendee self-purchase flow.
+This replaces the traditional attendee self-purchase flow and avoids the removed checkout/confirm endpoints.
 
 **Step 6: Fix Accommodation Frontend Gap**
 
@@ -205,8 +205,8 @@ Test `GET /api/v1/admin/organizers` → approve/reject flow from `/admin/organiz
 |------|----------|----------|
 | Create Event | `POST /events/from-proposal/{id}` | event created, status=draft |
 | Update & Publish | `PATCH /events/{id}` → `POST /events/{id}/publish` | status=published |
-| Configure Tickets | `POST /events/{id}/ticket-types` | ticket inventory created |
-| Book Attendee (Organizer) | `POST /events/{id}/tickets/checkout` | booking_reference returned |
+| Configure Booking Capacity | `PATCH /events/{id}` (capacity/booking settings) | capacity and remaining_slots set |
+| Book Attendee (Organizer) | `POST /events/{id}/bookings` | booking_reference returned |
 | Generate Badge | `POST /events/{id}/badges/generate` | badge with QR code |
 | Check-in Scan | `POST /events/{id}/bookings/{bid}/check-in` | check_in_status=checked_in |
 

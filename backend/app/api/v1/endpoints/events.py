@@ -1081,6 +1081,30 @@ async def cancel_event(
             "updated_at": now,
         }
         await announcement_delivery_collection.insert_one(doc)
+    # Send emails to confirmed booking recipients (best-effort)
+    try:
+        from app.services.email_service import EmailService
+        for booking in bookings:
+            recipient = booking.get('attendee_email')
+            if not recipient:
+                continue
+            try:
+                EmailService.send_generic_email(
+                    recipient_email=recipient,
+                    subject=f"Event Cancelled: {event.get('title')}",
+                    body=(
+                        f"Dear {booking.get('attendee_name') or 'attendee'},\n\n"
+                        f"We regret to inform you that the event '{event.get('title')}' has been cancelled.\n"
+                        f"Reason: {payload.reason or 'Not specified'}.\n\n"
+                        "If you had any bookings, refunds or further instructions will follow.\n\n"
+                        "Best regards,\nGlobal Connect Ethiopia"
+                    ),
+                )
+            except Exception:
+                # best-effort: don't fail the API if email send fails
+                pass
+    except Exception:
+        pass
 
     updated = await event_collection.find_one({"_id": event["_id"]})
     return _event_base_response(updated)
@@ -1131,6 +1155,30 @@ async def postpone_event(
             "updated_at": now,
         }
         await announcement_delivery_collection.insert_one(doc)
+    # Send emails to confirmed booking recipients (best-effort)
+    try:
+        from app.services.email_service import EmailService
+        for booking in bookings:
+            recipient = booking.get('attendee_email')
+            if not recipient:
+                continue
+            try:
+                EmailService.send_generic_email(
+                    recipient_email=recipient,
+                    subject=f"Event Postponed: {event.get('title')}",
+                    body=(
+                        f"Dear {booking.get('attendee_name') or 'attendee'},\n\n"
+                        f"The event '{event.get('title')}' has been postponed.\n"
+                        f"New Dates: {payload.new_start_date.strftime('%Y-%m-%d %H:%M')} to {payload.new_end_date.strftime('%Y-%m-%d %H:%M')}.\n"
+                        f"Reason: {payload.reason or 'Not specified'}.\n\n"
+                        "Please check the event page for updated details.\n\n"
+                        "Best regards,\nGlobal Connect Ethiopia"
+                    ),
+                )
+            except Exception:
+                pass
+    except Exception:
+        pass
 
     updated = await event_collection.find_one({"_id": event["_id"]})
     return _event_base_response(updated)
@@ -2293,6 +2341,7 @@ async def get_booking_qr_code_image(
     event_id: str,
     booking_id: str,
     current_user: dict = Depends(get_current_user),
+    download: bool = Query(False, description="Return as attachment for download if true"),
 ):
     event = await _get_event_or_404(event_id)
     booking = await _get_booking_or_404(event_id, booking_id)
@@ -2302,10 +2351,13 @@ async def get_booking_qr_code_image(
         raise HTTPException(status_code=400, detail="A QR code is only generated for confirmed bookings")
 
     image_bytes = generate_qr_png_bytes(qr_code)
+    disposition = 'attachment' if download else 'inline'
     return StreamingResponse(
         BytesIO(image_bytes),
         media_type="image/png",
-        headers={"Content-Disposition": f'inline; filename="booking-{booking.get("booking_reference", booking_id)}-qr.png"'},
+        headers={
+            "Content-Disposition": f'{disposition}; filename="booking-{booking.get("booking_reference", booking_id)}-qr.png"'
+        },
     )
 
 
@@ -2314,6 +2366,7 @@ async def get_booking_check_in_pass(
     event_id: str,
     booking_id: str,
     current_user: dict = Depends(get_current_user),
+    download: bool = Query(False, description="Return as attachment for download if true"),
 ):
     event = await _get_event_or_404(event_id)
     booking = await _get_booking_or_404(event_id, booking_id)
@@ -2330,10 +2383,13 @@ async def get_booking_check_in_pass(
         attendee_name=booking.get("attendee_name"),
         booking_reference=booking.get("booking_reference", booking_id),
     )
+    disposition = 'attachment' if download else 'inline'
     return StreamingResponse(
         BytesIO(image_bytes),
         media_type="image/png",
-        headers={"Content-Disposition": f'inline; filename="booking-{booking.get("booking_reference", booking_id)}-pass.png"'},
+        headers={
+            "Content-Disposition": f'{disposition}; filename="booking-{booking.get("booking_reference", booking_id)}-pass.png"'
+        },
     )
 
 

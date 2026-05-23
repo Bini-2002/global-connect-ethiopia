@@ -84,7 +84,7 @@ curl -X POST http://localhost:8000/api/v1/notifications/read-all \
 
 ### 6.2 Chart Renders Revenue vs Budget
 1. If budget items were added (Samri's Block 3.1), the chart should show bars
-2. **Expected:** dark green bars (Revenue) beside teal bars (Budget) for Tickets, Vendor Fees, Sponsorship, Total
+2. **Expected:** dark green bars (Revenue) beside teal bars (Budget) for Bookings (ticket-derived revenue), Vendor Fees, Sponsorship, Total
 3. Hover over a bar → **Expected:** tooltip shows the exact value
 
 ### 6.3 Payment Method Filter
@@ -108,13 +108,13 @@ curl -X POST http://localhost:8000/api/v1/notifications/read-all \
 This is correct if no bookings or vendor transactions exist.
 To generate test data:
 1. Create and open booking as attendee (Block 8 below)
-2. Then revisit Analytics — ticket revenue should appear.
+2. Then revisit Analytics — booking revenue should appear.
 ```
 
 **Chart bars not rendering (blank white box):**
 ```
 Fix: Open DevTools → Console. If you see "Cannot read property of undefined",
-     the data.ticket_revenue or data.vendor_fee_revenue may be null.
+    the data.booking_revenue or data.vendor_fee_revenue may be null.
      Check backend/app/services/analytics_service.py — the aggregation
      must always return a default {total:0, by_payment_method:{}} structure.
 ```
@@ -248,7 +248,7 @@ db.events.findOne({title:"Tech Summit 2026"}).organizer_id must match your user 
 ```
 This is expected in local dev — email delivery is disabled unless
 SMTP_ENABLED=true or RESEND_ENABLED=true in backend/.env.
-The booking is still created. Check: db.ticket_purchases.find({attendee_email:"vip@test.com"})
+The booking is still created. Check: db.bookings.find({attendee_email:"vip@test.com"})
 ```
 
 ---
@@ -388,7 +388,7 @@ use globalconnect
 db.events.find({},{title:1,status:1,booking_status:1}).pretty()
 db.notifications.find({read_status:false}).pretty()
 db.vip_hotel_reservations.find({}).pretty()
-db.ticket_purchases.find({registration_type:"manual"}).pretty()
+db.bookings.find({registration_type:"manual"}).pretty()
 
 # Test analytics endpoint
 curl http://localhost:8000/api/v1/analytics/revenue/events/EVENT_ID \
