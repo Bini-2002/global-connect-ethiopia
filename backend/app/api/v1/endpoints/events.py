@@ -28,7 +28,6 @@ from app.db.mongodb import (
     permit_collection,
     police_notification_collection,
     proposal_collection,
-    ticket_type_collection,
     ticket_purchase_collection,
     user_collection,
     venue_reservation_collection,
@@ -83,10 +82,8 @@ from app.schemas.event import (
     IncidentCreate,
     IncidentResponse,
     IncidentUpdate,
-    TicketCheckoutRequest,
-    TicketPaymentConfirmRequest,
-    TicketTypeResponse,
-    TicketTypeUpdate,
+    EventCancelRequest,
+    EventPostponeRequest,
     EventCancelRequest,
     EventPostponeRequest,
 )
@@ -1967,114 +1964,16 @@ async def update_booking_settings(
     return _event_base_response(updated)
 
 
-@router.get("/{event_id}/ticket-types", response_model=list[TicketTypeResponse])
-async def list_ticket_types(event_id: str, current_user: dict = Depends(get_current_user)):
-    event = await _get_event_or_404(event_id)
-    await _ensure_team_access(event, current_user)
-    docs = await ticket_type_collection.find({"event_id": event_id}, sort=[("created_at", -1)]).to_list(length=200)
-    return [_serialize_ticket_type(doc) for doc in docs]
-
-
-@router.post("/{event_id}/ticket-types", response_model=TicketTypeResponse, status_code=201)
-async def create_ticket_type(event_id: str, payload: TicketTypeCreate, current_user: dict = Depends(get_current_user)):
-    event = await _get_event_or_404(event_id)
-    await _ensure_team_access(event, current_user)
-    now = utc_now()
-    doc = {
-        "event_id": event_id,
-        "name": payload.name.strip(),
-        "description": payload.description.strip() if payload.description else None,
-        "price": float(payload.price),
-        "quantity": int(payload.quantity),
-        "sold_quantity": 0,
-        "reserved_quantity": 0,
-        "currency": payload.currency,
-        "sales_start": payload.sales_start,
-        "sales_end": payload.sales_end,
-        "seat_mode": payload.seat_mode,
-        "visibility": payload.visibility,
-        "is_active": payload.is_active,
-        "created_at": now,
-        "updated_at": now,
-    }
-    result = await ticket_type_collection.insert_one(doc)
-    doc["_id"] = result.inserted_id
-    await event_collection.update_one({"_id": event["_id"]}, {"$set": {"ticketing_status": "configured", "updated_at": now}})
-    return _serialize_ticket_type(doc)
-
-
-@router.patch("/{event_id}/ticket-types/{ticket_type_id}", response_model=TicketTypeResponse)
-async def update_ticket_type(
-    event_id: str,
-    ticket_type_id: str,
-    payload: TicketTypeUpdate,
-    current_user: dict = Depends(get_current_user),
-):
-    event = await _get_event_or_404(event_id)
-    await _ensure_team_access(event, current_user)
-    ticket_type = await ticket_type_collection.find_one({"_id": parse_object_id(ticket_type_id, field_name="ticket type id"), "event_id": event_id})
-    if not ticket_type:
-        raise HTTPException(status_code=404, detail="Ticket type not found")
-
-    updates: dict[str, object] = {"updated_at": utc_now()}
-    if payload.name is not None:
-        updates["name"] = payload.name.strip()
-    if payload.description is not None:
-        updates["description"] = payload.description.strip() if payload.description else None
-    if payload.price is not None:
-        updates["price"] = float(payload.price)
-    if payload.quantity is not None:
-        sold_quantity = int(ticket_type.get("sold_quantity", 0))
-        reserved_quantity = int(ticket_type.get("reserved_quantity", 0))
-        if payload.quantity < sold_quantity + reserved_quantity:
-            raise HTTPException(status_code=400, detail="Quantity cannot be below sold plus reserved tickets")
-        updates["quantity"] = int(payload.quantity)
-    if payload.currency is not None:
-        updates["currency"] = payload.currency
-    if payload.sales_start is not None:
-        updates["sales_start"] = payload.sales_start
-    if payload.sales_end is not None:
-        updates["sales_end"] = payload.sales_end
-    if payload.seat_mode is not None:
-        updates["seat_mode"] = payload.seat_mode
-    if payload.visibility is not None:
-        updates["visibility"] = payload.visibility
-    if payload.is_active is not None:
-        updates["is_active"] = payload.is_active
-
-    await ticket_type_collection.update_one({"_id": ticket_type["_id"]}, {"$set": updates})
-    refreshed = await ticket_type_collection.find_one({"_id": ticket_type["_id"]})
-    if not refreshed:
-        raise HTTPException(status_code=404, detail="Ticket type not found")
-    return _serialize_ticket_type(refreshed)
-
-
 @router.post("/{event_id}/ticketing/activate", response_model=EventResponse)
 async def activate_ticketing(event_id: str, current_user: dict = Depends(get_current_user)):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    now = utc_now()
-    updated = await event_collection.find_one_and_update(
-        {"_id": event["_id"]},
-        {"$set": {"ticketing_status": "sales_live", "updated_at": now}},
-        return_document=ReturnDocument.AFTER,
-    )
-    if not updated:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return _event_base_response(updated)
+    # Ticketing activation endpoint removed — ticket types and sales are deprecated.
+    raise HTTPException(status_code=410, detail="Ticketing feature removed")
 
 
 @router.post("/{event_id}/ticketing/deactivate", response_model=EventResponse)
 async def deactivate_ticketing(event_id: str, current_user: dict = Depends(get_current_user)):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    now = utc_now()
-    updated = await event_collection.find_one_and_update(
-        {"_id": event["_id"]},
-        {"$set": {"ticketing_status": "sales_closed", "updated_at": now}},
-        return_document=ReturnDocument.AFTER,
-    )
-    if not updated:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return _event_base_response(updated)
+    # Ticketing deactivation endpoint removed — ticket types and sales are deprecated.
+    raise HTTPException(status_code=410, detail="Ticketing feature removed")
 
 
 @router.get("/{event_id}/bookings", response_model=list[EventBookingResponse])

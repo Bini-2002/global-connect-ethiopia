@@ -29,11 +29,6 @@ This plan is divided into two distinct phases for two developers to execute sequ
 - [ ] **Action:** Back as the Organizer, convert the approved proposal into an active **Event**.
 - [ ] **Action:** Navigate to the **Schedule Tab**. Use the **AI Scheduler** to auto-generate a 3-day itinerary based on the event description. Apply the drafted AI schedule to the live event.
 
-----------------------------------------------------------------------------------------------------------------------------------------------
-
-
-- [ ] **Action:** Navigate to the **Ticketing Tab**. Create at least two ticket types: "General Admission" and "VIP Pass".
-
 ### 4. Marketplace Interaction: Opportunities & Bidding
 - [ ] **Action:** The Organizer needs catering. Use the **AI Vendor Recommendation** engine on the Vendors tab to find matches.
 - [ ] **Action:** Create an **Opportunity** broadcast for "Catering for 5,000 attendees".
@@ -50,7 +45,7 @@ This plan is divided into two distinct phases for two developers to execute sequ
 - [ ] **Action:** Click **Sign Contract**.
 - [ ] **Action:** Log in as the Vendor, go to the Contracts dashboard, and **Sign Contract**.
 - [ ] **Action:** Log back in as the Organizer. Navigate to the **Wallet**. Click **Top Up via Chapa**. Use the Mock Popup to deposit 1,500,000 ETB.
-- [ ] **Action:** Return to the signed contract and click **Fund Escrow**. Verify the 500,000 ETB moves from your Available Balance to your Locked Escrow Balance.
+- [ ] **Action:** Return to the signed contract and click **Fund Escrow**. Verify the 500,000 ETB moves from your Available Balance to your Locked Escrow Balance.()
 
 ### 2. Team Management & Task Delegation
 - [ ] **Action:** As the Organizer, go to the **Team** tab. Invite a new email as a Team Member.
@@ -60,14 +55,17 @@ This plan is divided into two distinct phases for two developers to execute sequ
 - [ ] **Action:** Organizer approves the task. 
 - [ ] **Action:** Team Member goes to their wallet, requests a withdrawal of 5,000 ETB using the **Mock Chapa Popup**.
 
-### 3. Attendee Booking & Hotel Reservations
-- [ ] **Action (Organizer Booking):** As the Organizer, navigate to the attendee registration section. Manually book a ticket on behalf of a VIP attendee (e.g., "Abebe Kebede"). Pay for the ticket using the Organizer's wallet.
+### 3. Attendee Registration & Hotel Reservations
+- [ ] **Action:** As the Organizer, use the attendee registration section to add a VIP attendee record (e.g., "Abebe Kebede"). This should create the attendee profile without relying on ticket inventory.
 - [ ] **Action (Hotel Booking):** Navigate to the **Hotel Reservations** tab. Book a VIP room at the "Symposium VIP Hotel" (created by Samri in Part 1) for your VIP guest.
-- [ ] **Action (Badges):** Generate a QR Check-in badge for Abebe Kebede.
+- [ ] **Action (Badges):** Generate a QR Check-in badge for Abebe Kebede. (the QR may not display or download in all environments)
 
 ### 4. Event Operations: Announcements & Notifications
 - [ ] **Action:** As the Organizer, go to the **Announcements** tab. Create an urgent broadcast: "Keynote moved to Main Hall".
 - [ ] **Action:** Log in as the Team Member (and check the Attendee profile if testing email delivery). Check the **In-App Notifications** bell icon. Mark the notification as Read.
+(we can't create announcement from team members
+- no notification bell icon on the team member)
+
 
 ### 5. AI Chatbot Testing
 - [ ] **Action:** Navigate to the global Chatbot UI (bottom right or `/faq` page). 
@@ -82,8 +80,10 @@ This plan is divided into two distinct phases for two developers to execute sequ
 - [ ] **Action (Postpone):** As the Organizer, navigate to the **Event Overview** page. Click the **Postpone** button and set new future dates. Verify that an automated postponement announcement is queued for the registered VIP attendee.
 - [ ] **Action (Cancel):** Back on the **Event Overview** page, click **Cancel Event**, provide a reason, and submit. Verify that the event status updates to `CANCELLED` and any active venue reservations are automatically released.
 
+(- send postpone and cancel emails please : closed and open event as catch the event type form the backend)
+
 ### 8. Global Analytics & Admin Receipts
-- [ ] **Action (Organizer Analytics):** As the Organizer, go to the Event Analytics dashboard. Verify the revenue charts show ticket sales, escrow locks, and team payouts accurately.
+- [ ] **Action (Organizer Analytics):** As the Organizer, go to the Event Analytics dashboard. Verify the revenue charts show escrow locks, vendor payments, and team payouts accurately.
 - [ ] **Action (Admin Analytics):** Log in as the Admin. Navigate to **Admin Analytics**. Verify the global revenue metrics.
 - [ ] **Action (Platform Fees):** Scroll to the **Platform Fee Receipts** table. Confirm the exact 10% cut (50,000 ETB) from the catering contract is logged with its timestamp and transaction ID.
 
