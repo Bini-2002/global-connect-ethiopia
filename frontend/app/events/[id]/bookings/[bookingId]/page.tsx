@@ -237,6 +237,16 @@ export default function BookingDetailPage() {
                       alt="Check-in QR Code" 
                       className="w-48 h-48 mx-auto"
                     />
+                    <div className="mt-3 text-center">
+                      <a
+                        href={api.resolveUrl(booking.qr_code_image_url) + '?download=true'}
+                        download
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Download QR
+                      </a>
+                    </div>
                   </div>
                 ) : (
                   <div className="w-48 h-48 bg-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400">
@@ -248,14 +258,16 @@ export default function BookingDetailPage() {
                 <p className="text-xs font-mono text-slate-400 mt-2">Reference: {booking.booking_reference}</p>
 
                 {booking.check_in_pass_image_url && (
-                  <Link
-                    href={api.resolveUrl(booking.check_in_pass_image_url)}
+                  <a
+                    href={api.resolveUrl(booking.check_in_pass_image_url) + '?download=true'}
                     target="_blank"
+                    rel="noreferrer"
+                    download
                     className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#062E22] hover:bg-[#0a4a37] text-white rounded-xl text-sm font-semibold transition shadow-sm mt-2"
                   >
                     <Download className="w-4 h-4" />
-                    Download PDF Pass
-                  </Link>
+                    Download Pass
+                  </a>
                 )}
               </div>
             )}

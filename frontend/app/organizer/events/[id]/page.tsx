@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -29,6 +29,14 @@ import {
   sentenceCase,
 } from '@/components/organizer/events';
 import { api } from '@/app/lib/api';
+import { getToken } from '@/app/lib/auth';
+
+interface OrganizerVerificationStatusResponse {
+  profile_type?: 'organization' | 'individual';
+  onboarding_status?: string;
+  verification_status?: string;
+  status?: string;
+}
 
 const workspaceCards = [
   {
@@ -112,6 +120,23 @@ export default function OrganizerEventDetailPage() {
   const { event, loading, error, setEvent, setError } = useEventWorkspace(eventId);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [cloning, setCloning] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<OrganizerVerificationStatusResponse | null>(null);
+
+  useEffect(() => {
+    const loadVerificationStatus = async () => {
+      try {
+        const token = getToken();
+        const data = await api.get<OrganizerVerificationStatusResponse>(
+          '/organizers/verification-status',
+          { authToken: token ?? undefined }
+        );
+        setVerificationStatus(data);
+      } catch (err) {
+        console.error('Failed to load organizer verification status:', err);
+      }
+    };
+    void loadVerificationStatus();
+  }, []);
 
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -264,14 +289,16 @@ export default function OrganizerEventDetailPage() {
               </button>
             </>
           )}
-          <button
-            onClick={() => void handleClone()}
-            disabled={cloning || !!actionLoading}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
-          >
-            {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-            {cloning ? 'Cloning…' : 'Clone Event'}
-          </button>
+          {(verificationStatus?.verification_status === 'approved' || verificationStatus?.status === 'approved') && (
+            <button
+              onClick={() => void handleClone()}
+              disabled={cloning || !!actionLoading}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+            >
+              {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+              {cloning ? 'Cloning…' : 'Clone Event'}
+            </button>
+          )}
         </>
       )}
     </>
