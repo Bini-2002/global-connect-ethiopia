@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from datetime import datetime, timezone
 from bson import ObjectId
 from app.db.mongodb import announcement_delivery_collection, profile_collection, user_collection
 from app.schemas.event import AnnouncementDeliveryResponse
 from app.schemas.profile import ProfileResponse, ProfileUpdate
 from app.api.v1.deps import get_current_user
+from app.services.marketplace_images import MarketplaceImageStorageService
 
 router = APIRouter()
 
@@ -47,7 +48,12 @@ async def get_my_profile(current_user: dict = Depends(get_current_user)):
             profile["name"] = user.get("full_name") if user else None
 
         profile["email"] = current_user.get("email")
-        
+
+        # Support avatar_url from direct field or legacy extra_data
+        if not profile.get("avatar_url"):
+            extra = profile.get("extra_data") or {}
+            profile["avatar_url"] = extra.get("avatar_url")
+
         # Defensive for legacy profiles without timestamps
         now = datetime.now(timezone.utc)
         if not profile.get("created_at"):
@@ -83,6 +89,7 @@ async def update_my_profile(
             "bio": profile_in.bio,
             "phone": profile_in.phone,
             "address": profile_in.address,
+            "avatar_url": profile_in.avatar_url,
             "extra_data": profile_in.extra_data or {},
             "created_at": now,
             "updated_at": now,
@@ -134,6 +141,30 @@ async def update_my_profile(
         updated_profile["updated_at"] = now
         
     return updated_profile
+
+
+@router.post("/me/avatar")
+async def upload_my_avatar(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    ALLOWED = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+    if file.content_type not in ALLOWED:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPEG, PNG, GIF, and WebP images are allowed.",
+        )
+
+    image_service = MarketplaceImageStorageService()
+    result = await image_service.upload_images([file], folder="avatars")
+    avatar_url = result[0]["url"]
+
+    await profile_collection.update_one(
+        {"user_id": ObjectId(current_user["id"])},
+        {"$set": {"avatar_url": avatar_url, "updated_at": datetime.now(timezone.utc)}},
+    )
+
+    return {"avatar_url": avatar_url}
 
 
 @router.get("/me/in-app-announcements", response_model=list[AnnouncementDeliveryResponse])
