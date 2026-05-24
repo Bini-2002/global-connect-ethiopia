@@ -63,6 +63,8 @@ This plan is divided into two distinct phases for two developers to execute sequ
 ### 4. Event Operations: Announcements & Notifications
 - [ ] **Action:** As the Organizer, go to the **Announcements** tab. Create an urgent broadcast: "Keynote moved to Main Hall".
 - [ ] **Action:** Log in as the Team Member (and check the Attendee profile if testing email delivery). Check the **In-App Notifications** bell icon. Mark the notification as Read.
+
+
 (we can't create announcement from team members
 - no notification bell icon on the team member)
 

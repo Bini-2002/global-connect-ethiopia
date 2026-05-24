@@ -289,16 +289,18 @@ export default function OrganizerEventDetailPage() {
               </button>
             </>
           )}
-          {(verificationStatus?.verification_status === 'approved' || verificationStatus?.status === 'approved') && (
-            <button
-              onClick={() => void handleClone()}
-              disabled={cloning || !!actionLoading}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
-            >
-              {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-              {cloning ? 'Cloning…' : 'Clone Event'}
-            </button>
-          )}
+          {(verificationStatus?.verification_status === 'approved' || verificationStatus?.status === 'approved') &&
+            verificationStatus?.verification_status !== 'proposed' &&
+            verificationStatus?.status !== 'proposed' && (
+              <button
+                onClick={() => void handleClone()}
+                disabled={cloning || !!actionLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+              >
+                {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+                {cloning ? 'Cloning…' : 'Clone Event'}
+              </button>
+            )}
         </>
       )}
     </>
