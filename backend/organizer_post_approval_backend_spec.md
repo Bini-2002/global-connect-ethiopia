@@ -287,49 +287,17 @@ Recommended contract states:
 
 ---
 
-## Phase 6: Ticketing and Sales
+## Phase 6: Booking & Capacity (Ticketing Deprecated)
 
-### Step 10: Configure ticketing
+Note: The project no longer supports a public paid ticket sales flow. Traditional ticket inventory and checkout endpoints have been deprecated and replaced by a booking-first model where organizers create and manage attendee bookings directly.
 
-Document basis:
-- `UC-10 Publish Ticketed Event & Configure Inventory`
+Recommended approach (current):
+- Use the existing booking endpoints for attendee registration and organizer-managed registrations.
+- Verify `remaining_slots` and `capacity` on event records before creating bookings.
 
-Backend responsibility:
-- define ticket types
-- configure quantity
-- configure pricing
-- configure payment options
-- activate sales
-
-Recommended endpoints:
-- `POST /events/{event_id}/ticket-types`
-- `PATCH /events/{event_id}/ticket-types/{ticket_type_id}`
-- `POST /events/{event_id}/ticketing/activate`
-- `POST /events/{event_id}/ticketing/deactivate`
-
-Suggested ticketing fields:
-- name
-- price
-- quantity
-- reserved_quantity
-- sales_start
-- sales_end
-- seat_mode
-- visibility
-
-### Step 11: Enforce inventory and prevent overbooking
-
-Document basis:
-- `UC-12 Prevent Overbooking`
-
-Backend requirement:
-- atomic decrement on successful purchase
-- release stock on payment failure
-- optional short reservation hold
-
-Recommended purchase endpoints:
-- `POST /events/{event_id}/tickets/checkout`
-- `POST /events/{event_id}/tickets/confirm-payment`
+Behavioral guidance:
+- Do not rely on `ticket-types`, `tickets/checkout`, or `tickets/confirm-payment` endpoints — these routes are intentionally deprecated and return HTTP 410 in the backend implementation.
+- For organizer-managed paid registrations, implement an offline or wallet-based workflow that records bookings directly (organizer creates booking, records payment in accounting subsystem).
 
 ---
 

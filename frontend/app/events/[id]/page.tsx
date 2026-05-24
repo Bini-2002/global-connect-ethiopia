@@ -14,7 +14,7 @@ import {
   EventBookingRecord,
   EventRecord,
   EventScheduleItemRecord,
-  TicketTypeRecord,
+  
 } from '@/app/types/event';
 
 function formatEventType(type?: string | null): string {
@@ -111,7 +111,7 @@ export default function EventDetailPage() {
   const [role, setRole] = useState<string | null>(null);
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [schedule, setSchedule] = useState<EventScheduleItemRecord[]>([]);
-  const [ticketTypes, setTicketTypes] = useState<TicketTypeRecord[]>([]);
+  // ticket types removed — advance booking handled via bookings API
   const [booking, setBooking] = useState<EventBookingRecord | null>(null);
   const [inboxAnnouncements, setInboxAnnouncements] = useState<AnnouncementDeliveryRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,17 +145,15 @@ export default function EventDetailPage() {
         setLoading(true);
         setError(null);
 
-        const [eventResponse, scheduleResponse, ticketsResponse] = await Promise.all([
+        const [eventResponse, scheduleResponse] = await Promise.all([
           eventsService.getEventById(eventId),
           eventsService.getEventSchedule(eventId).catch(() => []),
-          eventsService.getTicketTypes(eventId).catch(() => []),
         ]);
 
         if (!active) return;
 
         setEvent(eventResponse);
         setSchedule(scheduleResponse);
-        setTicketTypes(ticketsResponse.filter(t => t.visibility === 'public' && t.is_active));
 
         if (getRole() === 'attendee') {
           const [myBookings, inbox] = await Promise.all([
@@ -435,39 +433,30 @@ export default function EventDetailPage() {
 
                     {role !== 'attendee' ? (
                       <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-                        Ticketing is enabled for attendee accounts. Your current role is {role || 'unknown'}.
-                      </div>
-                    ) : ticketTypes.length > 0 ? (
-                      <div className="mt-5 space-y-4">
-                        {ticketTypes.map((ticket) => {
-                          const isSoldOut = ticket.remaining_quantity <= 0;
-                          return (
-                            <div key={ticket.id} className={`rounded-2xl border ${isSoldOut ? 'border-slate-200 opacity-60 bg-slate-50' : 'border-slate-300 bg-white'} p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <h4 className="text-lg font-bold text-[#062E22]">{ticket.name}</h4>
-                                  {isSoldOut && <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-600">Sold Out</span>}
-                                </div>
-                                <p className="text-sm text-slate-500 mt-1">{ticket.description}</p>
-                                <div className="flex items-center gap-4 mt-3">
-                                  <p className="text-sm font-bold text-[#062E22]">{ticket.price === 0 ? 'Free' : formatCurrency(ticket.price)} {ticket.currency}</p>
-                                  <p className="text-sm text-slate-500">Remaining: {ticket.remaining_quantity}</p>
-                                </div>
-                              </div>
-                              <Link
-                                href={isSoldOut ? '#' : `/events/${eventId}/checkout?ticket_id=${ticket.id}`}
-                                className={`px-6 py-2.5 rounded-xl text-sm font-semibold text-center transition ${isSoldOut ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-[#062E22] text-white hover:bg-[#0a4a37]'}`}
-                                onClick={(e) => isSoldOut && e.preventDefault()}
-                              >
-                                {isSoldOut ? 'Sold Out' : 'Select'}
-                              </Link>
-                            </div>
-                          );
-                        })}
+                        Advance booking is available for attendees. Sign in as an attendee to reserve your place.
                       </div>
                     ) : (
-                      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                        No tickets are currently available for this event.
+                      <div className="mt-5 space-y-4">
+                        <p className="text-sm text-slate-500">Advance booking is managed through the attendee booking flow. Click below to reserve a place for one attendee.</p>
+                        <div>
+                          <button
+                            onClick={async () => {
+                              try {
+                                setSubmitting(true);
+                                const created = await eventsService.createBooking(eventId, { slots_requested: 1 });
+                                setBooking(created);
+                                await refreshEventAndBooking();
+                              } catch (err) {
+                                setSubmitError(err instanceof Error ? err.message : 'Unable to reserve a place.');
+                              } finally {
+                                setSubmitting(false);
+                              }
+                            }}
+                            className="px-6 py-2.5 rounded-xl bg-[#062E22] text-white font-semibold hover:bg-[#0a4a37]"
+                          >
+                            Reserve My Seat
+                          </button>
+                        </div>
                       </div>
                     )}
                   </>

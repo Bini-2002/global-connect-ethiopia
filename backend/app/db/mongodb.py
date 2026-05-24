@@ -1,12 +1,32 @@
+import logging
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # --- MOCK DB FALLBACK ---
 if getattr(settings, "USE_MOCK_DB", False):
     from mongomock_motor import AsyncMongoMockClient as MockClient
     client = MockClient()
+    logger.warning("Using MOCK MongoDB client (USE_MOCK_DB=True)")
 else:
-    client = AsyncIOMotorClient(settings.MONGODB_URL, serverSelectionTimeoutMS=2000)
+    # Production Atlas connection with proper options:
+    # - serverSelectionTimeoutMS: 30s (Atlas can be slow on cold start)
+    # - connectTimeoutMS: 20s
+    # - socketTimeoutMS: 45s (for heavy queries)
+    # - retryWrites / retryReads: automatic retry on transient errors
+    # - tls=True: enforced for Atlas SRV URIs (handled by driver automatically)
+    client = AsyncIOMotorClient(
+        settings.MONGODB_URL,
+        serverSelectionTimeoutMS=30000,
+        connectTimeoutMS=20000,
+        socketTimeoutMS=45000,
+        maxPoolSize=50,
+        minPoolSize=5,
+        retryWrites=True,
+        retryReads=True,
+    )
+    logger.info("MongoDB Atlas client initialised (URL: %s...)", settings.MONGODB_URL[:40])
 # ------------------------
 
 db = client[settings.DATABASE_NAME]
@@ -39,7 +59,6 @@ event_team_invitation_collection = db.event_team_invitations
 event_team_member_collection = db.event_team_members
 event_task_collection = db.event_tasks
 vip_reservation_collection = db.vip_reservations
-ticket_type_collection = db.ticket_types
 ticket_purchase_collection = db.ticket_purchases
 badge_collection = db.badges
 event_announcement_collection = db.event_announcements

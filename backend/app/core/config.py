@@ -1,10 +1,15 @@
 from pydantic_settings import BaseSettings
 from typing import List, Optional
+from pathlib import Path
+
+# Resolve the .env file relative to this file's location so uvicorn
+# can be started from any working directory and still find it.
+_ENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env"
 
 class Settings(BaseSettings):
     PROJECT_NAME: str
     VERSION: str
-    
+
     MONGODB_URL: str
     DATABASE_NAME: str
     
@@ -77,7 +82,7 @@ class Settings(BaseSettings):
 
     class Config:
         # case_sensitive = False
-        env_file = ".env"
+        env_file = str(_ENV_FILE)
         extra = "ignore"
 
 
