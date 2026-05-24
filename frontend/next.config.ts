@@ -9,7 +9,6 @@ const __dirname = path.dirname(__filename);
 const backendOrigin = getBackendOrigin();
 
 const nextConfig: NextConfig = {
-  outputFileTracingRoot: path.join(__dirname, ".."),
   eslint: {
     ignoreDuringBuilds: true,
   },

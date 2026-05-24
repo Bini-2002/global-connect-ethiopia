@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # "https://globalconnect.et,https://www.globalconnect.et"
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     FRONTEND_BASE_URL: str = "http://localhost:3000"
-    ALLOWED_ORIGIN_REGEX: str = r"https://.*\.vercel\.app"
+    ALLOWED_ORIGIN_REGEX: str = r"http://(localhost|127\.0\.0\.1):3000"
 
     def get_allowed_origins(self) -> List[str]:
         """Return ALLOWED_ORIGINS as a parsed list, adding the configured frontend origin when available."""

@@ -198,7 +198,11 @@ class EmailService(ResendEmailService):
         if settings.RESEND_ENABLED:
             return ResendEmailService.send_otp_email(recipient_email, otp_code, expiry_minutes)
 
-        logger.info("Neither SMTP nor Resend is configured. OTP email sending skipped for %s", recipient_email)
+        logger.warning("Neither SMTP nor Resend is configured. OTP email sending skipped for %s", recipient_email)
+        print(f"\n==============================================")
+        print(f" [MOCK EMAIL] To: {recipient_email}")
+        print(f" [MOCK EMAIL] OTP Code: {otp_code}")
+        print(f"==============================================\n")
         return None
 
     @classmethod
