@@ -131,7 +131,7 @@ export default function OrganizerVendorDetailPage() {
 
       <main className="pt-16 md:ml-60 p-6">
         <div className="mx-auto max-w-6xl space-y-6">
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center justify-between flex-wrap gap-3 animate-fade-in">
             <div className="flex items-center gap-3">
               <Link href="/organizer/vendors" className="inline-flex items-center text-[#062E22] hover:opacity-70 transition">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,7 +177,7 @@ export default function OrganizerVendorDetailPage() {
           ) : (
             <>
 
-              <div className="mt-6">
+              <div className="mt-6 animate-fade-in delay-150">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Services</p>
                 <div className="mt-4">
                   {vendor.service_records && vendor.service_records.length > 0 ? (
@@ -285,7 +285,7 @@ export default function OrganizerVendorDetailPage() {
                                 </div>
                               </div>
 
-                              <div className="flex justify-end pt-2">
+                              <div className="flex justify-end pt-2 animate-fade-in delay-300">
                                 <button
                                   onClick={() => {
                                     if (!selectedServices.includes(current.title)) {
@@ -329,7 +329,7 @@ export default function OrganizerVendorDetailPage() {
       {/* Fixed Send Request Button */}
       <button
         onClick={() => setRequestStep(1)}
-        className="fixed top-30 right-0 z-40 flex items-center gap-2 rounded-l-xl bg-[#062E22]/70 backdrop-blur-xl border border-[#062E22]/30 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-[#062E22]/90 hover:shadow-xl hover:-translate-y-0.5"
+        className="fixed top-30 right-0 z-40 flex items-center gap-2 rounded-l-xl bg-[#062E22]/70 backdrop-blur-xl border border-[#062E22]/30 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-[#062E22]/90 hover:shadow-xl hover:-translate-y-0.5 animate-slide-right delay-300"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -360,7 +360,7 @@ export default function OrganizerVendorDetailPage() {
       {/* Request Modal (Form + Confirm steps) */}
       {requestStep > 0 && vendor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl animate-in fade-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl animate-scale-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between p-6 border-b border-slate-100">
               <div>
                 <h2 className="text-xl font-bold text-[#062E22]">
@@ -522,7 +522,7 @@ export default function OrganizerVendorDetailPage() {
 
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-20 right-4 z-[100] animate-in fade-in slide-in-from-right-2">
+        <div className="fixed top-20 right-4 z-[100] animate-slide-right">
           <div className={`flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-semibold shadow-xl backdrop-blur-xl border ${
             toast.type === 'success'
               ? 'bg-emerald-600/90 border-emerald-400/30 text-white'

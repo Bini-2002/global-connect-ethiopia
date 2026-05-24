@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Clock3,
   FileCheck,
+  FileText,
   FolderKanban,
   Gauge,
   Gavel,
@@ -168,26 +169,83 @@ export default function OrganizerDashboard() {
     <div className="min-h-screen ">
       <Sidebar role="organizer" />
       <DashboardHeader searchPlaceholder="Search proposals and events..." />
-      <main className="md:ml-60 pt-3 md:pt-16 relative p-4 md:p-8">
-        <div className="min-h-screen  p-4 md:p-6">
-          <div className='flex flex-col md:flex-row justify-between md:pb-8 gap-4'>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-[#062E22]">
-                Welcome, {userProfile?.name || userProfile?.full_name || 'User'}
-              </h1> 
-              <span className='text-sm md:text-base text-gray-500'>Ready to host your next big event in Ethiopia?</span>
+      {hasData && (
+        <div className="bg-[#062E22] mb-8" style={{ margin: '0 calc(-50vw + 50%)', width: '100vw' }}>
+          <div className="md:ml-60 pt-20 p-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold text-white">
+                  Welcome, {userProfile?.name || userProfile?.full_name || 'User'}
+                </h1>
+                <span className="text-sm md:text-base text-white/80">Ready to host your next big event in Ethiopia?</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className='flex items-center gap-1.5 px-4 h-8 bg-gradient-to-r from-emerald-500 to-green-600 rounded-full shadow-lg shadow-emerald-500/30'>
+                  <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                  <span className="text-xs font-semibold text-white whitespace-nowrap">Verified</span>
+                </div>
+              </div>
             </div>
-            
-            <div className='flex items-center gap-3'>
+            <div className="border-t border-white/50 mt-6 pt-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-white">{counts.total}</p>
+                      <p className="text-xs text-white/80 font-medium">Total Proposals</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-white/60 mt-2">{currentMonthCount} this month</p>
+                </div>
 
-              
-              <div className='border flex gap-2 md:gap-3 px-3 md:px-5 bg-green-50 h-9 md:h-9 font-bold items-center justify-center rounded-full text-green-700'>
+                <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                      <Clock3 className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-white">{counts.pending}</p>
+                      <p className="text-xs text-white/80 font-medium">In Review</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-white/60 mt-2">Across ministry & municipal offices</p>
+                </div>
 
-                <span className="text-xs md:text-sm whitespace-nowrap">✓ Verified</span>
+                <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                      <CheckCircle2 className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-white">{counts.approved}</p>
+                      <p className="text-xs text-white/80 font-medium">Approved Events</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-white/60 mt-2">{approvalsReady.length} certificates ready</p>
+                </div>
+
+                <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                      <FolderKanban className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-white">{counts.draft}</p>
+                      <p className="text-xs text-white/80 font-medium">Drafts</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-white/60 mt-2">{counts.rejected} rejected</p>
+                </div>
               </div>
             </div>
           </div>
-
+        </div>
+      )}
+      <main className={`md:ml-60 relative p-4 md:p-8 ${hasData ? '' : 'pt-3 md:pt-16'}`}>
+        <div className="min-h-screen  p-4 md:p-6">
           {verificationStatus?.verification_decision?.note && (verificationStatus.verification_status === 'approved' || verificationStatus.status === 'approved') && (
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
               <Sparkles className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -309,32 +367,6 @@ export default function OrganizerDashboard() {
             </div>
           ) : (
             <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white p-4 rounded-xl border-l-4 border-[#062E22] shadow-sm hover:shadow-md transition">
-              <p className="text-[10px] font-bold text-gray-400 tracking-wider">TOTAL PROPOSALS</p>
-              <h3 className="text-2xl font-bold text-[#062E22] my-1">{counts.total}</h3>
-              <p className="text-xs font-semibold text-slate-600">{currentMonthCount} created this month</p>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl border-l-4 border-blue-500 shadow-sm hover:shadow-md transition">
-              <p className="text-[10px] font-bold text-gray-400 tracking-wider">IN REVIEW</p>
-              <h3 className="text-2xl font-bold text-[#062E22] my-1">{counts.pending}</h3>
-              <p className="text-xs font-semibold text-blue-600">Across ministry and municipal offices</p>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl border-l-4 border-green-500 shadow-sm hover:shadow-md transition">
-              <p className="text-[10px] font-bold text-gray-400 tracking-wider">APPROVED EVENTS</p>
-              <h3 className="text-2xl font-bold text-[#062E22] my-1">{counts.approved}</h3>
-              <p className="text-xs font-semibold text-green-600">{approvalsReady.length} certificates ready</p>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl border-l-4 border-orange-500 shadow-sm hover:shadow-md transition">
-              <p className="text-[10px] font-bold text-gray-400 tracking-wider">DRAFTS</p>
-              <h3 className="text-2xl font-bold text-[#062E22] my-1">{counts.draft}</h3>
-              <p className="text-xs font-semibold text-orange-600">{counts.rejected} rejected proposals need attention</p>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div className="bg-white shadow rounded-xl p-4 md:p-6">
               <div className='flex justify-between items-center mb-4'>
