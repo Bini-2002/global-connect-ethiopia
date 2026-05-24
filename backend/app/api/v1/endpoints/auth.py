@@ -278,7 +278,14 @@ def _clear_session_cookie(response: Response) -> None:
 @router.post("/register")
 async def register(user_in: UserCreate):
     logger.info("Register request received for %s with role=%s", user_in.email, user_in.role)
-    existing_user = await user_collection.find_one({"email": user_in.email})
+    try:
+        existing_user = await user_collection.find_one({"email": user_in.email})
+    except PyMongoError as exc:
+        logger.exception("Registration lookup failed for %s: %s", user_in.email, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Registration service temporarily unavailable.",
+        ) from exc
 
     if existing_user:
         if existing_user.get("email_verified"):
@@ -311,24 +318,31 @@ async def register(user_in: UserCreate):
     # Try to use the collection's update_one with upsert when available;
     # otherwise fall back to a find/insert or in-place update for
     # lightweight fake collections used in tests.
-    if hasattr(user_collection, "update_one"):
-        await user_collection.update_one(
-            {"email": user_in.email},
-            {"$set": new_user},
-            upsert=True,
-        )
-    else:
-        # Fallback: check existing and mutate/insert accordingly.
-        existing = await user_collection.find_one({"email": user_in.email})
-        if existing:
-            try:
-                existing.update(new_user)
-            except Exception:
-                # best-effort: if mutation not possible, insert a new doc
-                await user_collection.insert_one({**new_user, "email": user_in.email})
+    try:
+        if hasattr(user_collection, "update_one"):
+            await user_collection.update_one(
+                {"email": user_in.email},
+                {"$set": new_user},
+                upsert=True,
+            )
         else:
-            await user_collection.insert_one({**new_user, "email": user_in.email})
-    saved_user = await user_collection.find_one({"email": user_in.email})
+            # Fallback: check existing and mutate/insert accordingly.
+            existing = await user_collection.find_one({"email": user_in.email})
+            if existing:
+                try:
+                    existing.update(new_user)
+                except Exception:
+                    # best-effort: if mutation not possible, insert a new doc
+                    await user_collection.insert_one({**new_user, "email": user_in.email})
+            else:
+                await user_collection.insert_one({**new_user, "email": user_in.email})
+        saved_user = await user_collection.find_one({"email": user_in.email})
+    except PyMongoError as exc:
+        logger.exception("Registration write failed for %s: %s", user_in.email, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Registration service temporarily unavailable.",
+        ) from exc
 
     if skips_otp:
         logger.info("Created trusted internal account for %s without OTP verification", user_in.email)
