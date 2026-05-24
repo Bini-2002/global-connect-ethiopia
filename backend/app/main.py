@@ -6,6 +6,7 @@ from app.db.mongodb import session_collection, notification_collection
 from app.services.marketplace_indexes import ensure_marketplace_indexes
 from app.services.review_offices import ensure_mock_office_accounts
 
+
 app = FastAPI(title="Global Connect Ethiopia")
 
 app.add_middleware(

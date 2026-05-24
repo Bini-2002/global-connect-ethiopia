@@ -35,8 +35,10 @@ type EventWorkspaceTab =
   | 'vip'
   | 'booking'
   | 'tickets'
+  | 'announcements'
   | 'engagement'
   | 'operations'
+  | 'analytics'
   | 'vip-reservations'
   | 'wrap-up';
 
@@ -68,9 +70,11 @@ const tabConfigs: TabConfig[] = [
   { id: 'vip', label: 'Hotels', icon: Crown, href: (eventId) => `/organizer/events/${eventId}/vip` },
   { id: 'booking', label: 'Booking', icon: Tickets, href: (eventId) => `/organizer/events/${eventId}/booking` },
   { id: 'tickets', label: 'Tickets', icon: Tickets, href: (eventId) => `/organizer/events/${eventId}/tickets` },
+  { id: 'announcements', label: 'Announcements', icon: Megaphone, href: (eventId) => `/organizer/events/${eventId}/announcements` },
   { id: 'engagement', label: 'Engagement', icon: Megaphone, href: (eventId) => `/organizer/events/${eventId}/engagement` },
   { id: 'operations', label: 'Operations', icon: ShieldAlert, href: (eventId) => `/organizer/events/${eventId}/operations` },
-  { id: 'vip-reservations', label: 'Hotels', icon: Landmark, href: (eventId) => `/organizer/events/${eventId}/vip-reservations` },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, href: (eventId) => `/organizer/events/${eventId}/analytics` },
+  { id: 'vip-reservations', label: 'VIP Rooms', icon: Crown, href: (eventId) => `/organizer/events/${eventId}/vip-reservations` },
   { id: 'wrap-up', label: 'Wrap-Up', icon: FileBarChart2, href: (eventId) => `/organizer/events/${eventId}/wrap-up` },
 ];
 

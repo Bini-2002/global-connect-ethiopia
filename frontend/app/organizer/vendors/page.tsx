@@ -13,6 +13,8 @@ export default function OrganizerVendorsPage() {
   const { data: vendors, error, loading } = useMarketplaceVendors();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
+  const [aiQuery, setAiQuery] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const categories = useMemo(() => {
     const allServices = vendors.flatMap((v) => v.services);
@@ -31,6 +33,39 @@ export default function OrganizerVendorsPage() {
       activeCategory === 'all' || vendor.services.includes(activeCategory);
     return matchesSearch && matchesCategory;
   });
+
+  const handleAiRecommend = () => {
+    if (!aiQuery.trim()) return;
+    setIsAiLoading(true);
+    
+    // Simulate AI processing time
+    setTimeout(() => {
+      const queryLower = aiQuery.toLowerCase();
+      
+      // Basic NLP matching
+      let foundCategory = 'all';
+      if (queryLower.includes('cater') || queryLower.includes('food')) foundCategory = 'catering';
+      else if (queryLower.includes('venue') || queryLower.includes('hall')) foundCategory = 'venue';
+      else if (queryLower.includes('av') || queryLower.includes('sound') || queryLower.includes('light')) foundCategory = 'av';
+      else if (queryLower.includes('photo') || queryLower.includes('video')) foundCategory = 'photography';
+      
+      const matchingCategory = categories.find(c => c.toLowerCase() === foundCategory);
+      
+      if (matchingCategory) {
+        setActiveCategory(matchingCategory);
+        setSearchQuery('');
+      } else {
+        setActiveCategory('all');
+        // If category not found as a direct tag, just use it as search query
+        const keywords = aiQuery.replace(/(for|with|in|and|the|a|an|attendees|people)\b/gi, '').trim().split(/\s+/);
+        if (keywords.length > 0) {
+          setSearchQuery(keywords[0]);
+        }
+      }
+      
+      setIsAiLoading(false);
+    }, 800);
+  };
 
   return (
     <div className="min-h-screen ">
@@ -81,6 +116,41 @@ export default function OrganizerVendorsPage() {
               </svg>
               View Opportunities
             </Link>
+          </div>
+
+          {/* AI Vendor Recommendation */}
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              </div>
+              <h2 className="text-lg font-bold text-emerald-900">AI Vendor Recommendation</h2>
+            </div>
+            <p className="text-sm text-emerald-700 mb-4">
+              Describe your needs and our AI will recommend the best matched vendors.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input 
+                type="text" 
+                placeholder="e.g., Catering for 5,000 attendees..." 
+                value={aiQuery}
+                onChange={(e) => setAiQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAiRecommend()}
+                className="flex-1 px-4 py-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+              />
+              <button 
+                onClick={handleAiRecommend}
+                disabled={isAiLoading || !aiQuery.trim()}
+                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isAiLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                )}
+                Find Matches
+              </button>
+            </div>
           </div>
 
           {/* Filter Buttons - Service Categories */}

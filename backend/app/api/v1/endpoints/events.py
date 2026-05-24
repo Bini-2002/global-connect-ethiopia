@@ -1071,13 +1071,43 @@ async def cancel_event(
         {"event_id": event_id, "booking_status": "confirmed"}
     ).to_list(length=1000)
     
-    for booking in bookings:
+    # Auto-generate announcement for team members
+    team_members = await event_team_member_collection.find(
+        {"event_id": event_id, "status": "active"}
+    ).to_list(length=100)
+
+    # Auto-generate announcement for VIPs
+    vips = await vip_reservation_collection.find(
+        {"event_id": event_id}
+    ).to_list(length=100)
+
+    recipients = []
+    for b in bookings:
+        if b.get("attendee_id") or b.get("attendee_email"):
+            recipients.append({"id": b.get("attendee_id"), "email": b.get("attendee_email")})
+    for t in team_members:
+        if t.get("user_id") or t.get("email"):
+            recipients.append({"id": t.get("user_id"), "email": t.get("email")})
+    for v in vips:
+        if v.get("vip_email"):
+            recipients.append({"id": None, "email": v.get("vip_email")})
+
+    # Deduplicate by email/id
+    seen = set()
+    unique_recipients = []
+    for r in recipients:
+        key = r["email"] or r["id"]
+        if key and key not in seen:
+            seen.add(key)
+            unique_recipients.append(r)
+    
+    for r in unique_recipients:
         doc = {
             "id": secrets.token_hex(12),
             "announcement_id": "auto_cancel_" + secrets.token_hex(4),
             "event_id": event_id,
-            "recipient_user_id": booking["attendee_id"],
-            "recipient_email": booking.get("attendee_email"),
+            "recipient_user_id": r["id"] or f"external_{secrets.token_hex(4)}",
+            "recipient_email": r["email"],
             "subject": f"Event Cancelled: {event.get('title')}",
             "body": f"We regret to inform you that {event.get('title')} has been cancelled. Reason: {payload.reason}.",
             "status": "delivered",
@@ -1121,13 +1151,43 @@ async def postpone_event(
         {"event_id": event_id, "booking_status": "confirmed"}
     ).to_list(length=1000)
     
-    for booking in bookings:
+    # Auto-generate announcement for team members
+    team_members = await event_team_member_collection.find(
+        {"event_id": event_id, "status": "active"}
+    ).to_list(length=100)
+
+    # Auto-generate announcement for VIPs
+    vips = await vip_reservation_collection.find(
+        {"event_id": event_id}
+    ).to_list(length=100)
+
+    recipients = []
+    for b in bookings:
+        if b.get("attendee_id") or b.get("attendee_email"):
+            recipients.append({"id": b.get("attendee_id"), "email": b.get("attendee_email")})
+    for t in team_members:
+        if t.get("user_id") or t.get("email"):
+            recipients.append({"id": t.get("user_id"), "email": t.get("email")})
+    for v in vips:
+        if v.get("vip_email"):
+            recipients.append({"id": None, "email": v.get("vip_email")})
+
+    # Deduplicate by email/id
+    seen = set()
+    unique_recipients = []
+    for r in recipients:
+        key = r["email"] or r["id"]
+        if key and key not in seen:
+            seen.add(key)
+            unique_recipients.append(r)
+    
+    for r in unique_recipients:
         doc = {
             "id": secrets.token_hex(12),
             "announcement_id": "auto_postpone_" + secrets.token_hex(4),
             "event_id": event_id,
-            "recipient_user_id": booking["attendee_id"],
-            "recipient_email": booking.get("attendee_email"),
+            "recipient_user_id": r["id"] or f"external_{secrets.token_hex(4)}",
+            "recipient_email": r["email"],
             "subject": f"Event Postponed: {event.get('title')}",
             "body": f"{event.get('title')} has been postponed. New Dates: {payload.new_start_date.strftime('%Y-%m-%d %H:%M')} to {payload.new_end_date.strftime('%Y-%m-%d %H:%M')}. Reason: {payload.reason or 'Not specified'}.",
             "status": "delivered",
@@ -1449,6 +1509,58 @@ async def update_venue_reservation_deposit(
         payload=payload,
         current_user=current_user,
     )
+
+
+@router.get("/{event_id}/vip-reservations", response_model=list[VipReservationResponse])
+async def list_vip_reservations(event_id: str, current_user: dict = Depends(get_current_user)):
+    await _get_owned_event_or_403(event_id, current_user)
+    docs = await vip_reservation_collection.find({"event_id": event_id}, sort=[("created_at", -1)]).to_list(length=500)
+    return [
+        {
+            "id": str(doc["_id"]),
+            "event_id": doc["event_id"],
+            "vip_name": doc["vip_name"],
+            "hotel_name": doc["hotel_name"],
+            "vip_email": doc.get("vip_email"),
+            "notes": doc.get("notes"),
+            "created_at": doc["created_at"],
+        }
+        for doc in docs
+    ]
+
+
+@router.post("/{event_id}/vip-reservations", response_model=VipReservationResponse, status_code=201)
+async def create_vip_reservation(
+    event_id: str,
+    payload: VipReservationCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    await _get_owned_event_or_403(event_id, current_user)
+    now = utc_now()
+    doc = payload.model_dump()
+    doc.update({
+        "event_id": event_id,
+        "created_at": now,
+        "updated_at": now,
+    })
+    result = await vip_reservation_collection.insert_one(doc)
+    doc["id"] = str(result.inserted_id)
+    return doc
+
+
+@router.delete("/{event_id}/vip-reservations/{reservation_id}", status_code=204)
+async def delete_vip_reservation(
+    event_id: str,
+    reservation_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(reservation_id, field_name="reservation id")
+    result = await vip_reservation_collection.delete_one({"_id": oid, "event_id": event_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="VIP Reservation not found")
+    return None
+
 
 
 @router.get("/{event_id}/team/invitations", response_model=list[EventTeamInvitationResponse])

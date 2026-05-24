@@ -203,13 +203,12 @@ class ContractService:
             return await self._serialize_contract(contract)
 
         now = utc_now()
-        signed_by_vendor = bool(contract.get("signed_by_vendor"))
         updated = await self.repository.transition_state(
             contract_id,
             from_statuses=[ContractStatus.DRAFT, ContractStatus.PENDING_SIGNATURES, ContractStatus.ACTIVE],
             now=now,
             updates={
-                "status": ContractStatus.ACTIVE.value if signed_by_vendor else ContractStatus.PENDING_SIGNATURES.value,
+                "status": ContractStatus.PENDING_SIGNATURES.value,
                 "signed_by_organizer": True,
                 "signed_by_organizer_at": now,
             },
@@ -228,13 +227,12 @@ class ContractService:
             return await self._serialize_contract(contract)
 
         now = utc_now()
-        signed_by_organizer = bool(contract.get("signed_by_organizer"))
         updated = await self.repository.transition_state(
             contract_id,
             from_statuses=[ContractStatus.DRAFT, ContractStatus.PENDING_SIGNATURES, ContractStatus.ACTIVE],
             now=now,
             updates={
-                "status": ContractStatus.ACTIVE.value if signed_by_organizer else ContractStatus.PENDING_SIGNATURES.value,
+                "status": ContractStatus.PENDING_SIGNATURES.value,
                 "signed_by_vendor": True,
                 "signed_by_vendor_at": now,
             },

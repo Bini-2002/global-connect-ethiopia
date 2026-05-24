@@ -155,7 +155,7 @@ export default function OrganizerVendorDetailPage() {
                   </div>
                   <div className="rounded-[24px] bg-slate-100 p-5">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Rating</p>
-                    <p className="mt-2 text-2xl font-bold text-[#062E22]">{vendor.rating.toFixed(1)}</p>
+                    <p className="mt-2 text-2xl font-bold text-[#062E22]">{(vendor.rating || 0).toFixed(1)}</p>
                   </div>
                 </div>
 
@@ -198,7 +198,7 @@ export default function OrganizerVendorDetailPage() {
                           </div>
                         </div>
                       ))
-                    ) : vendor.services.length > 0 ? (
+                    ) : (vendor.services && vendor.services.length > 0) ? (
                       <div className="flex flex-wrap gap-2">
                         {vendor.services.map((service) => (
                           <span
@@ -252,7 +252,7 @@ export default function OrganizerVendorDetailPage() {
                     </select>
                   </div>
 
-                  {vendor && vendor.services.length > 0 && (
+                  {vendor && vendor.services && vendor.services.length > 0 && (
                     <div>
                       <label className="mb-2 block text-sm font-medium text-slate-700">
                         Services needed
