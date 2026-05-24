@@ -58,7 +58,13 @@ async function executeRequest<T>(
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    return fetch(resolveUrl(path), { ...options, headers, credentials: 'include' });
+    try {
+      return await fetch(resolveUrl(path), { ...options, headers, credentials: 'include' });
+    } catch (err: unknown) {
+      // Normalize network errors (CORS / connection refused / offline) to a clear message
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`Network request failed for ${resolveUrl(path)}: ${msg}`);
+    }
   };
 
   const initialToken = options.authToken ?? getToken();

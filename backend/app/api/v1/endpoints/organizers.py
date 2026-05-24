@@ -682,8 +682,23 @@ async def get_verification_status(current_user: dict = Depends(get_current_user_
     user_id_str = current_user.get("id") or str(current_user.get("_id", ""))
     user_oid = parse_object_id(user_id_str, field_name="user id")
     profile = await organizer_collection.find_one({"user_id": user_oid})
+    # If the user has not created an organizer profile yet, return a default
+    # "not_started" status instead of a 404 so the frontend can handle
+    # onboarding flows without treating this as an error.
     if not profile:
-        raise HTTPException(status_code=404, detail="Organizer profile not found")
+        return {
+            "profile_type": None,
+            "verification_status": "not_started",
+            "verification_score": None,
+            "ocr_tier": _ocr_tier(None),
+            "verification_decision": None,
+            "rejection_comment": None,
+            "review_required": False,
+            "verification_job_id": None,
+            "queue_status": None,
+            "onboarding_status": None,
+            "status": None,
+        }
 
     score = profile.get("verification_score")
     return {
