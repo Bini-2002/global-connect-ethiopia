@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
 import { Filter, MapPin, DollarSign } from 'lucide-react';
 
 import DashboardHeader from '@/components/DashboardHeader';
@@ -110,31 +109,20 @@ export default function OrganizerVendorsPage() {
         actionLabel="Open Requests"
       />
 
-      <main className="pt-16 md:ml-60 p-6">
-        <div className="mx-auto max-w-7xl space-y-6">
-          {/* Header Section - No Card */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <main className="md:ml-60 md:pt-6">
+        <div className="space-y-6 pt-16 px-4 md:px-6 max-w-7xl">
+          {/* Header Section */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <h1 className="text-3xl font-bold text-[#062E22]">Vendors</h1>
-              <p className="text-gray-500 mt-1">
-                Browse and manage verified vendors for your events
-              </p>
+              <p className="text-gray-500">Browse and manage verified vendors for your events</p>
             </div>
-            <Link
-              href="/organizer/opportunities"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#062E22] text-white rounded-lg font-semibold hover:bg-[#0a4a37] transition whitespace-nowrap"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              View Opportunities
-            </Link>
           </div>
 
           {/* Filter Buttons - Service Categories */}
           <div className="space-y-3">
             {/* Filter dropdown */}
-            <div className="relative" ref={filterRef}>
+            <div className="relative w-fit" ref={filterRef}>
               <button
                 onClick={() => setShowFilterDropdown(v => !v)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition border ${
@@ -145,6 +133,14 @@ export default function OrganizerVendorsPage() {
               >
                 <Filter className="w-3.5 h-3.5" />
                 Filter
+                {(filterLocation || filterPriceMin || filterPriceMax) && (
+                  <span className="ml-1 flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-white/60" />
+                    <span className="text-[10px] font-normal opacity-80">
+                      {[filterLocation, filterPriceMin || filterPriceMax ? `${filterPriceMin || '0'}–${filterPriceMax || '∞'}` : ''].filter(Boolean).join(' · ')}
+                    </span>
+                  </span>
+                )}
               </button>
 
               {showFilterDropdown && (
@@ -203,19 +199,18 @@ export default function OrganizerVendorsPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-1">
-              <div className="flex flex-wrap gap-2 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => setActiveCategory('all')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition ${
+                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition ${
                     activeCategory === 'all'
-                      ? 'bg-[#062E22] text-white'
-                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                      ? 'border border-[#062E22] text-[#062E22] bg-transparent'
+                      : 'bg-[#062E22]/10 text-[#062E22] hover:bg-[#062E22]/20'
                   }`}
                 >
                   All
                   <span className={`px-1.5 py-0.5 rounded-full text-xs ${
-                    activeCategory === 'all' ? 'bg-white/20' : 'bg-slate-100'
+                    activeCategory === 'all' ? 'border border-[#062E22] text-[#062E22]' : 'bg-[#062E22]/20'
                   }`}>
                     {vendors.length}
                   </span>
@@ -229,22 +224,21 @@ export default function OrganizerVendorsPage() {
                     <button
                       key={category}
                       onClick={() => setActiveCategory(category)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition ${
+                      className={`flex items-center justify-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition ${
                         activeCategory === category
-                          ? 'bg-[#062E22] text-white'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                          ? 'border border-[#062E22] text-[#062E22] bg-transparent'
+                          : 'bg-[#062E22]/10 text-[#062E22] hover:bg-[#062E22]/20'
                       }`}
                     >
                       {category.charAt(0).toUpperCase() + category.slice(1)}
                       <span className={`px-1.5 py-0.5 rounded-full text-xs ${
-                        activeCategory === category ? 'bg-white/20' : 'bg-slate-100'
+                        activeCategory === category ? 'border border-[#062E22] text-[#062E22]' : 'bg-[#062E22]/20'
                       }`}>
                         {count}
                       </span>
                     </button>
                   );
                 })}
-              </div>
 
               {VENDOR_CATEGORIES.length > 5 && (
                 <button
@@ -269,15 +263,15 @@ export default function OrganizerVendorsPage() {
                     <button
                       key={category}
                       onClick={() => setActiveCategory(category)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition ${
+                      className={`flex items-center justify-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition ${
                         activeCategory === category
-                          ? 'bg-[#062E22] text-white'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                          ? 'border border-[#062E22] text-[#062E22] bg-transparent'
+                          : 'bg-[#062E22]/10 text-[#062E22] hover:bg-[#062E22]/20'
                       }`}
                     >
                       {category.charAt(0).toUpperCase() + category.slice(1)}
                       <span className={`px-1.5 py-0.5 rounded-full text-xs ${
-                        activeCategory === category ? 'bg-white/20' : 'bg-slate-100'
+                        activeCategory === category ? 'border border-[#062E22] text-[#062E22]' : 'bg-[#062E22]/20'
                       }`}>
                         {count}
                       </span>
