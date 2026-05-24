@@ -564,3 +564,86 @@ async def _handle_registration_invite(user_id: str, email: str, token: str, full
         {"_id": invitation["_id"]},
         {"$set": {"status": "accepted", "accepted_at": now, "updated_at": now}}
     )
+
+
+# ──────────────────────────────────────────────────────────
+#  Forgot / Reset Password
+# ──────────────────────────────────────────────────────────
+
+from pydantic import BaseModel, EmailStr
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+    new_password: str
+
+
+@router.post("/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest):
+    """Send a password-reset OTP to the given email address."""
+    user = await user_collection.find_one({"email": payload.email})
+    # Always return success to avoid leaking which emails are registered.
+    if not user:
+        return {"message": "If that email exists, an OTP has been sent."}
+
+    otp_payload = _build_otp_payload()
+
+    await user_collection.update_one(
+        {"email": payload.email},
+        {"$set": {"reset_otp": otp_payload, "updated_at": datetime.now(timezone.utc)}},
+    )
+
+    # Send (or log) the OTP
+    _queue_otp_email(payload.email, otp_payload["code"], OTP_EXPIRY_MINUTES)
+
+    response: dict = {"message": "If that email exists, an OTP has been sent."}
+    if settings.ENABLE_DEBUG_OTP_RESPONSE:
+        response["otp_code"] = otp_payload["code"]
+    return response
+
+
+@router.post("/reset-password")
+async def reset_password(payload: ResetPasswordRequest):
+    """Verify the reset OTP and update the user's password."""
+    user = await user_collection.find_one({"email": payload.email})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    otp_data = user.get("reset_otp")
+    if not otp_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No password-reset OTP was requested.")
+
+    attempts = int(otp_data.get("attempts", 0))
+    if attempts >= settings.OTP_ATTEMPT_LIMIT:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many attempts. Please request a new OTP.")
+
+    expires_at = _parse_expiry(otp_data.get("expires_at"))
+    if expires_at is None or datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OTP expired. Please request a new one.")
+
+    if otp_data.get("code") != payload.otp_code.strip():
+        await user_collection.update_one(
+            {"email": payload.email},
+            {"$set": {"reset_otp.attempts": attempts + 1}},
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP code.")
+
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Password must be at least 8 characters.")
+
+    new_hash = security.get_password_hash(payload.new_password)
+    await user_collection.update_one(
+        {"email": payload.email},
+        {
+            "$set": {
+                "password_hash": new_hash,
+                "updated_at": datetime.now(timezone.utc),
+            },
+            "$unset": {"reset_otp": ""},
+        },
+    )
+
+    return {"message": "Password reset successfully. You can now log in with your new password."}
