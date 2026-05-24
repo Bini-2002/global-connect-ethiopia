@@ -29,6 +29,13 @@ export default function OrganizerVendorDetailPage() {
   const [currentServiceIndex, setCurrentServiceIndex] = useState(0);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [requestStep, setRequestStep] = useState(0); // 0=closed, 1=form, 2=confirm
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const handleServiceToggle = (service: string) => {
     setSelectedServices((prev) =>
@@ -84,16 +91,19 @@ export default function OrganizerVendorDetailPage() {
         services: selectedServices,
         description: description.trim(),
       });
-      router.push(`/organizer/requests/${request.id}`);
+      setToast({ type: 'success', message: 'Request sent successfully!' });
+      setTimeout(() => router.push(`/organizer/requests/${request.id}`), 1500);
     } catch (submitError) {
-      setFormError(submitError instanceof Error ? submitError.message : 'Unable to send the request.');
+      const msg = submitError instanceof Error ? submitError.message : 'Unable to send the request.';
+      setFormError(msg);
+      setToast({ type: 'error', message: msg });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen ">
        <div className="fixed top-6 md:left-60 left-0 -z-10 pointer-events-none">
                     <Image
                       src="/Ellipse2.png"
@@ -103,7 +113,7 @@ export default function OrganizerVendorDetailPage() {
                       className="opacity-80"
                     />
                   </div>
-                  <div className="fixed bottom-6  right-60 -z-10 pointer-events-none">
+                  <div className="fixed bottom-6  right-0 -z-10 pointer-events-none">
                     <Image
                       src="/Ellipse3.png"
                       alt=""
@@ -264,7 +274,7 @@ export default function OrganizerVendorDetailPage() {
                                           }
                                           return (
                                             <div key={key} className="flex items-center justify-between gap-2">
-                                              <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 whitespace-nowrap">{formattedKey}</span>
+                                              <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#062E22]/10 text-[#062E22]/70 whitespace-nowrap">{formattedKey}</span>
                                               <span className="text-sm font-semibold text-[#062E22] text-right">{String(displayValue)}</span>
                                             </div>
                                           );
@@ -319,7 +329,7 @@ export default function OrganizerVendorDetailPage() {
       {/* Fixed Send Request Button */}
       <button
         onClick={() => setRequestStep(1)}
-        className="fixed top-30 right-6 z-40 flex items-center gap-2 rounded-xl bg-[#062E22] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#062E22]/30 transition hover:bg-[#0a4a37] hover:shadow-xl hover:-translate-y-0.5"
+        className="fixed top-30 right-0 z-40 flex items-center gap-2 rounded-l-xl bg-[#062E22]/70 backdrop-blur-xl border border-[#062E22]/30 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-[#062E22]/90 hover:shadow-xl hover:-translate-y-0.5"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -506,6 +516,28 @@ export default function OrganizerVendorDetailPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-20 right-4 z-[100] animate-in fade-in slide-in-from-right-2">
+          <div className={`flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-semibold shadow-xl backdrop-blur-xl border ${
+            toast.type === 'success'
+              ? 'bg-emerald-600/90 border-emerald-400/30 text-white'
+              : 'bg-red-600/90 border-red-400/30 text-white'
+          }`}>
+            {toast.type === 'success' ? (
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            {toast.message}
           </div>
         </div>
       )}
