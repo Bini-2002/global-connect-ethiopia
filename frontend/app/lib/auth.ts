@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from './apiBase';
+
 export interface JWTPayload {
   sub: string;
   role: string;
@@ -198,7 +200,7 @@ export function isLoggedIn(): boolean {
 export function logout(): void {
   if (typeof window === 'undefined') return;
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+  const apiBase = getApiBaseUrl();
   void fetch(`${apiBase}/auth/logout`, {
     method: 'POST',
     credentials: 'include',
@@ -242,7 +244,7 @@ export async function getOrganizerPortalRoute(tokenOverride?: string | null): Pr
   const token = tokenOverride ?? getToken();
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/organizers/verification-status`, {
+    const res = await fetch(`${getApiBaseUrl()}/organizers/verification-status`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       credentials: 'include',
       cache: 'no-store',
@@ -262,7 +264,7 @@ export async function getOrganizerPortalRoute(tokenOverride?: string | null): Pr
 export async function getVendorPortalRoute(tokenOverride?: string | null): Promise<string> {
   const token = tokenOverride ?? getToken();
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+  const apiBase = getApiBaseUrl();
 
   try {
     const res = await fetch(`${apiBase}/vendors/verification/status`, {

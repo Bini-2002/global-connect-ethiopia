@@ -4,8 +4,9 @@ import { Suspense, useState, useRef, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import LoginHeader from '@/components/loginHeader';
 import { ROLE_DASHBOARDS, saveAuthSession } from '@/app/lib/auth';
+import { getApiBaseUrl } from '@/app/lib/apiBase';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const BASE_URL = getApiBaseUrl();
 
 interface VerifyEmailResponse {
   message: string;

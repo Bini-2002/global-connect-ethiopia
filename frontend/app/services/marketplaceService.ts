@@ -15,8 +15,9 @@ import {
   WithdrawalRecord,
 } from '@/app/types/marketplace';
 import { VenueReservationRecord } from '@/app/types/event';
+import { getApiBaseUrl } from '@/app/lib/apiBase';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
+const API_BASE = getApiBaseUrl();
 
 export const marketplaceService = {
   // ─── Vendors ────────────────────────────────────────────────────────────────
@@ -80,7 +81,7 @@ export const marketplaceService = {
 
   /** Phase 2: returns the full URL for downloading contract PDF (use as href) */
   getContractPdfUrl: (contractId: string): string => {
-    return `${API_BASE}/api/v1/contracts/${contractId}/pdf`;
+    return `${API_BASE}/contracts/${contractId}/pdf`;
   },
 
   fundContract: async (contractId: string): Promise<MarketplaceContractRecord> => {

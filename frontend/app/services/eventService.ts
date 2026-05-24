@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { Event } from '../data/types';
+import { getApiBaseUrl } from '../lib/apiBase';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const API_BASE_URL = getApiBaseUrl();
 
 const getToken = (): string | null => {
   if (typeof window === 'undefined') return null;

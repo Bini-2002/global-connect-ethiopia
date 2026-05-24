@@ -1,6 +1,7 @@
 import { getToken, logout } from './auth';
+import { getApiBaseUrl } from './apiBase';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const BASE_URL = getApiBaseUrl();
 
 const inflight = new Map<string, Promise<unknown>>();
 
