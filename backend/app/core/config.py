@@ -80,11 +80,13 @@ class Settings(BaseSettings):
     RESEND_API_KEY: Optional[str] = None
     RESEND_FROM_EMAIL: Optional[str] = None
     RESEND_OTP_SUBJECT: str = "Your Global Connect Ethiopia verification code"
+    OTP_EMAIL_SUBJECT: str = "Your Global Connect Ethiopia verification code"
 
     # SMTP email delivery
     SMTP_ENABLED: bool = False
     SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = None
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
 

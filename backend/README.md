@@ -86,7 +86,16 @@ CLOUDINARY_API_SECRET=
 REDIS_URL=redis://localhost:6379/0
 VERIFICATION_QUEUE_NAME=document_verification
 
-# OTP email delivery (Resend)
+# OTP email delivery (Google SMTP recommended)
+SMTP_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-gmail-address@gmail.com
+SMTP_PASSWORD=your-google-app-password
+SMTP_FROM_EMAIL=your-gmail-address@gmail.com
+OTP_EMAIL_SUBJECT=Your Global Connect Ethiopia verification code
+
+# Optional legacy fallback
 RESEND_ENABLED=false
 RESEND_API_KEY=
 RESEND_FROM_EMAIL=onboarding@resend.dev
