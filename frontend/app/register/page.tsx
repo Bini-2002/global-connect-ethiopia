@@ -61,7 +61,7 @@ function RegistrationFormContent() {
     setError("");
 
     try {
-      const response = await api.post<{ user_id?: string }>("/auth/register", {
+      const response = await api.post<{ user_id?: string; otp_code?: string | null }>("/auth/register", {
         full_name: formData.fullName,
         email: formData.email,
         role: formData.role || "attendee",
@@ -83,7 +83,8 @@ function RegistrationFormContent() {
           role: formData.role,
           email: formData.email,
         }).toString();
-        router.push(`/verify-email?${queryParams}`);
+        const otpCode = response.otp_code;
+        router.push(otpCode ? `/verify-email?${queryParams}&otp_code=${encodeURIComponent(otpCode)}` : `/verify-email?${queryParams}`);
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");

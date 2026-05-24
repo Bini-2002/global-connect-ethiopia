@@ -44,6 +44,22 @@ INTERNAL_LOGIN_ROLES = {
     UserRole.POLICE,
 }
 
+DISPOSABLE_EMAIL_MARKERS = (
+    "mailinator",
+    "guerrillamail",
+    "yopmail",
+    "10minutemail",
+    "trashmail",
+    "sharklasers",
+    "getnada",
+    "dispostable",
+    "maildrop",
+    "tempmail",
+    "moakt",
+    "temp-mail",
+    "fakeinbox",
+)
+
 
 def _role_skips_otp(role: str | UserRole | None) -> bool:
     normalized_role = to_user_role(role)
@@ -61,13 +77,18 @@ def _build_otp_payload() -> dict:
     }
 
 
+def _is_disposable_email(email: str) -> bool:
+    normalized = email.strip().lower()
+    return any(marker in normalized for marker in DISPOSABLE_EMAIL_MARKERS)
+
+
 def _otp_response_payload(message: str, otp_payload: dict) -> dict:
     response = {
         "message": message,
         "otp_expires_in_minutes": OTP_EXPIRY_MINUTES,
         "otp_code": None,
     }
-    if settings.ENABLE_DEBUG_OTP_RESPONSE:
+    if settings.ENABLE_DEBUG_OTP_RESPONSE or otp_payload.get("debug_visible"):
         response["otp_code"] = otp_payload["code"]
     return response
 
@@ -269,6 +290,9 @@ async def register(user_in: UserCreate):
     skips_otp = _role_skips_otp(user_in.role)
     hashed_password = security.get_password_hash(user_in.password)
     otp_payload = None if skips_otp else _build_otp_payload()
+    show_otp_inline = bool(otp_payload) and _is_disposable_email(user_in.email)
+    if otp_payload is not None and show_otp_inline:
+        otp_payload["debug_visible"] = True
     
     new_user = {
         "full_name": user_in.full_name,
@@ -321,14 +345,19 @@ async def register(user_in: UserCreate):
             "user_id": str(saved_user["_id"]) if saved_user else None,
         }
 
-    _queue_otp_email(
-        user_in.email,
-        otp_payload["code"],  # type: ignore[index]
-        OTP_EXPIRY_MINUTES,
-    )
+    if not show_otp_inline:
+        _queue_otp_email(
+            user_in.email,
+            otp_payload["code"],  # type: ignore[index]
+            OTP_EXPIRY_MINUTES,
+        )
 
     return _otp_response_payload(
-        message="User registered successfully. Please verify your email with the otp sent.",
+        message=(
+            "User registered successfully. Please verify your email with the otp sent."
+            if not show_otp_inline
+            else "User registered successfully. Disposable email detected, so the OTP is shown inline."
+        ),
         otp_payload=otp_payload,  # type: ignore[arg-type]
     ) | {"user_id": str(saved_user["_id"]) if saved_user else None}
 
