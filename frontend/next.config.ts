@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const backendOrigin = process.env.BACKEND_ORIGIN || "http://127.0.0.1:8000";
+const backendOrigin = process.env.BACKEND_ORIGIN || "https://global-connect-5kcx.onrender.com/api/v1";
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, ".."),
