@@ -1,7 +1,8 @@
 import secrets
 import logging
+from threading import Thread
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.exc import PasswordValueError, UnknownHashError
 from pymongo.errors import PyMongoError
@@ -81,6 +82,14 @@ def _dispatch_otp_email(recipient_email: str, otp_code: str, expiry_minutes: int
         logger.info("OTP email dispatch completed for %s", recipient_email)
     except EmailDeliveryError as exc:
         logger.warning("OTP email dispatch failed for %s: %s", recipient_email, exc)
+
+
+def _queue_otp_email(recipient_email: str, otp_code: str, expiry_minutes: int) -> None:
+    Thread(
+        target=_dispatch_otp_email,
+        args=(recipient_email, otp_code, expiry_minutes),
+        daemon=True,
+    ).start()
 
 
 def _parse_expiry(expires_at):
@@ -246,7 +255,7 @@ def _clear_session_cookie(response: Response) -> None:
     )
 
 @router.post("/register")
-async def register(user_in: UserCreate, background_tasks: BackgroundTasks):
+async def register(user_in: UserCreate):
     logger.info("Register request received for %s with role=%s", user_in.email, user_in.role)
     existing_user = await user_collection.find_one({"email": user_in.email})
 
@@ -312,8 +321,7 @@ async def register(user_in: UserCreate, background_tasks: BackgroundTasks):
             "user_id": str(saved_user["_id"]) if saved_user else None,
         }
 
-    background_tasks.add_task(
-        _dispatch_otp_email,
+    _queue_otp_email(
         user_in.email,
         otp_payload["code"],  # type: ignore[index]
         OTP_EXPIRY_MINUTES,
@@ -365,7 +373,7 @@ async def logout(request: Request, response: Response):
 
 
 @router.post("/email-otp", response_model=OtpSendResponse)
-async def send_email_otp(payload: OtpSendRequest, background_tasks: BackgroundTasks):
+async def send_email_otp(payload: OtpSendRequest):
     logger.info("Resend OTP request received for %s", payload.email)
     user = await user_collection.find_one({"email": payload.email})
     if user and user.get("email_verified", False):
@@ -400,8 +408,7 @@ async def send_email_otp(payload: OtpSendRequest, background_tasks: BackgroundTa
                 {"email": payload.email, "auth_otp": otp_payload, "is_active": False, "email_verified": False, "updated_at": datetime.now(timezone.utc)}
             )
 
-    background_tasks.add_task(
-        _dispatch_otp_email,
+    _queue_otp_email(
         payload.email,
         otp_payload["code"],
         OTP_EXPIRY_MINUTES,
