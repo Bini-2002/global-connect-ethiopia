@@ -51,7 +51,7 @@ export default function VendorCard({ vendor, href }: VendorCardProps) {
   return (
     <Link
       href={href}
-      className="vendor-card group block overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md"
+      className="vendor-card group h-full flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md"
     >
       {coverImage ? (
         <div className="relative h-48 w-full overflow-hidden">
@@ -85,63 +85,65 @@ export default function VendorCard({ vendor, href }: VendorCardProps) {
           </div>
       )}
 
-      <div className="space-y-3 p-6 pt-4">
-        {/* Category & Pricing badges */}
-        {(category || pricingType) && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {category && (
-              <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-slate-100 text-slate-600">
-                {category}
-              </span>
-            )}
-            {pricingType && (
-              <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${
-                pricingType === 'fixed'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'bg-amber-50 text-amber-700'
-              }`}>
-                {pricingType === 'fixed' ? 'Fixed Price' : 'Negotiable'}
-              </span>
-            )}
-          </div>
-        )}
+      <div className="flex flex-1 flex-col p-6 pt-4">
+        <div className="flex-1 space-y-3">
+          {/* Category & Pricing badges */}
+          {(category || pricingType) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {category && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+                  {category}
+                </span>
+              )}
+              {pricingType && (
+                <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${
+                  pricingType === 'fixed'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'bg-amber-50 text-amber-700'
+                }`}>
+                  {pricingType === 'fixed' ? 'Fixed Price' : 'Negotiable'}
+                </span>
+              )}
+            </div>
+          )}
 
-        {/* Service name + rating */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-800 truncate">{serviceName}</p>
-            <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="truncate">{location}</span>
-            </p>
+          {/* Service name + rating */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-slate-800 truncate">{serviceName}</p>
+              <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="truncate">{location}</span>
+              </p>
+            </div>
+            <div className="rounded-2xl bg-[#F5FBF8] px-3 py-2 text-right flex-shrink-0">
+              <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Rating</p>
+              <p className="mt-0.5 text-base font-bold text-[#062E22]">{vendor.rating.toFixed(1)}</p>
+            </div>
           </div>
-          <div className="rounded-2xl bg-[#F5FBF8] px-3 py-2 text-right flex-shrink-0">
-            <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Rating</p>
-            <p className="mt-0.5 text-base font-bold text-[#062E22]">{vendor.rating.toFixed(1)}</p>
-          </div>
+
+          {/* Description excerpt */}
+          {descriptionExcerpt && (
+            <p className="text-xs text-slate-500 leading-relaxed">{descriptionExcerpt}</p>
+          )}
+
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {tags.slice(0, 3).map((tag) => (
+                <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-[#062E22]/5 text-[#062E22]/70">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Description excerpt */}
-        {descriptionExcerpt && (
-          <p className="text-xs text-slate-500 leading-relaxed">{descriptionExcerpt}</p>
-        )}
-
-        {/* Tags */}
-        {tags.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {tags.slice(0, 3).map((tag) => (
-              <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-[#062E22]/5 text-[#062E22]/70">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
         {/* Footer */}
-        <div className="flex items-center justify-between text-sm pt-3 border-t border-slate-100">
+        <div className="flex items-center justify-between text-sm pt-3 border-t border-slate-100 mt-auto">
           {memberSince && (
             <span className="text-xs text-slate-400">Member since {memberSince}</span>
           )}

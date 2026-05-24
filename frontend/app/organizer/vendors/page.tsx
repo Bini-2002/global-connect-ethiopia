@@ -6,6 +6,7 @@ import { Filter, MapPin, DollarSign } from 'lucide-react';
 import DashboardHeader from '@/components/DashboardHeader';
 import Sidebar from '@/components/Sidebar';
 import VendorCard from '@/components/marketplace/VendorCard';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useMarketplaceVendors } from '@/app/hooks/useMarketplace';
 import type { VendorServiceRecord } from '@/app/types/marketplace';
 import Image from 'next/image';
@@ -312,9 +313,7 @@ export default function OrganizerVendorsPage() {
           ) : null}
 
           {loading ? (
-            <div className="flex justify-center py-20">
-              <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#062E22] border-t-transparent" />
-            </div>
+            <LoadingSpinner />
           ) : filteredVendors.length === 0 ? (
             <div className="rounded-[32px] border border-dashed border-slate-200 bg-white p-10 text-center shadow-sm">
               <h2 className="text-2xl font-bold text-[#062E22]">No vendors found</h2>
