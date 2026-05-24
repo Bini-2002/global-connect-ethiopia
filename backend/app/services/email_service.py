@@ -55,7 +55,7 @@ class SMTPEmailService:
 
         try:
             logger.info("Sending OTP email via SMTP to %s", recipient_email)
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS) as server:
                 server.ehlo()
                 server.starttls()
                 server.ehlo()

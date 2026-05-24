@@ -1,7 +1,7 @@
 import secrets
 import logging
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.exc import PasswordValueError, UnknownHashError
 from pymongo.errors import PyMongoError
@@ -69,6 +69,18 @@ def _otp_response_payload(message: str, otp_payload: dict) -> dict:
     if settings.ENABLE_DEBUG_OTP_RESPONSE:
         response["otp_code"] = otp_payload["code"]
     return response
+
+
+def _dispatch_otp_email(recipient_email: str, otp_code: str, expiry_minutes: int) -> None:
+    try:
+        EmailService.send_otp_email(
+            recipient_email=recipient_email,
+            otp_code=otp_code,
+            expiry_minutes=expiry_minutes,
+        )
+        logger.info("OTP email dispatch completed for %s", recipient_email)
+    except EmailDeliveryError as exc:
+        logger.warning("OTP email dispatch failed for %s: %s", recipient_email, exc)
 
 
 def _parse_expiry(expires_at):
@@ -234,7 +246,7 @@ def _clear_session_cookie(response: Response) -> None:
     )
 
 @router.post("/register")
-async def register(user_in: UserCreate):
+async def register(user_in: UserCreate, background_tasks: BackgroundTasks):
     logger.info("Register request received for %s with role=%s", user_in.email, user_in.role)
     existing_user = await user_collection.find_one({"email": user_in.email})
 
@@ -300,28 +312,12 @@ async def register(user_in: UserCreate):
             "user_id": str(saved_user["_id"]) if saved_user else None,
         }
 
-    try:
-        EmailService.send_otp_email(
-            recipient_email=user_in.email,
-            otp_code=otp_payload["code"],  # type: ignore[index]
-            expiry_minutes=OTP_EXPIRY_MINUTES,
-        )
-        logger.info("Registration OTP dispatch completed for %s", user_in.email)
-    except EmailDeliveryError as exc:
-        logger.warning("Registration OTP delivery failed for %s: %s", user_in.email, exc)
-        if settings.ENABLE_DEBUG_OTP_RESPONSE:
-            logger.info("Returning debug OTP for %s because debug mode is enabled", user_in.email)
-            return _otp_response_payload(
-                message=(
-                    "User registered, but OTP email delivery failed in debug mode. "
-                    f"Use the returned OTP code to continue. Delivery error: {exc}"
-                ),
-                otp_payload=otp_payload,  # type: ignore[arg-type]
-            ) | {"user_id": str(saved_user["_id"]) if saved_user else None}
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to send OTP email: {exc}",
-        ) from exc
+    background_tasks.add_task(
+        _dispatch_otp_email,
+        user_in.email,
+        otp_payload["code"],  # type: ignore[index]
+        OTP_EXPIRY_MINUTES,
+    )
 
     return _otp_response_payload(
         message="User registered successfully. Please verify your email with the otp sent.",
@@ -369,7 +365,7 @@ async def logout(request: Request, response: Response):
 
 
 @router.post("/email-otp", response_model=OtpSendResponse)
-async def send_email_otp(payload: OtpSendRequest):
+async def send_email_otp(payload: OtpSendRequest, background_tasks: BackgroundTasks):
     logger.info("Resend OTP request received for %s", payload.email)
     user = await user_collection.find_one({"email": payload.email})
     if user and user.get("email_verified", False):
@@ -404,28 +400,12 @@ async def send_email_otp(payload: OtpSendRequest):
                 {"email": payload.email, "auth_otp": otp_payload, "is_active": False, "email_verified": False, "updated_at": datetime.now(timezone.utc)}
             )
 
-    try:
-        EmailService.send_otp_email(
-            recipient_email=payload.email,
-            otp_code=otp_payload["code"],
-            expiry_minutes=OTP_EXPIRY_MINUTES,
-        )
-        logger.info("OTP resend dispatch completed for %s", payload.email)
-    except EmailDeliveryError as exc:
-        logger.warning("OTP resend delivery failed for %s: %s", payload.email, exc)
-        if settings.ENABLE_DEBUG_OTP_RESPONSE:
-            logger.info("Returning debug OTP for %s because debug mode is enabled", payload.email)
-            return _otp_response_payload(
-                message=(
-                    "OTP generated, but email delivery failed in debug mode. "
-                    f"Use the returned OTP code to continue. Delivery error: {exc}"
-                ),
-                otp_payload=otp_payload,
-            )
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to send OTP email: {exc}",
-        ) from exc
+    background_tasks.add_task(
+        _dispatch_otp_email,
+        payload.email,
+        otp_payload["code"],
+        OTP_EXPIRY_MINUTES,
+    )
 
     return _otp_response_payload(
         message="OTP sent to your email.",

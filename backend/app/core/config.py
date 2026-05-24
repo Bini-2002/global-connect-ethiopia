@@ -89,6 +89,7 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: Optional[str] = None
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
+    SMTP_TIMEOUT_SECONDS: int = 10
 
     # Session cookie auth
     SESSION_COOKIE_NAME: str = "gce_sid"
