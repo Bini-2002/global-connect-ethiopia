@@ -16,15 +16,12 @@ import Image from 'next/image';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import AIModal from '@/components/organizer/AIModal';
-import { eventsService, EVENT_STATUS_CONFIG } from '@/app/services/eventsService';
-import { EventListItem, ApprovedProposal } from '@/app/types/event';
+import { EVENT_STATUS_CONFIG } from '@/app/services/eventsService';
+import { useEvents } from '@/app/hooks/useEvents';
 import { EventCard, AIFloatingButton } from '@/components/organizer/events';
 
 export default function MyEvents() {
-  const [events, setEvents] = useState<EventListItem[]>([]);
-  const [approvedProposals, setApprovedProposals] = useState<ApprovedProposal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { events, approvedProposals, error, loading } = useEvents();
   const [activeFilter, setActiveFilter] = useState('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
@@ -34,6 +31,7 @@ export default function MyEvents() {
   const [filterLocation, setFilterLocation] = useState('');
   const [filterEventType, setFilterEventType] = useState('');
   const filterRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -43,29 +41,6 @@ export default function MyEvents() {
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const [eventsData, proposalsData] = await Promise.all([
-          eventsService.getEvents(),
-          eventsService.getApprovedProposals(),
-        ]);
-        setEvents(eventsData);
-        setApprovedProposals(proposalsData);
-      } catch (err: any) {
-        console.error('Error fetching events:', err);
-        setError(err.message || 'Failed to load events');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
   }, []);
 
   // Calculate event counts for filter tabs
@@ -101,6 +76,27 @@ export default function MyEvents() {
     return true;
   }).filter(e => !filterLocation || e.location === filterLocation
   ).filter(e => !filterEventType || e.event_type === filterEventType);
+
+  useEffect(() => {
+    if (loading || filteredEvents.length === 0) return;
+    const el = gridRef.current;
+    if (!el) return;
+
+    el.classList.remove('cards-visible');
+    void el.offsetWidth;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add('cards-visible');
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loading, filteredEvents]);
 
   // Calculate stats for cards
   const stats = {
