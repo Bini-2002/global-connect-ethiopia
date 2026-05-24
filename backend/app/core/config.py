@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from typing import List, Optional
 from pathlib import Path
+from urllib.parse import urlparse
 
 # Resolve the .env file relative to this file's location so uvicorn
 # can be started from any working directory and still find it.
@@ -21,10 +22,32 @@ class Settings(BaseSettings):
     # "https://globalconnect.et,https://www.globalconnect.et"
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     FRONTEND_BASE_URL: str = "http://localhost:3000"
+    ALLOWED_ORIGIN_REGEX: str = r"https://.*\.vercel\.app"
 
     def get_allowed_origins(self) -> List[str]:
-        """Return ALLOWED_ORIGINS as a parsed list, stripping whitespace."""
-        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
+        """Return ALLOWED_ORIGINS as a parsed list, adding the configured frontend origin when available."""
+        origins = [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
+
+        frontend_origin = self._normalize_origin(self.FRONTEND_BASE_URL)
+        if frontend_origin and frontend_origin not in origins:
+            origins.append(frontend_origin)
+
+        return origins
+
+    def get_allowed_origin_regex(self) -> str:
+        """Return the regex used to allow Vercel preview/production origins by default."""
+        return self.ALLOWED_ORIGIN_REGEX
+
+    @staticmethod
+    def _normalize_origin(value: str) -> Optional[str]:
+        if not value:
+            return None
+
+        parsed = urlparse(value)
+        if not parsed.scheme or not parsed.netloc:
+            return None
+
+        return f"{parsed.scheme}://{parsed.netloc}"
     CLOUDINARY_CLOUD_NAME: Optional[str] = None
     CLOUDINARY_API_KEY: Optional[str] = None
     CLOUDINARY_API_SECRET: Optional[str] = None
