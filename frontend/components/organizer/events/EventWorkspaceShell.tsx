@@ -29,6 +29,8 @@ type EventWorkspaceTab =
   | 'budget'
   | 'schedule'
   | 'venue'
+  | 'analytics'
+  | 'announcements'
   | 'team'
   | 'tasks'
   | 'attendees'
@@ -64,6 +66,8 @@ const tabConfigs: TabConfig[] = [
   { id: 'budget', label: 'Budget', icon: Wallet, href: (eventId) => `/organizer/events/${eventId}/budget` },
   { id: 'schedule', label: 'Schedule', icon: CalendarDays, href: (eventId) => `/organizer/events/${eventId}/schedule` },
   { id: 'venue', label: 'Venue', icon: Landmark, href: (eventId) => `/organizer/events/${eventId}/venue` },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, href: (eventId) => `/organizer/events/${eventId}/analytics` },
+  { id: 'announcements', label: 'Announcements', icon: Megaphone, href: (eventId) => `/organizer/events/${eventId}/announcements` },
   { id: 'team', label: 'Team', icon: Users, href: (eventId) => `/organizer/events/${eventId}/team` },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare, href: (eventId) => `/organizer/events/${eventId}/tasks` },
   { id: 'attendees', label: 'Attendees', icon: UserCheck, href: (eventId) => `/organizer/events/${eventId}/attendees` },

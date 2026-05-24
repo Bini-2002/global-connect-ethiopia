@@ -23,7 +23,7 @@ interface HotelReservation {
   id: string; hotel_name: string; hotel_address?: string;
   check_in_date: string; check_out_date: string; number_of_nights: number;
   total_amount: number; status: string; payment_status: string;
-  receipt_available: boolean; hotel_response_note?: string;
+  receipt_available: boolean; hotel_response_note?: string; guests_notified?: boolean;
   rooms: Array<{ room_index: number; vip_name: string; vip_email: string; room_type: string;
     bed_preference: string; floor_preference: string; smoking_preference: string;
     meal_plan: string; special_requests: string[]; notes?: string; assigned_room_number?: string }>;
@@ -168,6 +168,7 @@ export default function VipHotelReservationsPage() {
     <div>
       <label className="text-sm font-medium text-slate-700">{label}</label>
       <select value={val} onChange={e => onChange(e.target.value)}
+        aria-label={label}
         className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20">
         {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
@@ -328,11 +329,13 @@ export default function VipHotelReservationsPage() {
               <div>
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" />Check-in</label>
                 <input required type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)}
+                  aria-label="Check-in date"
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" />Check-out</label>
                 <input required type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)}
+                  aria-label="Check-out date"
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20" />
               </div>
               <div>
@@ -363,7 +366,7 @@ export default function VipHotelReservationsPage() {
                     <div className="flex items-center justify-between mb-4">
                       <p className="font-semibold text-[#062E22] text-sm">Room {idx + 1}</p>
                       {rooms.length > 1 && (
-                        <button type="button" onClick={() => setRooms(r => r.filter((_, i) => i !== idx))}
+                        <button type="button" aria-label={`Remove room ${idx + 1}`} onClick={() => setRooms(r => r.filter((_, i) => i !== idx))}
                           className="text-slate-400 hover:text-red-600 transition"><X className="w-4 h-4" /></button>
                       )}
                     </div>

@@ -231,9 +231,9 @@ export default function OrganizerProposalsPage() {
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-[#062E22] text-sm">{p.title}</p>
                         {p.visibility === 'private' ? (
-                          <Lock className="w-3 h-3 text-amber-500" title="Private" />
+                          <Lock className="w-3 h-3 text-amber-500" />
                         ) : (
-                          <Globe className="w-3 h-3 text-blue-500" title="Public" />
+                          <Globe className="w-3 h-3 text-blue-500" />
                         )}
                       </div>
                       <p className="text-xs text-slate-400">{p.location || 'No location'}</p>

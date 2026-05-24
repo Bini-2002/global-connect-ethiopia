@@ -122,6 +122,7 @@ export default function CreateProposalPage() {
           location: parsed.location,
           expected_attendees: parsed.expected_attendees,
           budget_estimate: parsed.budget_estimate ? String(parsed.budget_estimate) : '',
+          visibility: parsed.visibility || 'public',
           programOverview: parsed.programOverview,
           eventObjectives: parsed.eventObjectives,
           targetAudience: parsed.targetAudience,
