@@ -122,9 +122,6 @@ export default function BookingDetailPage() {
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
           {/* Header Banner */}
           <div className="bg-[#062E22] p-8 text-white relative overflow-hidden">
-            <div className="absolute right-0 bottom-0 top-0 opacity-10 pointer-events-none">
-              <Ticket className="w-64 h-64 -mr-16 -mb-16 rotate-12" />
-            </div>
             <p className="text-xs uppercase tracking-widest text-emerald-400 font-bold">Booking Details</p>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{event.title}</h1>
             <p className="text-slate-300 mt-2 text-sm sm:text-base flex items-center gap-2">
@@ -178,9 +175,8 @@ export default function BookingDetailPage() {
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
                 <h4 className="font-bold text-[#062E22] text-md uppercase tracking-wider">Bank Transfer Instructions</h4>
                 <p className="text-sm text-slate-600">
-                  Please transfer exactly <strong className="text-[#062E22]">{formatCurrency(totalAmount)} {ticketType?.currency || 'ETB'}</strong> to the following account:
+                  Please transfer exactly <strong className="text-[#062E22]">{formatCurrency(totalAmount)} ETB</strong> to the following account:
                 </p>
-                
                 <div className="grid sm:grid-cols-2 gap-4 pt-2">
                   <div className="bg-white p-4 rounded-xl border border-slate-150">
                     <p className="text-xs text-slate-400 font-medium">Bank Name</p>
@@ -287,22 +283,14 @@ export default function BookingDetailPage() {
               </div>
 
               <div className="space-y-4">
-                <h4 className="font-bold text-[#062E22] uppercase tracking-wider text-xs">Ticket Info</h4>
+                <h4 className="font-bold text-[#062E22] uppercase tracking-wider text-xs">Booking Info</h4>
                 <div className="space-y-1">
-                  <p className="text-slate-400 font-medium">Ticket Type</p>
-                  <p className="text-slate-800 font-semibold text-base">{ticketType?.name || 'General Admission'}</p>
+                  <p className="text-slate-400 font-medium">Slots Requested</p>
+                  <p className="text-slate-800 font-bold text-lg">{booking.slots_requested}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-slate-400 font-medium">Quantity</p>
-                    <p className="text-slate-800 font-bold text-lg">{booking.slots_requested}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-slate-400 font-medium">Total Paid</p>
-                    <p className="text-slate-800 font-bold text-lg">
-                      {totalAmount === 0 ? 'Free' : `${formatCurrency(totalAmount)} ${ticketType?.currency || 'ETB'}`}
-                    </p>
-                  </div>
+                <div className="space-y-1">
+                  <p className="text-slate-400 font-medium">Total Paid</p>
+                  <p className="text-slate-800 font-bold text-lg">{totalAmount === 0 ? 'Free' : formatCurrency(totalAmount)}</p>
                 </div>
               </div>
 

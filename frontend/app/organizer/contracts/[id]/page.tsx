@@ -74,6 +74,7 @@ export default function OrganizerContractDetailPage() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionState, setActionState] = useState<'fund' | 'release' | 'refund' | 'sign' | null>(null);
+  const availableBalance = wallet?.balance || 0;
 
   const runAction = async (action: 'fund' | 'release' | 'refund') => {
     try {
@@ -179,7 +180,7 @@ export default function OrganizerContractDetailPage() {
                     </div>
                     <div className="rounded-[24px] bg-slate-100 p-5">
                       <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Wallet balance</p>
-                      <p className="mt-2 text-2xl font-bold text-[#062E22]">{formatCurrency(wallet?.balance)}</p>
+                      <p className="mt-2 text-2xl font-bold text-[#062E22]">{formatCurrency(availableBalance)}</p>
                     </div>
                   </div>
 
@@ -263,12 +264,12 @@ export default function OrganizerContractDetailPage() {
                   <div className="mt-6 space-y-3">
                     {canFundContract(contract) ? (
                       <>
-                        {wallet && (wallet.balance + (wallet.budget_balance || 0) < contract.amount) ? (
+                        {availableBalance < contract.amount ? (
                           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                             <p className="font-semibold">Insufficient funds</p>
                             <p className="mt-1">
                               Contract amount: {formatCurrency(contract.amount, contract.currency)}.<br/>
-                              Available balance: {formatCurrency(wallet.balance + (wallet.budget_balance || 0))}.
+                              Available balance: {formatCurrency(availableBalance)}.
                             </p>
                             <Link href="/organizer/wallet" className="mt-3 inline-block font-semibold text-[#062E22] hover:underline">
                               Top up wallet →
@@ -278,7 +279,7 @@ export default function OrganizerContractDetailPage() {
                         <button
                           type="button"
                           onClick={() => void runAction('fund')}
-                          disabled={actionState !== null || (wallet ? wallet.balance + (wallet.budget_balance || 0) < contract.amount : true)}
+                          disabled={actionState !== null || availableBalance < contract.amount}
                           className="w-full rounded-xl bg-[#062E22] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0a4a37] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {actionState === 'fund' ? 'Funding contract...' : 'Fund Contract'}
