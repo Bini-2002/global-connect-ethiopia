@@ -27,6 +27,8 @@ export default function OrganizerVendorDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [selectedServiceRecord, setSelectedServiceRecord] = useState<VendorServiceRecord | null>(null);
+  const serviceDetails = selectedServiceRecord?.service_details as Record<string, unknown> | null | undefined;
+  const serviceDetailsEntries = serviceDetails ? Object.entries(serviceDetails) : [];
 
   const handleServiceToggle = (service: string) => {
     setSelectedServices((prev) =>
@@ -315,6 +317,8 @@ export default function OrganizerVendorDetailPage() {
             <div className="sticky top-0 z-10 flex items-start justify-between bg-white/90 p-6 backdrop-blur-md border-b border-slate-100">
               <h2 className="text-2xl font-bold text-[#062E22]">{selectedServiceRecord.title}</h2>
               <button 
+                type="button"
+                aria-label="Close service details"
                 onClick={() => setSelectedServiceRecord(null)} 
                 className="rounded-full p-2 hover:bg-slate-100 transition-colors bg-slate-50"
               >
@@ -364,14 +368,14 @@ export default function OrganizerVendorDetailPage() {
                 </div>
               </div>
 
-              {selectedServiceRecord.service_details && Object.keys(selectedServiceRecord.service_details as any).length > 0 && (
+              {serviceDetailsEntries.length > 0 && (
                 <div className="mt-8">
                   <div className="flex items-center gap-2 mb-4">
                     <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-[#0a4a37]">Service Details</h3>
                     <div className="h-px flex-1 bg-slate-200"></div>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-3">
-                    {Object.entries(selectedServiceRecord.service_details as Record<string, any>).map(([key, value]) => {
+                    {serviceDetailsEntries.map(([key, value]) => {
                       const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/^./, str => str.toUpperCase());
                       let displayValue = value;
                       if (typeof value === 'boolean') {
