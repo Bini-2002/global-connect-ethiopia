@@ -51,7 +51,7 @@ export default function VendorCard({ vendor, href }: VendorCardProps) {
   return (
     <Link
       href={href}
-      className="group block overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
+      className="vendor-card group block overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md"
     >
       {coverImage ? (
         <div className="relative h-48 w-full overflow-hidden">
@@ -77,10 +77,10 @@ export default function VendorCard({ vendor, href }: VendorCardProps) {
           </div>
         </div>
       ) : (
-        <div className="relative h-48 w-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+        <div className="relative h-48 w-full bg-gradient-to-br from-[#062E22]/5 to-[#062E22]/10 flex items-center justify-center">
             {(() => {
               const Icon = getCategoryIcon(vendor.business_category ?? category);
-              return <Icon className="w-12 h-12 text-slate-400" />;
+              return <Icon className="w-12 h-12 text-[#062E22]/30" />;
             })()}
           </div>
       )}

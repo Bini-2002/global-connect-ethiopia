@@ -25,6 +25,7 @@ function extractPriceRange(service?: VendorServiceRecord): { min?: number; max?:
 
 const VENDOR_CATEGORIES = [
   'Hotel',
+  'Venue',
   'Catering',
   'Decoring',
   'Security',
@@ -78,6 +79,30 @@ export default function OrganizerVendorsPage() {
     const matchesPriceMax = !filterPriceMax || (range.max != null && range.max <= Number(filterPriceMax));
     return matchesSearch && matchesCategory && matchesLocation && matchesPriceMin && matchesPriceMax;
   });
+
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (loading || filteredVendors.length === 0) return;
+    const el = gridRef.current;
+    if (!el) return;
+
+    el.classList.remove('cards-visible');
+    void el.offsetWidth;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add('cards-visible');
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+
+    return () => observer.disconnect();
+  }, [loading, filteredVendors]);
 
   return (
     <div className="min-h-screen ">
@@ -296,11 +321,34 @@ export default function OrganizerVendorsPage() {
               <p className="mt-2 text-sm text-slate-500">Try adjusting your filters or search term.</p>
             </div>
           ) : (
-            <div className="grid gap-5 lg:grid-cols-3">
-              {filteredVendors.map((vendor) => (
-                <VendorCard key={vendor.id} vendor={vendor} href={`/organizer/vendors/${vendor.id}`} />
-              ))}
-            </div>
+            <>
+              <div ref={gridRef} className="grid gap-5 lg:grid-cols-3">
+                {filteredVendors.map((vendor, index) => (
+                  <div
+                    key={vendor.id}
+                    className="vendor-card-wrapper"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <VendorCard vendor={vendor} href={`/organizer/vendors/${vendor.id}`} />
+                  </div>
+                ))}
+              </div>
+
+              <style>{`
+                .vendor-card-wrapper {
+                  opacity: 0;
+                  transform: translateY(24px);
+                  will-change: transform, opacity;
+                }
+                .cards-visible .vendor-card-wrapper {
+                  animation: cardFadeIn 0.6s ease-out forwards;
+                }
+                @keyframes cardFadeIn {
+                  from { opacity: 0; transform: translateY(24px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+              `}</style>
+            </>
           )}
         </div>
       </main>
