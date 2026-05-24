@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import LoginHeader from "@/components/loginHeader";
 import api from "@/app/lib/api";
+import { logout } from "@/app/lib/auth";
 
 interface OrganizerVerificationStatusResponse {
   profile_type?: "organization" | "individual";
@@ -17,6 +19,7 @@ export default function OrganizerUnderReviewPage() {
   const [loading, setLoading] = useState(true);
   const [profileType, setProfileType] = useState<"organization" | "individual" | null>(null);
   const [queueStatus, setQueueStatus] = useState("");
+  const [statusLabel, setStatusLabel] = useState("Waiting for review");
 
   useEffect(() => {
     const loadStatus = async () => {
@@ -30,16 +33,19 @@ export default function OrganizerUnderReviewPage() {
           return;
         }
 
-        if (status.verification_status !== "pending_for_review") {
-          router.replace("/organizer/register");
-          return;
-        }
-
         setProfileType(status.profile_type || null);
         setQueueStatus(status.queue_status || "queued");
+        setStatusLabel(
+          status.verification_status === "rejected"
+            ? "Application needs updates"
+            : status.verification_status === "not_started"
+              ? "Waiting to submit"
+              : "Waiting for review",
+        );
       } catch {
-        router.replace("/organizer/register");
-        return;
+        setProfileType(null);
+        setQueueStatus("unavailable");
+        setStatusLabel("Waiting for review");
       } finally {
         setLoading(false);
       }
@@ -66,36 +72,53 @@ export default function OrganizerUnderReviewPage() {
 
   const label = profileType === "individual" ? "individual organizer" : "organization";
 
+  const handleSignOut = () => {
+    logout();
+    router.replace("/login");
+  };
+
   return (
     <>
       <LoginHeader />
       <main className="min-h-screen bg-slate-50 px-4 pb-16 pt-28">
-        <div className="mx-auto max-w-3xl space-y-6 rounded-2xl border border-slate-200 bg-[#8CB98820] p-6 shadow-xl sm:p-8">
-          <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
-            <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
-              Organizer Review In Progress
-            </p>
-            <h1 className="mt-2 text-2xl font-bold text-[#062E22]">
-              Your {label} registration is under review.
-            </h1>
-            <p className="mt-3 text-sm leading-6 text-slate-700">
-              Your submitted documents are waiting for admin validation. The organizer dashboard
-              will stay locked until the admin team approves your application.
-            </p>
-          </section>
+        <div className="mx-auto max-w-4xl space-y-6 rounded-2xl border border-slate-200 bg-[#8CB98820] p-6 shadow-xl sm:p-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 sm:flex-1">
+              <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                Organizer Waiting Dashboard
+              </p>
+              <h1 className="mt-2 text-2xl font-bold text-[#062E22]">
+                {statusLabel}
+              </h1>
+              <p className="mt-3 text-sm leading-6 text-slate-700">
+                {profileType
+                  ? `Your ${label} application is still being processed. Please wait while the review team checks your submission.`
+                  : "Your organizer application is not fully available yet, but this page remains your waiting dashboard while the account is being reviewed."}
+              </p>
+            </section>
+
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 sm:mt-1"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </div>
 
           <section className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Verification Status
               </p>
-              <p className="mt-2 text-sm font-semibold text-amber-700">Pending admin review</p>
+              <p className="mt-2 text-sm font-semibold text-amber-700">{statusLabel}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 OCR Queue
               </p>
-              <p className="mt-2 text-sm font-semibold text-[#062E22]">{queueStatus}</p>
+              <p className="mt-2 text-sm font-semibold text-[#062E22]">{queueStatus || "queued"}</p>
             </div>
           </section>
 
@@ -104,7 +127,7 @@ export default function OrganizerUnderReviewPage() {
             <div className="mt-4 space-y-3 text-sm text-slate-600">
               <p>1. Admins review the registration details and uploaded documents.</p>
               <p>2. If approved, your organizer dashboard access will unlock automatically.</p>
-              <p>3. If changes are needed, you will be sent back to registration to resubmit.</p>
+              <p>3. If changes are needed, you will be asked to update the registration.</p>
             </div>
           </section>
         </div>
