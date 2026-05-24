@@ -58,7 +58,7 @@ export default function TeamDashboardPage() {
   }, []);
 
   const handleWithdrawInitiate = () => {
-    const available = wallet?.balance || wallet?.available_balance || 0;
+    const available = wallet?.balance || 0;
     if (available <= 0) {
       alert("Insufficient funds to withdraw.");
       return;
@@ -70,7 +70,7 @@ export default function TeamDashboardPage() {
     setShowPopup(false);
     try {
       setIsWithdrawing(true);
-      const available = wallet?.balance || wallet?.available_balance || 0;
+      const available = wallet?.balance || 0;
       // Simulating Chapa API call for MVP by directly hitting our withdraw endpoint
       await marketplaceService.withdrawFromWallet({ amount: available });
       await refreshWallet();
@@ -136,10 +136,7 @@ export default function TeamDashboardPage() {
     inProgress: tasks.filter((t) => t.status === "in_progress").length,
     done: tasks.filter((t) => t.status === "done").length,
     totalEarned: transactions
-      .filter(
-        (tx) =>
-          tx.transaction_type === "TASK_PAYOUT" || tx.type === "TASK_PAYOUT",
-      )
+      .filter((tx) => tx.type === "TASK_PAYOUT")
       .reduce((sum, tx) => sum + tx.amount, 0),
   };
 
@@ -170,7 +167,7 @@ export default function TeamDashboardPage() {
                 Wallet Balance
               </p>
               <p className="text-lg font-bold text-[#8CB988]">
-                {formatCurrency(wallet?.balance || wallet?.available_balance)}
+                {formatCurrency(wallet?.balance)}
               </p>
             </div>
             <button
@@ -206,7 +203,7 @@ export default function TeamDashboardPage() {
                     </p>
                     <h2 className="text-3xl font-black mt-1 tracking-tight">
                       {formatCurrency(
-                        wallet?.balance || wallet?.available_balance,
+                        wallet?.balance,
                       )}
                     </h2>
                   </div>
@@ -227,7 +224,7 @@ export default function TeamDashboardPage() {
                   onClick={handleWithdrawInitiate}
                   disabled={
                     isWithdrawing ||
-                    (wallet?.balance || wallet?.available_balance || 0) <= 0
+                    (wallet?.balance || 0) <= 0
                   }
                 >
                   {isWithdrawing ? "Processing..." : "Withdraw Funds"}
@@ -271,9 +268,7 @@ export default function TeamDashboardPage() {
                     <div className="h-4 bg-slate-100 rounded w-1/2 mx-auto" />
                   </div>
                 ) : transactions.filter(
-                    (t) =>
-                      t.transaction_type === "TASK_PAYOUT" ||
-                      t.type === "TASK_PAYOUT",
+                    (t) => t.type === "TASK_PAYOUT",
                   ).length === 0 ? (
                   <div className="p-8 text-center text-xs text-slate-400 font-medium">
                     No task payouts yet
@@ -281,9 +276,7 @@ export default function TeamDashboardPage() {
                 ) : (
                   transactions
                     .filter(
-                      (t) =>
-                        t.transaction_type === "TASK_PAYOUT" ||
-                        t.type === "TASK_PAYOUT",
+                        (t) => t.type === "TASK_PAYOUT",
                     )
                     .slice(0, 5)
                     .map((tx, idx) => (
@@ -473,7 +466,7 @@ export default function TeamDashboardPage() {
       {showPopup && (
         <ChapaMockPopup
           type="withdraw"
-          amount={wallet?.balance || wallet?.available_balance || 0}
+          amount={wallet?.balance || 0}
           onConfirm={handleWithdrawConfirm}
           onCancel={() => setShowPopup(false)}
         />

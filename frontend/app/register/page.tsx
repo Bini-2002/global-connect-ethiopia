@@ -36,7 +36,7 @@ function RegistrationFormContent() {
     if (name === "password") calculatePasswordStrength(value);
   };
 
-  const handleRoleSelect = (role: "organizer" | "vendor" | "attendee") => {
+  const handleRoleSelect = (role: "organizer" | "vendor" | "attendee" | "team_member") => {
     setFormData((prev) => ({ ...prev, role }));
   };
 
@@ -167,7 +167,7 @@ function RegistrationFormContent() {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-slate-700 border-b border-slate-200 pb-2">Security</h3>
               <div>
-                <label htmlFor="password" name="password" className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">Password</label>
                 <input
                   type="password" id="password" name="password" value={formData.password}
                   onChange={handleChange} placeholder="********"
