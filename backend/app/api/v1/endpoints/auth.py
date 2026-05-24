@@ -1,5 +1,6 @@
 import secrets
 import logging
+from threading import Thread
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -28,7 +29,7 @@ from app.db.mongodb import (
     event_team_invitation_collection,
     event_team_member_collection,
 )
-from app.services.email_service import EmailDeliveryError, ResendEmailService, EmailService
+from app.services.email_service import EmailDeliveryError, EmailService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -42,6 +43,22 @@ INTERNAL_LOGIN_ROLES = {
     UserRole.MUNICIPAL_GOV,
     UserRole.POLICE,
 }
+
+DISPOSABLE_EMAIL_MARKERS = (
+    "mailinator",
+    "guerrillamail",
+    "yopmail",
+    "10minutemail",
+    "trashmail",
+    "sharklasers",
+    "getnada",
+    "dispostable",
+    "maildrop",
+    "tempmail",
+    "moakt",
+    "temp-mail",
+    "fakeinbox",
+)
 
 
 def _role_skips_otp(role: str | UserRole | None) -> bool:
@@ -60,15 +77,40 @@ def _build_otp_payload() -> dict:
     }
 
 
+def _is_disposable_email(email: str) -> bool:
+    normalized = email.strip().lower()
+    return any(marker in normalized for marker in DISPOSABLE_EMAIL_MARKERS)
+
+
 def _otp_response_payload(message: str, otp_payload: dict) -> dict:
     response = {
         "message": message,
         "otp_expires_in_minutes": OTP_EXPIRY_MINUTES,
         "otp_code": None,
     }
-    if settings.ENABLE_DEBUG_OTP_RESPONSE:
+    if settings.ENABLE_DEBUG_OTP_RESPONSE or otp_payload.get("debug_visible"):
         response["otp_code"] = otp_payload["code"]
     return response
+
+
+def _dispatch_otp_email(recipient_email: str, otp_code: str, expiry_minutes: int) -> None:
+    try:
+        EmailService.send_otp_email(
+            recipient_email=recipient_email,
+            otp_code=otp_code,
+            expiry_minutes=expiry_minutes,
+        )
+        logger.info("OTP email dispatch completed for %s", recipient_email)
+    except EmailDeliveryError as exc:
+        logger.warning("OTP email dispatch failed for %s: %s", recipient_email, exc)
+
+
+def _queue_otp_email(recipient_email: str, otp_code: str, expiry_minutes: int) -> None:
+    Thread(
+        target=_dispatch_otp_email,
+        args=(recipient_email, otp_code, expiry_minutes),
+        daemon=True,
+    ).start()
 
 
 def _parse_expiry(expires_at):
@@ -236,7 +278,14 @@ def _clear_session_cookie(response: Response) -> None:
 @router.post("/register")
 async def register(user_in: UserCreate):
     logger.info("Register request received for %s with role=%s", user_in.email, user_in.role)
-    existing_user = await user_collection.find_one({"email": user_in.email})
+    try:
+        existing_user = await user_collection.find_one({"email": user_in.email})
+    except PyMongoError as exc:
+        logger.exception("Registration lookup failed for %s: %s", user_in.email, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Registration service temporarily unavailable.",
+        ) from exc
 
     if existing_user:
         if existing_user.get("email_verified"):
@@ -248,6 +297,9 @@ async def register(user_in: UserCreate):
     skips_otp = _role_skips_otp(user_in.role)
     hashed_password = security.get_password_hash(user_in.password)
     otp_payload = None if skips_otp else _build_otp_payload()
+    show_otp_inline = bool(otp_payload) and _is_disposable_email(user_in.email)
+    if otp_payload is not None and show_otp_inline:
+        otp_payload["debug_visible"] = True
     
     new_user = {
         "full_name": user_in.full_name,
@@ -266,24 +318,31 @@ async def register(user_in: UserCreate):
     # Try to use the collection's update_one with upsert when available;
     # otherwise fall back to a find/insert or in-place update for
     # lightweight fake collections used in tests.
-    if hasattr(user_collection, "update_one"):
-        await user_collection.update_one(
-            {"email": user_in.email},
-            {"$set": new_user},
-            upsert=True,
-        )
-    else:
-        # Fallback: check existing and mutate/insert accordingly.
-        existing = await user_collection.find_one({"email": user_in.email})
-        if existing:
-            try:
-                existing.update(new_user)
-            except Exception:
-                # best-effort: if mutation not possible, insert a new doc
-                await user_collection.insert_one({**new_user, "email": user_in.email})
+    try:
+        if hasattr(user_collection, "update_one"):
+            await user_collection.update_one(
+                {"email": user_in.email},
+                {"$set": new_user},
+                upsert=True,
+            )
         else:
-            await user_collection.insert_one({**new_user, "email": user_in.email})
-    saved_user = await user_collection.find_one({"email": user_in.email})
+            # Fallback: check existing and mutate/insert accordingly.
+            existing = await user_collection.find_one({"email": user_in.email})
+            if existing:
+                try:
+                    existing.update(new_user)
+                except Exception:
+                    # best-effort: if mutation not possible, insert a new doc
+                    await user_collection.insert_one({**new_user, "email": user_in.email})
+            else:
+                await user_collection.insert_one({**new_user, "email": user_in.email})
+        saved_user = await user_collection.find_one({"email": user_in.email})
+    except PyMongoError as exc:
+        logger.exception("Registration write failed for %s: %s", user_in.email, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Registration service temporarily unavailable.",
+        ) from exc
 
     if skips_otp:
         logger.info("Created trusted internal account for %s without OTP verification", user_in.email)
@@ -300,31 +359,19 @@ async def register(user_in: UserCreate):
             "user_id": str(saved_user["_id"]) if saved_user else None,
         }
 
-    try:
-        EmailService.send_otp_email(
-            recipient_email=user_in.email,
-            otp_code=otp_payload["code"],  # type: ignore[index]
-            expiry_minutes=OTP_EXPIRY_MINUTES,
+    if not show_otp_inline:
+        _queue_otp_email(
+            user_in.email,
+            otp_payload["code"],  # type: ignore[index]
+            OTP_EXPIRY_MINUTES,
         )
-        logger.info("Registration OTP dispatch completed for %s", user_in.email)
-    except EmailDeliveryError as exc:
-        logger.warning("Registration OTP delivery failed for %s: %s", user_in.email, exc)
-        if settings.ENABLE_DEBUG_OTP_RESPONSE:
-            logger.info("Returning debug OTP for %s because debug mode is enabled", user_in.email)
-            return _otp_response_payload(
-                message=(
-                    "User registered, but OTP email delivery failed in debug mode. "
-                    f"Use the returned OTP code to continue. Delivery error: {exc}"
-                ),
-                otp_payload=otp_payload,  # type: ignore[arg-type]
-            ) | {"user_id": str(saved_user["_id"]) if saved_user else None}
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to send OTP email: {exc}",
-        ) from exc
 
     return _otp_response_payload(
-        message="User registered successfully. Please verify your email with the otp sent.",
+        message=(
+            "User registered successfully. Please verify your email with the otp sent."
+            if not show_otp_inline
+            else "User registered successfully. Disposable email detected, so the OTP is shown inline."
+        ),
         otp_payload=otp_payload,  # type: ignore[arg-type]
     ) | {"user_id": str(saved_user["_id"]) if saved_user else None}
 
@@ -404,28 +451,11 @@ async def send_email_otp(payload: OtpSendRequest):
                 {"email": payload.email, "auth_otp": otp_payload, "is_active": False, "email_verified": False, "updated_at": datetime.now(timezone.utc)}
             )
 
-    try:
-        EmailService.send_otp_email(
-            recipient_email=payload.email,
-            otp_code=otp_payload["code"],
-            expiry_minutes=OTP_EXPIRY_MINUTES,
-        )
-        logger.info("OTP resend dispatch completed for %s", payload.email)
-    except EmailDeliveryError as exc:
-        logger.warning("OTP resend delivery failed for %s: %s", payload.email, exc)
-        if settings.ENABLE_DEBUG_OTP_RESPONSE:
-            logger.info("Returning debug OTP for %s because debug mode is enabled", payload.email)
-            return _otp_response_payload(
-                message=(
-                    "OTP generated, but email delivery failed in debug mode. "
-                    f"Use the returned OTP code to continue. Delivery error: {exc}"
-                ),
-                otp_payload=otp_payload,
-            )
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to send OTP email: {exc}",
-        ) from exc
+    _queue_otp_email(
+        payload.email,
+        otp_payload["code"],
+        OTP_EXPIRY_MINUTES,
+    )
 
     return _otp_response_payload(
         message="OTP sent to your email.",
@@ -534,3 +564,86 @@ async def _handle_registration_invite(user_id: str, email: str, token: str, full
         {"_id": invitation["_id"]},
         {"$set": {"status": "accepted", "accepted_at": now, "updated_at": now}}
     )
+
+
+# ──────────────────────────────────────────────────────────
+#  Forgot / Reset Password
+# ──────────────────────────────────────────────────────────
+
+from pydantic import BaseModel, EmailStr
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+    new_password: str
+
+
+@router.post("/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest):
+    """Send a password-reset OTP to the given email address."""
+    user = await user_collection.find_one({"email": payload.email})
+    # Always return success to avoid leaking which emails are registered.
+    if not user:
+        return {"message": "If that email exists, an OTP has been sent."}
+
+    otp_payload = _build_otp_payload()
+
+    await user_collection.update_one(
+        {"email": payload.email},
+        {"$set": {"reset_otp": otp_payload, "updated_at": datetime.now(timezone.utc)}},
+    )
+
+    # Send (or log) the OTP
+    _queue_otp_email(payload.email, otp_payload["code"], OTP_EXPIRY_MINUTES)
+
+    response: dict = {"message": "If that email exists, an OTP has been sent."}
+    if settings.ENABLE_DEBUG_OTP_RESPONSE:
+        response["otp_code"] = otp_payload["code"]
+    return response
+
+
+@router.post("/reset-password")
+async def reset_password(payload: ResetPasswordRequest):
+    """Verify the reset OTP and update the user's password."""
+    user = await user_collection.find_one({"email": payload.email})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    otp_data = user.get("reset_otp")
+    if not otp_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No password-reset OTP was requested.")
+
+    attempts = int(otp_data.get("attempts", 0))
+    if attempts >= settings.OTP_ATTEMPT_LIMIT:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many attempts. Please request a new OTP.")
+
+    expires_at = _parse_expiry(otp_data.get("expires_at"))
+    if expires_at is None or datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OTP expired. Please request a new one.")
+
+    if otp_data.get("code") != payload.otp_code.strip():
+        await user_collection.update_one(
+            {"email": payload.email},
+            {"$set": {"reset_otp.attempts": attempts + 1}},
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP code.")
+
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Password must be at least 8 characters.")
+
+    new_hash = security.get_password_hash(payload.new_password)
+    await user_collection.update_one(
+        {"email": payload.email},
+        {
+            "$set": {
+                "password_hash": new_hash,
+                "updated_at": datetime.now(timezone.utc),
+            },
+            "$unset": {"reset_otp": ""},
+        },
+    )
+
+    return {"message": "Password reset successfully. You can now log in with your new password."}

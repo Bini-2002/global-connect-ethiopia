@@ -215,7 +215,7 @@ export default function EventVenuePage() {
   };
 
   return (
-    <EventWorkspaceShell eventId={eventId} activeTab="venue" event={event} loading={loading} error={error}>
+    <EventWorkspaceShell activeTab="venue" event={event} loading={loading} error={error}>
       <div className="space-y-8">
 
         {/* ─── Confirmed banner ─── */}

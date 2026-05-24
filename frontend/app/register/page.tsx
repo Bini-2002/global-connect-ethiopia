@@ -36,7 +36,7 @@ function RegistrationFormContent() {
     if (name === "password") calculatePasswordStrength(value);
   };
 
-  const handleRoleSelect = (role: "organizer" | "vendor" | "attendee") => {
+  const handleRoleSelect = (role: "organizer" | "vendor" | "attendee" | "team_member") => {
     setFormData((prev) => ({ ...prev, role }));
   };
 
@@ -61,7 +61,7 @@ function RegistrationFormContent() {
     setError("");
 
     try {
-      const response = await api.post<{ user_id?: string }>("/auth/register", {
+      const response = await api.post<{ user_id?: string; otp_code?: string | null }>("/auth/register", {
         full_name: formData.fullName,
         email: formData.email,
         role: formData.role || "attendee",
@@ -83,7 +83,8 @@ function RegistrationFormContent() {
           role: formData.role,
           email: formData.email,
         }).toString();
-        router.push(`/verify-email?${queryParams}`);
+        const otpCode = response.otp_code;
+        router.push(otpCode ? `/verify-email?${queryParams}&otp_code=${encodeURIComponent(otpCode)}` : `/verify-email?${queryParams}`);
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");
@@ -167,7 +168,7 @@ function RegistrationFormContent() {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-slate-700 border-b border-slate-200 pb-2">Security</h3>
               <div>
-                <label htmlFor="password" name="password" className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">Password</label>
                 <input
                   type="password" id="password" name="password" value={formData.password}
                   onChange={handleChange} placeholder="********"

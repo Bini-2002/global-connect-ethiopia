@@ -186,65 +186,7 @@ export interface EventScheduleUpdatePayload {
   is_ai_suggestion?: boolean;
 }
 
-export interface TicketTypeRecord {
-  id: string;
-  event_id: string;
-  name: string;
-  description?: string | null;
-  price: number;
-  quantity: number;
-  sold_quantity: number;
-  reserved_quantity: number;
-  remaining_quantity: number;
-  currency: string;
-  sales_start?: string | null;
-  sales_end?: string | null;
-  seat_mode: 'general' | 'assigned';
-  visibility: 'public' | 'private';
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface TicketTypeCreatePayload {
-  name: string;
-  description?: string;
-  price: number;
-  quantity: number;
-  currency?: string;
-  sales_start?: string;
-  sales_end?: string;
-  seat_mode?: 'general' | 'assigned';
-  visibility?: 'public' | 'private';
-  is_active?: boolean;
-}
-
-export interface TicketTypeUpdatePayload {
-  name?: string;
-  description?: string;
-  price?: number;
-  quantity?: number;
-  currency?: string;
-  sales_start?: string;
-  sales_end?: string;
-  seat_mode?: 'general' | 'assigned';
-  visibility?: 'public' | 'private';
-  is_active?: boolean;
-}
-
-export interface TicketCheckoutRequest {
-  ticket_type_id: string;
-  quantity: number;
-  attendee_name?: string;
-  attendee_email?: string;
-  notes?: string;
-  attendee_profile?: Record<string, string>;
-}
-
-export interface TicketPaymentConfirmRequest {
-  payment_reference_id?: string;
-  payment_method?: string;
-}
+// Ticketing interfaces removed — feature deprecated
 
 // ─── Phase 2: Venue Search & Reservation ─────────────────────────────────────
 

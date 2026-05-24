@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Phone, Lock, User, ArrowRight, Loader2, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import { getApiBaseUrl } from '@/app/lib/apiBase';
 
 type Step = 'register' | 'verify';
 
-const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const API = getApiBaseUrl();
 
 export default function TeamRegisterPage() {
   const router = useRouter();

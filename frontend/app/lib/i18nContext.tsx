@@ -75,7 +75,12 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useTranslation = () => {
   const context = useContext(I18nContext);
   if (!context) {
-    throw new Error("useTranslation must be used within an I18nProvider");
+    // Graceful fallback for components rendered before the provider mounts
+    return {
+      locale: "en" as Locale,
+      setLocale: () => {},
+      t: (key: string) => key,
+    };
   }
   return context;
 };

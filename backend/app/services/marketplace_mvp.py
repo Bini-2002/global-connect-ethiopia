@@ -273,7 +273,7 @@ async def serialize_request(request_doc: dict) -> dict:
         "messages": [
             {
                 "sender_id": stringify_id(message.get("sender_id")) or "",
-                "type": message.get("type", NegotiationMessageType.MESSAGE.value),
+                "type": message.get("type", "message"),
                 "amount": float(message.get("amount", 0.0)),
                 "message": message.get("message"),
                 "timestamp": message.get("timestamp", utc_now()),

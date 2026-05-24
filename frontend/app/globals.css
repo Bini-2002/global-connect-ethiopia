@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 @import 'react-phone-number-input/style.css';
 
@@ -18,7 +17,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  font-family: "Segoe UI", "Inter", Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 

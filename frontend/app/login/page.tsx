@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import LoginHeader from "../../components/loginHeader"
 import { getRoleFromToken, ROLE_DASHBOARDS, saveAuthSession, getVendorPortalRoute, getOrganizerPortalRoute } from '@/app/lib/auth'
+import { getApiBaseUrl } from '@/app/lib/apiBase'
 
 interface LoginResponse {
   access_token: string
@@ -29,7 +30,7 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1'
+      const API = getApiBaseUrl()
       const response = await fetch(`${API}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -4,8 +4,9 @@ import { Suspense, useState, useRef, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import LoginHeader from '@/components/loginHeader';
 import { ROLE_DASHBOARDS, saveAuthSession } from '@/app/lib/auth';
+import { getApiBaseUrl } from '@/app/lib/apiBase';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const BASE_URL = getApiBaseUrl();
 
 interface VerifyEmailResponse {
   message: string;
@@ -23,6 +24,7 @@ function VerifyEmailPageContent() {
 
   const role = searchParams.get('role') ?? '';
   const email = searchParams.get('email') ?? '';
+  const otpFromQuery = searchParams.get('otp_code') ?? '';
 
   const OTP_LENGTH = 6;
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(''));
@@ -33,6 +35,17 @@ function VerifyEmailPageContent() {
   const [cooldown, setCooldown] = useState(0);
 
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!otpFromQuery) {
+      return;
+    }
+
+    const digits = otpFromQuery.replace(/\D/g, '').slice(0, OTP_LENGTH).split('');
+    if (digits.length === OTP_LENGTH) {
+      setOtp(digits);
+    }
+  }, [otpFromQuery]);
 
   // Removed Auto-send OTP on mount to prevent overwriting the registration OTP
 

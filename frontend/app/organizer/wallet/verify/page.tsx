@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardHeader from '@/components/DashboardHeader';
 import Sidebar from '@/components/Sidebar';
 import { CheckCircle2, XCircle } from 'lucide-react';
-import { apiFetch } from '@/app/lib/api';
+import { api } from '@/app/lib/api';
 
 export default function WalletVerifyPage() {
   const router = useRouter();
@@ -24,10 +24,7 @@ export default function WalletVerifyPage() {
 
     const verifyPayment = async () => {
       try {
-        const response = await apiFetch(`/api/v1/wallet/top-up/verify/${tx_ref}`);
-        if (!response.ok) {
-          throw new Error('Payment verification failed');
-        }
+        await api.get(`/api/v1/wallet/top-up/verify/${tx_ref}`);
         setStatus('success');
       } catch (err) {
         setStatus('error');

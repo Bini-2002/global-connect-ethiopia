@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/app/lib/api';
 import { eventsService } from '@/app/services/eventsService';
-import { EventRecord, TicketTypeRecord, EventBookingRecord } from '@/app/types/event';
+import { EventRecord, EventBookingRecord } from '@/app/types/event';
 import { formatCurrency } from '@/components/organizer/events';
 import { 
   CheckCircle2, 
@@ -29,7 +29,7 @@ export default function BookingDetailPage() {
 
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [booking, setBooking] = useState<EventBookingRecord | null>(null);
-  const [ticketType, setTicketType] = useState<TicketTypeRecord | null>(null);
+  // Ticket types removed; booking records drive the display
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,13 +51,7 @@ export default function BookingDetailPage() {
         if (!active) return;
         setEvent(eventData);
 
-        if (bookingData.ticket_type_id) {
-          const tickets = await eventsService.getTicketTypes(eventId);
-          const matched = tickets.find((t) => t.id === bookingData.ticket_type_id);
-          if (matched && active) {
-            setTicketType(matched);
-          }
-        }
+        // no-op: ticket types deprecated
       } catch (err) {
         if (active) {
           setError(err instanceof Error ? err.message : 'Failed to load booking details');
@@ -110,8 +104,7 @@ export default function BookingDetailPage() {
 
   const isOffline = booking.payment_method === 'bank' || booking.payment_method === 'cash';
   const isPending = booking.booking_status === 'pending_payment' || (isOffline && booking.booking_status === 'pending_confirmation');
-  const price = ticketType ? ticketType.price : 0;
-  const totalAmount = price * booking.slots_requested;
+  const totalAmount = (booking as any).total_amount || 0;
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
@@ -129,9 +122,6 @@ export default function BookingDetailPage() {
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
           {/* Header Banner */}
           <div className="bg-[#062E22] p-8 text-white relative overflow-hidden">
-            <div className="absolute right-0 bottom-0 top-0 opacity-10 pointer-events-none">
-              <Ticket className="w-64 h-64 -mr-16 -mb-16 rotate-12" />
-            </div>
             <p className="text-xs uppercase tracking-widest text-emerald-400 font-bold">Booking Details</p>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{event.title}</h1>
             <p className="text-slate-300 mt-2 text-sm sm:text-base flex items-center gap-2">
@@ -185,9 +175,8 @@ export default function BookingDetailPage() {
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
                 <h4 className="font-bold text-[#062E22] text-md uppercase tracking-wider">Bank Transfer Instructions</h4>
                 <p className="text-sm text-slate-600">
-                  Please transfer exactly <strong className="text-[#062E22]">{formatCurrency(totalAmount)} {ticketType?.currency || 'ETB'}</strong> to the following account:
+                  Please transfer exactly <strong className="text-[#062E22]">{formatCurrency(totalAmount)} ETB</strong> to the following account:
                 </p>
-                
                 <div className="grid sm:grid-cols-2 gap-4 pt-2">
                   <div className="bg-white p-4 rounded-xl border border-slate-150">
                     <p className="text-xs text-slate-400 font-medium">Bank Name</p>
@@ -244,6 +233,16 @@ export default function BookingDetailPage() {
                       alt="Check-in QR Code" 
                       className="w-48 h-48 mx-auto"
                     />
+                    <div className="mt-3 text-center">
+                      <a
+                        href={api.resolveUrl(booking.qr_code_image_url) + '?download=true'}
+                        download
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Download QR
+                      </a>
+                    </div>
                   </div>
                 ) : (
                   <div className="w-48 h-48 bg-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400">
@@ -255,14 +254,16 @@ export default function BookingDetailPage() {
                 <p className="text-xs font-mono text-slate-400 mt-2">Reference: {booking.booking_reference}</p>
 
                 {booking.check_in_pass_image_url && (
-                  <Link
-                    href={api.resolveUrl(booking.check_in_pass_image_url)}
+                  <a
+                    href={api.resolveUrl(booking.check_in_pass_image_url) + '?download=true'}
                     target="_blank"
+                    rel="noreferrer"
+                    download
                     className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#062E22] hover:bg-[#0a4a37] text-white rounded-xl text-sm font-semibold transition shadow-sm mt-2"
                   >
                     <Download className="w-4 h-4" />
-                    Download PDF Pass
-                  </Link>
+                    Download Pass
+                  </a>
                 )}
               </div>
             )}
@@ -282,22 +283,14 @@ export default function BookingDetailPage() {
               </div>
 
               <div className="space-y-4">
-                <h4 className="font-bold text-[#062E22] uppercase tracking-wider text-xs">Ticket Info</h4>
+                <h4 className="font-bold text-[#062E22] uppercase tracking-wider text-xs">Booking Info</h4>
                 <div className="space-y-1">
-                  <p className="text-slate-400 font-medium">Ticket Type</p>
-                  <p className="text-slate-800 font-semibold text-base">{ticketType?.name || 'General Admission'}</p>
+                  <p className="text-slate-400 font-medium">Slots Requested</p>
+                  <p className="text-slate-800 font-bold text-lg">{booking.slots_requested}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-slate-400 font-medium">Quantity</p>
-                    <p className="text-slate-800 font-bold text-lg">{booking.slots_requested}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-slate-400 font-medium">Total Paid</p>
-                    <p className="text-slate-800 font-bold text-lg">
-                      {totalAmount === 0 ? 'Free' : `${formatCurrency(totalAmount)} ${ticketType?.currency || 'ETB'}`}
-                    </p>
-                  </div>
+                <div className="space-y-1">
+                  <p className="text-slate-400 font-medium">Total Paid</p>
+                  <p className="text-slate-800 font-bold text-lg">{totalAmount === 0 ? 'Free' : formatCurrency(totalAmount)}</p>
                 </div>
               </div>
 

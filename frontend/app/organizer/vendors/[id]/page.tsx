@@ -202,6 +202,16 @@ export default function OrganizerVendorDetailPage() {
                               ) : (
                                 <div className="flex items-center justify-center h-full text-slate-400 text-sm">No Image</div>
                               )}
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-[24px] bg-[#F5FBF8] p-5">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Verification</p>
+                    <p className="mt-2 text-2xl font-bold text-[#062E22]">{vendor.is_verified ? 'Verified' : 'Pending'}</p>
+                  </div>
+                  <div className="rounded-[24px] bg-slate-100 p-5">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Rating</p>
+                    <p className="mt-2 text-2xl font-bold text-[#062E22]">{(vendor.rating || 0).toFixed(1)}</p>
+                  </div>
+                </div>
 
                               {len > 1 && (
                                 <>
@@ -319,6 +329,25 @@ export default function OrganizerVendorDetailPage() {
                       No services listed yet
                     </span>
                   )}
+                        </div>
+                      ))
+                    ) : (vendor.services && vendor.services.length > 0) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {vendor.services.map((service) => (
+                          <span
+                            key={`${vendor.id}-${service}`}
+                            className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700"
+                          >
+                            {service}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+                        No services listed yet
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </>
@@ -405,6 +434,7 @@ export default function OrganizerVendorDetailPage() {
                   </div>
 
                   {vendor.services.length > 0 && (
+                  {vendor && vendor.services && vendor.services.length > 0 && (
                     <div>
                       <label className="mb-2 block text-sm font-medium text-slate-700">Services needed</label>
                       <div className="flex flex-wrap gap-2">
@@ -457,6 +487,42 @@ export default function OrganizerVendorDetailPage() {
                   >
                     Review Request
                   </button>
+                </form>
+              </section>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Service Detail Modal */}
+      {selectedServiceRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm transition-all duration-300">
+          <div 
+            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl animate-in fade-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-start justify-between bg-white/90 p-6 backdrop-blur-md border-b border-slate-100">
+              <h2 className="text-2xl font-bold text-[#062E22]">{selectedServiceRecord.title}</h2>
+              <button 
+                type="button"
+                aria-label="Close service details"
+                onClick={() => setSelectedServiceRecord(null)} 
+                className="rounded-full p-2 hover:bg-slate-100 transition-colors bg-slate-50"
+              >
+                <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6 pt-2">
+              {selectedServiceRecord.images && selectedServiceRecord.images.length > 0 && (
+                <div className="mt-2 flex gap-3 overflow-x-auto pb-4 snap-x">
+                  {selectedServiceRecord.images.map((img, idx) => (
+                     <div key={idx} className="relative h-40 w-64 flex-shrink-0 rounded-2xl overflow-hidden bg-slate-100 snap-center shadow-sm">
+                        <Image src={img.url} alt="" fill className="object-cover" />
+                     </div>
+                  ))}
                 </div>
               </>
             ) : (
@@ -492,6 +558,30 @@ export default function OrganizerVendorDetailPage() {
                     <p className="mt-1 text-sm text-slate-600 bg-slate-50 rounded-xl p-3 border border-slate-100 leading-relaxed">
                       {description}
                     </p>
+              {serviceDetailsEntries.length > 0 && (
+                <div className="mt-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-[#0a4a37]">Service Details</h3>
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {serviceDetailsEntries.map(([key, value]) => {
+                      const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/^./, str => str.toUpperCase());
+                      let displayValue = value;
+                      if (typeof value === 'boolean') {
+                        displayValue = value ? 'Yes' : 'No';
+                      } else if (Array.isArray(value)) {
+                        displayValue = value.join(', ');
+                      } else if (typeof value === 'object' && value !== null) {
+                        displayValue = JSON.stringify(value);
+                      }
+                      return (
+                        <div key={key} className="flex justify-between items-center bg-white rounded-xl p-3 border border-slate-200 shadow-sm hover:border-[#062E22]/30 transition-colors">
+                          <p className="text-xs font-medium text-slate-500 mr-4">{formattedKey}</p>
+                          <p className="text-sm font-semibold text-slate-800 text-right">{String(displayValue)}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

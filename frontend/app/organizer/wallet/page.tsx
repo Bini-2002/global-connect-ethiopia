@@ -40,7 +40,7 @@ export default function OrganizerWalletPage() {
       setDepositError(null);
       
       // Hit our mock deposit endpoint
-      await marketplaceService.depositWallet({ deposit_amount: Number(amount) });
+      await marketplaceService.depositWallet({ amount: Number(amount) });
       
       refresh();
       refreshTransactions();

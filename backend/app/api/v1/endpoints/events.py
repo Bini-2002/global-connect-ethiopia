@@ -28,7 +28,6 @@ from app.db.mongodb import (
     permit_collection,
     police_notification_collection,
     proposal_collection,
-    ticket_type_collection,
     ticket_purchase_collection,
     user_collection,
     venue_reservation_collection,
@@ -83,10 +82,6 @@ from app.schemas.event import (
     IncidentCreate,
     IncidentResponse,
     IncidentUpdate,
-    TicketCheckoutRequest,
-    TicketPaymentConfirmRequest,
-    TicketTypeResponse,
-    TicketTypeUpdate,
     EventCancelRequest,
     EventPostponeRequest,
 )
@@ -1071,13 +1066,43 @@ async def cancel_event(
         {"event_id": event_id, "booking_status": "confirmed"}
     ).to_list(length=1000)
     
-    for booking in bookings:
+    # Auto-generate announcement for team members
+    team_members = await event_team_member_collection.find(
+        {"event_id": event_id, "status": "active"}
+    ).to_list(length=100)
+
+    # Auto-generate announcement for VIPs
+    vips = await vip_reservation_collection.find(
+        {"event_id": event_id}
+    ).to_list(length=100)
+
+    recipients = []
+    for b in bookings:
+        if b.get("attendee_id") or b.get("attendee_email"):
+            recipients.append({"id": b.get("attendee_id"), "email": b.get("attendee_email")})
+    for t in team_members:
+        if t.get("user_id") or t.get("email"):
+            recipients.append({"id": t.get("user_id"), "email": t.get("email")})
+    for v in vips:
+        if v.get("vip_email"):
+            recipients.append({"id": None, "email": v.get("vip_email")})
+
+    # Deduplicate by email/id
+    seen = set()
+    unique_recipients = []
+    for r in recipients:
+        key = r["email"] or r["id"]
+        if key and key not in seen:
+            seen.add(key)
+            unique_recipients.append(r)
+    
+    for r in unique_recipients:
         doc = {
             "id": secrets.token_hex(12),
             "announcement_id": "auto_cancel_" + secrets.token_hex(4),
             "event_id": event_id,
-            "recipient_user_id": booking["attendee_id"],
-            "recipient_email": booking.get("attendee_email"),
+            "recipient_user_id": r["id"] or f"external_{secrets.token_hex(4)}",
+            "recipient_email": r["email"],
             "subject": f"Event Cancelled: {event.get('title')}",
             "body": f"We regret to inform you that {event.get('title')} has been cancelled. Reason: {payload.reason}.",
             "status": "delivered",
@@ -1086,6 +1111,30 @@ async def cancel_event(
             "updated_at": now,
         }
         await announcement_delivery_collection.insert_one(doc)
+    # Send emails to confirmed booking recipients (best-effort)
+    try:
+        from app.services.email_service import EmailService
+        for booking in bookings:
+            recipient = booking.get('attendee_email')
+            if not recipient:
+                continue
+            try:
+                EmailService.send_generic_email(
+                    recipient_email=recipient,
+                    subject=f"Event Cancelled: {event.get('title')}",
+                    body=(
+                        f"Dear {booking.get('attendee_name') or 'attendee'},\n\n"
+                        f"We regret to inform you that the event '{event.get('title')}' has been cancelled.\n"
+                        f"Reason: {payload.reason or 'Not specified'}.\n\n"
+                        "If you had any bookings, refunds or further instructions will follow.\n\n"
+                        "Best regards,\nGlobal Connect Ethiopia"
+                    ),
+                )
+            except Exception:
+                # best-effort: don't fail the API if email send fails
+                pass
+    except Exception:
+        pass
 
     updated = await event_collection.find_one({"_id": event["_id"]})
     return _event_base_response(updated)
@@ -1121,13 +1170,43 @@ async def postpone_event(
         {"event_id": event_id, "booking_status": "confirmed"}
     ).to_list(length=1000)
     
-    for booking in bookings:
+    # Auto-generate announcement for team members
+    team_members = await event_team_member_collection.find(
+        {"event_id": event_id, "status": "active"}
+    ).to_list(length=100)
+
+    # Auto-generate announcement for VIPs
+    vips = await vip_reservation_collection.find(
+        {"event_id": event_id}
+    ).to_list(length=100)
+
+    recipients = []
+    for b in bookings:
+        if b.get("attendee_id") or b.get("attendee_email"):
+            recipients.append({"id": b.get("attendee_id"), "email": b.get("attendee_email")})
+    for t in team_members:
+        if t.get("user_id") or t.get("email"):
+            recipients.append({"id": t.get("user_id"), "email": t.get("email")})
+    for v in vips:
+        if v.get("vip_email"):
+            recipients.append({"id": None, "email": v.get("vip_email")})
+
+    # Deduplicate by email/id
+    seen = set()
+    unique_recipients = []
+    for r in recipients:
+        key = r["email"] or r["id"]
+        if key and key not in seen:
+            seen.add(key)
+            unique_recipients.append(r)
+    
+    for r in unique_recipients:
         doc = {
             "id": secrets.token_hex(12),
             "announcement_id": "auto_postpone_" + secrets.token_hex(4),
             "event_id": event_id,
-            "recipient_user_id": booking["attendee_id"],
-            "recipient_email": booking.get("attendee_email"),
+            "recipient_user_id": r["id"] or f"external_{secrets.token_hex(4)}",
+            "recipient_email": r["email"],
             "subject": f"Event Postponed: {event.get('title')}",
             "body": f"{event.get('title')} has been postponed. New Dates: {payload.new_start_date.strftime('%Y-%m-%d %H:%M')} to {payload.new_end_date.strftime('%Y-%m-%d %H:%M')}. Reason: {payload.reason or 'Not specified'}.",
             "status": "delivered",
@@ -1136,6 +1215,30 @@ async def postpone_event(
             "updated_at": now,
         }
         await announcement_delivery_collection.insert_one(doc)
+    # Send emails to confirmed booking recipients (best-effort)
+    try:
+        from app.services.email_service import EmailService
+        for booking in bookings:
+            recipient = booking.get('attendee_email')
+            if not recipient:
+                continue
+            try:
+                EmailService.send_generic_email(
+                    recipient_email=recipient,
+                    subject=f"Event Postponed: {event.get('title')}",
+                    body=(
+                        f"Dear {booking.get('attendee_name') or 'attendee'},\n\n"
+                        f"The event '{event.get('title')}' has been postponed.\n"
+                        f"New Dates: {payload.new_start_date.strftime('%Y-%m-%d %H:%M')} to {payload.new_end_date.strftime('%Y-%m-%d %H:%M')}.\n"
+                        f"Reason: {payload.reason or 'Not specified'}.\n\n"
+                        "Please check the event page for updated details.\n\n"
+                        "Best regards,\nGlobal Connect Ethiopia"
+                    ),
+                )
+            except Exception:
+                pass
+    except Exception:
+        pass
 
     updated = await event_collection.find_one({"_id": event["_id"]})
     return _event_base_response(updated)
@@ -1449,6 +1552,58 @@ async def update_venue_reservation_deposit(
         payload=payload,
         current_user=current_user,
     )
+
+
+@router.get("/{event_id}/vip-reservations", response_model=list[VipReservationResponse])
+async def list_vip_reservations(event_id: str, current_user: dict = Depends(get_current_user)):
+    await _get_owned_event_or_403(event_id, current_user)
+    docs = await vip_reservation_collection.find({"event_id": event_id}, sort=[("created_at", -1)]).to_list(length=500)
+    return [
+        {
+            "id": str(doc["_id"]),
+            "event_id": doc["event_id"],
+            "vip_name": doc["vip_name"],
+            "hotel_name": doc["hotel_name"],
+            "vip_email": doc.get("vip_email"),
+            "notes": doc.get("notes"),
+            "created_at": doc["created_at"],
+        }
+        for doc in docs
+    ]
+
+
+@router.post("/{event_id}/vip-reservations", response_model=VipReservationResponse, status_code=201)
+async def create_vip_reservation(
+    event_id: str,
+    payload: VipReservationCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    await _get_owned_event_or_403(event_id, current_user)
+    now = utc_now()
+    doc = payload.model_dump()
+    doc.update({
+        "event_id": event_id,
+        "created_at": now,
+        "updated_at": now,
+    })
+    result = await vip_reservation_collection.insert_one(doc)
+    doc["id"] = str(result.inserted_id)
+    return doc
+
+
+@router.delete("/{event_id}/vip-reservations/{reservation_id}", status_code=204)
+async def delete_vip_reservation(
+    event_id: str,
+    reservation_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(reservation_id, field_name="reservation id")
+    result = await vip_reservation_collection.delete_one({"_id": oid, "event_id": event_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="VIP Reservation not found")
+    return None
+
 
 
 @router.get("/{event_id}/team/invitations", response_model=list[EventTeamInvitationResponse])
@@ -1967,114 +2122,16 @@ async def update_booking_settings(
     return _event_base_response(updated)
 
 
-@router.get("/{event_id}/ticket-types", response_model=list[TicketTypeResponse])
-async def list_ticket_types(event_id: str, current_user: dict = Depends(get_current_user)):
-    event = await _get_event_or_404(event_id)
-    await _ensure_team_access(event, current_user)
-    docs = await ticket_type_collection.find({"event_id": event_id}, sort=[("created_at", -1)]).to_list(length=200)
-    return [_serialize_ticket_type(doc) for doc in docs]
-
-
-@router.post("/{event_id}/ticket-types", response_model=TicketTypeResponse, status_code=201)
-async def create_ticket_type(event_id: str, payload: TicketTypeCreate, current_user: dict = Depends(get_current_user)):
-    event = await _get_event_or_404(event_id)
-    await _ensure_team_access(event, current_user)
-    now = utc_now()
-    doc = {
-        "event_id": event_id,
-        "name": payload.name.strip(),
-        "description": payload.description.strip() if payload.description else None,
-        "price": float(payload.price),
-        "quantity": int(payload.quantity),
-        "sold_quantity": 0,
-        "reserved_quantity": 0,
-        "currency": payload.currency,
-        "sales_start": payload.sales_start,
-        "sales_end": payload.sales_end,
-        "seat_mode": payload.seat_mode,
-        "visibility": payload.visibility,
-        "is_active": payload.is_active,
-        "created_at": now,
-        "updated_at": now,
-    }
-    result = await ticket_type_collection.insert_one(doc)
-    doc["_id"] = result.inserted_id
-    await event_collection.update_one({"_id": event["_id"]}, {"$set": {"ticketing_status": "configured", "updated_at": now}})
-    return _serialize_ticket_type(doc)
-
-
-@router.patch("/{event_id}/ticket-types/{ticket_type_id}", response_model=TicketTypeResponse)
-async def update_ticket_type(
-    event_id: str,
-    ticket_type_id: str,
-    payload: TicketTypeUpdate,
-    current_user: dict = Depends(get_current_user),
-):
-    event = await _get_event_or_404(event_id)
-    await _ensure_team_access(event, current_user)
-    ticket_type = await ticket_type_collection.find_one({"_id": parse_object_id(ticket_type_id, field_name="ticket type id"), "event_id": event_id})
-    if not ticket_type:
-        raise HTTPException(status_code=404, detail="Ticket type not found")
-
-    updates: dict[str, object] = {"updated_at": utc_now()}
-    if payload.name is not None:
-        updates["name"] = payload.name.strip()
-    if payload.description is not None:
-        updates["description"] = payload.description.strip() if payload.description else None
-    if payload.price is not None:
-        updates["price"] = float(payload.price)
-    if payload.quantity is not None:
-        sold_quantity = int(ticket_type.get("sold_quantity", 0))
-        reserved_quantity = int(ticket_type.get("reserved_quantity", 0))
-        if payload.quantity < sold_quantity + reserved_quantity:
-            raise HTTPException(status_code=400, detail="Quantity cannot be below sold plus reserved tickets")
-        updates["quantity"] = int(payload.quantity)
-    if payload.currency is not None:
-        updates["currency"] = payload.currency
-    if payload.sales_start is not None:
-        updates["sales_start"] = payload.sales_start
-    if payload.sales_end is not None:
-        updates["sales_end"] = payload.sales_end
-    if payload.seat_mode is not None:
-        updates["seat_mode"] = payload.seat_mode
-    if payload.visibility is not None:
-        updates["visibility"] = payload.visibility
-    if payload.is_active is not None:
-        updates["is_active"] = payload.is_active
-
-    await ticket_type_collection.update_one({"_id": ticket_type["_id"]}, {"$set": updates})
-    refreshed = await ticket_type_collection.find_one({"_id": ticket_type["_id"]})
-    if not refreshed:
-        raise HTTPException(status_code=404, detail="Ticket type not found")
-    return _serialize_ticket_type(refreshed)
-
-
 @router.post("/{event_id}/ticketing/activate", response_model=EventResponse)
 async def activate_ticketing(event_id: str, current_user: dict = Depends(get_current_user)):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    now = utc_now()
-    updated = await event_collection.find_one_and_update(
-        {"_id": event["_id"]},
-        {"$set": {"ticketing_status": "sales_live", "updated_at": now}},
-        return_document=ReturnDocument.AFTER,
-    )
-    if not updated:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return _event_base_response(updated)
+    # Ticketing activation endpoint removed — ticket types and sales are deprecated.
+    raise HTTPException(status_code=410, detail="Ticketing feature removed")
 
 
 @router.post("/{event_id}/ticketing/deactivate", response_model=EventResponse)
 async def deactivate_ticketing(event_id: str, current_user: dict = Depends(get_current_user)):
-    event = await _get_owned_event_or_403(event_id, current_user)
-    now = utc_now()
-    updated = await event_collection.find_one_and_update(
-        {"_id": event["_id"]},
-        {"$set": {"ticketing_status": "sales_closed", "updated_at": now}},
-        return_document=ReturnDocument.AFTER,
-    )
-    if not updated:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return _event_base_response(updated)
+    # Ticketing deactivation endpoint removed — ticket types and sales are deprecated.
+    raise HTTPException(status_code=410, detail="Ticketing feature removed")
 
 
 @router.get("/{event_id}/bookings", response_model=list[EventBookingResponse])
@@ -2374,106 +2431,21 @@ async def register_manual_attendee(
 @router.post("/{event_id}/tickets/checkout", response_model=EventBookingResponse, status_code=201)
 async def checkout_ticket(
     event_id: str,
-    payload: TicketCheckoutRequest,
+    payload: dict,
     current_user: dict = Depends(get_current_user),
 ):
-    _require_role(current_user, UserRole.ATTENDEE)
-    event = await _get_event_or_404(event_id)
-    if event.get("visibility") != "public" or event.get("status") not in {EventStatus.PUBLISHED, EventStatus.LIVE}:
-        raise HTTPException(status_code=400, detail="Ticket sales are only available for public published or live events")
-
-    ticket_type = await ticket_type_collection.find_one({"_id": parse_object_id(payload.ticket_type_id, field_name="ticket type id"), "event_id": event_id})
-    if not ticket_type or not ticket_type.get("is_active", True):
-        raise HTTPException(status_code=404, detail="Ticket type not found")
-
-    now = utc_now()
-    sales_start = _to_utc_datetime(ticket_type.get("sales_start"))
-    sales_end = _to_utc_datetime(ticket_type.get("sales_end"))
-    if sales_start and sales_start > now:
-        raise HTTPException(status_code=400, detail="Ticket sales have not started yet")
-    if sales_end and sales_end <= now:
-        raise HTTPException(status_code=400, detail="Ticket sales have ended")
-
-    quantity = int(payload.quantity)
-    available_quantity = int(ticket_type.get("quantity", 0)) - int(ticket_type.get("sold_quantity", 0)) - int(ticket_type.get("reserved_quantity", 0))
-    if quantity > available_quantity:
-        raise HTTPException(status_code=409, detail="Not enough ticket inventory available")
-
-    attendee_profile = {str(key): str(value).strip() for key, value in (payload.attendee_profile or {}).items()}
-    doc = {
-        "event_id": event_id,
-        "ticket_type_id": str(ticket_type["_id"]),
-        "booking_reference": _generate_ticket_code("TKT"),
-        "attendee_id": current_user["id"],
-        "attendee_name": payload.attendee_name or current_user.get("full_name"),
-        "attendee_email": payload.attendee_email or current_user.get("email"),
-        "slots_requested": quantity,
-        "notes": payload.notes,
-        "attendee_profile": attendee_profile,
-        "qr_code": None,
-        "booking_status": "pending_payment",
-        "check_in_status": "pending",
-        "checked_in_at": None,
-        "payment_reference_id": None,
-        "payment_method": None,
-        "created_at": now,
-        "updated_at": now,
-    }
-    result = await ticket_purchase_collection.insert_one(doc)
-    doc["_id"] = result.inserted_id
-    await ticket_type_collection.update_one(
-        {"_id": ticket_type["_id"]},
-        {"$inc": {"reserved_quantity": quantity}, "$set": {"updated_at": now}},
-    )
-    return _serialize_booking(doc, event)
+    # Ticket checkout flow removed — ticket sales are deprecated in this project.
+    raise HTTPException(status_code=410, detail="Ticket purchase/checkout feature removed")
 
 
 @router.post("/{event_id}/tickets/confirm-payment", response_model=EventBookingResponse)
 async def confirm_ticket_payment(
     event_id: str,
-    payload: TicketPaymentConfirmRequest,
+    payload: dict,
     current_user: dict = Depends(get_current_user),
 ):
-    _require_role(current_user, UserRole.ATTENDEE)
-    event = await _get_event_or_404(event_id)
-    booking = await ticket_purchase_collection.find_one(
-        {"event_id": event_id, "attendee_id": current_user["id"], "booking_status": "pending_payment"}
-    )
-    if not booking:
-        raise HTTPException(status_code=404, detail="Pending ticket purchase not found")
-
-    ticket_type = await ticket_type_collection.find_one({"_id": parse_object_id(booking["ticket_type_id"], field_name="ticket type id"), "event_id": event_id})
-    if not ticket_type:
-        raise HTTPException(status_code=404, detail="Ticket type not found")
-
-    now = utc_now()
-    quantity = int(booking.get("slots_requested", 1))
-    qr_code = _generate_ticket_code("QR")
-    await ticket_purchase_collection.update_one(
-        {"_id": booking["_id"]},
-        {
-            "$set": {
-                "booking_status": "confirmed",
-                "check_in_status": "pending",
-                "qr_code": qr_code,
-                "payment_reference_id": payload.payment_reference_id,
-                "payment_method": payload.payment_method,
-                "updated_at": now,
-            }
-        },
-    )
-    await ticket_type_collection.update_one(
-        {"_id": ticket_type["_id"]},
-        {"$inc": {"reserved_quantity": -quantity, "sold_quantity": quantity}, "$set": {"updated_at": now}},
-    )
-    await event_collection.update_one(
-        {"_id": event["_id"]},
-        {"$inc": {"booked_count": quantity}, "$set": {"updated_at": now}},
-    )
-    updated = await ticket_purchase_collection.find_one({"_id": booking["_id"]})
-    if not updated:
-        raise HTTPException(status_code=404, detail="Ticket purchase not found")
-    return _serialize_booking(updated, await event_collection.find_one({"_id": event["_id"]}) or event)
+    # Ticket payment confirmation removed — ticket sales are deprecated.
+    raise HTTPException(status_code=410, detail="Ticket purchase/confirmation feature removed")
 
 
 @router.get("/{event_id}/bookings/{booking_id}/qr-code")
@@ -2481,6 +2453,7 @@ async def get_booking_qr_code_image(
     event_id: str,
     booking_id: str,
     current_user: dict = Depends(get_current_user),
+    download: bool = Query(False, description="Return as attachment for download if true"),
 ):
     event = await _get_event_or_404(event_id)
     booking = await _get_booking_or_404(event_id, booking_id)
@@ -2490,10 +2463,13 @@ async def get_booking_qr_code_image(
         raise HTTPException(status_code=400, detail="A QR code is only generated for confirmed bookings")
 
     image_bytes = generate_qr_png_bytes(qr_code)
+    disposition = 'attachment' if download else 'inline'
     return StreamingResponse(
         BytesIO(image_bytes),
         media_type="image/png",
-        headers={"Content-Disposition": f'inline; filename="booking-{booking.get("booking_reference", booking_id)}-qr.png"'},
+        headers={
+            "Content-Disposition": f'{disposition}; filename="booking-{booking.get("booking_reference", booking_id)}-qr.png"'
+        },
     )
 
 
@@ -2502,6 +2478,7 @@ async def get_booking_check_in_pass(
     event_id: str,
     booking_id: str,
     current_user: dict = Depends(get_current_user),
+    download: bool = Query(False, description="Return as attachment for download if true"),
 ):
     event = await _get_event_or_404(event_id)
     booking = await _get_booking_or_404(event_id, booking_id)
@@ -2518,10 +2495,13 @@ async def get_booking_check_in_pass(
         attendee_name=booking.get("attendee_name"),
         booking_reference=booking.get("booking_reference", booking_id),
     )
+    disposition = 'attachment' if download else 'inline'
     return StreamingResponse(
         BytesIO(image_bytes),
         media_type="image/png",
-        headers={"Content-Disposition": f'inline; filename="booking-{booking.get("booking_reference", booking_id)}-pass.png"'},
+        headers={
+            "Content-Disposition": f'{disposition}; filename="booking-{booking.get("booking_reference", booking_id)}-pass.png"'
+        },
     )
 
 

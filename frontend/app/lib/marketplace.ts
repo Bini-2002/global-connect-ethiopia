@@ -62,12 +62,14 @@ export function getContractHeadline(contract: MarketplaceContractRecord): string
 }
 
 export function humanizeRequestStatus(status: RequestStatus): string {
-  return {
+  const map: Record<RequestStatus, string> = {
     REQUESTED: 'Requested',
     QUOTED: 'Quoted',
     NEGOTIATING: 'Negotiating',
     ACCEPTED: 'Accepted',
-  }[status];
+  };
+
+  return map[status];
 }
 
 export function humanizeContractStatus(status: ContractStatus): string {
@@ -83,20 +85,25 @@ export function humanizeContractStatus(status: ContractStatus): string {
 }
 
 export function humanizeNegotiationType(type: NegotiationMessageType): string {
-  return {
+  const map: Record<NegotiationMessageType, string> = {
     QUOTE: 'Quote',
     COUNTER: 'Counteroffer',
-  }[type];
+  };
+
+  return map[type];
 }
 
 export function humanizeTransactionType(type: TransactionType): string {
-  return {
+  const map: Record<TransactionType, string> = {
     DEPOSIT: 'Deposit',
     ESCROW_LOCK: 'Escrow lock',
     RELEASE: 'Release',
     REFUND: 'Refund',
     COMMISSION: 'Commission',
-  }[type];
+    TASK_PAYOUT: 'Task payout',
+  };
+
+  return map[type];
 }
 
 export function requestNeedsVendorQuote(request: MarketplaceRequestRecord): boolean {

@@ -29,14 +29,18 @@ type EventWorkspaceTab =
   | 'budget'
   | 'schedule'
   | 'venue'
+  | 'analytics'
+  | 'announcements'
   | 'team'
   | 'tasks'
   | 'attendees'
   | 'vip'
   | 'booking'
   | 'tickets'
+  | 'announcements'
   | 'engagement'
   | 'operations'
+  | 'analytics'
   | 'vip-reservations'
   | 'wrap-up';
 
@@ -62,15 +66,19 @@ const tabConfigs: TabConfig[] = [
   { id: 'budget', label: 'Budget', icon: Wallet, href: (eventId) => `/organizer/events/${eventId}/budget` },
   { id: 'schedule', label: 'Schedule', icon: CalendarDays, href: (eventId) => `/organizer/events/${eventId}/schedule` },
   { id: 'venue', label: 'Venue', icon: Landmark, href: (eventId) => `/organizer/events/${eventId}/venue` },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, href: (eventId) => `/organizer/events/${eventId}/analytics` },
+  { id: 'announcements', label: 'Announcements', icon: Megaphone, href: (eventId) => `/organizer/events/${eventId}/announcements` },
   { id: 'team', label: 'Team', icon: Users, href: (eventId) => `/organizer/events/${eventId}/team` },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare, href: (eventId) => `/organizer/events/${eventId}/tasks` },
   { id: 'attendees', label: 'Attendees', icon: UserCheck, href: (eventId) => `/organizer/events/${eventId}/attendees` },
   { id: 'vip', label: 'Hotels', icon: Crown, href: (eventId) => `/organizer/events/${eventId}/vip` },
   { id: 'booking', label: 'Booking', icon: Tickets, href: (eventId) => `/organizer/events/${eventId}/booking` },
   { id: 'tickets', label: 'Tickets', icon: Tickets, href: (eventId) => `/organizer/events/${eventId}/tickets` },
+  { id: 'announcements', label: 'Announcements', icon: Megaphone, href: (eventId) => `/organizer/events/${eventId}/announcements` },
   { id: 'engagement', label: 'Engagement', icon: Megaphone, href: (eventId) => `/organizer/events/${eventId}/engagement` },
   { id: 'operations', label: 'Operations', icon: ShieldAlert, href: (eventId) => `/organizer/events/${eventId}/operations` },
-  { id: 'vip-reservations', label: 'Hotels', icon: Landmark, href: (eventId) => `/organizer/events/${eventId}/vip-reservations` },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, href: (eventId) => `/organizer/events/${eventId}/analytics` },
+  { id: 'vip-reservations', label: 'VIP Rooms', icon: Crown, href: (eventId) => `/organizer/events/${eventId}/vip-reservations` },
   { id: 'wrap-up', label: 'Wrap-Up', icon: FileBarChart2, href: (eventId) => `/organizer/events/${eventId}/wrap-up` },
 ];
 

@@ -28,6 +28,7 @@ class VenueListingCreateRequest(BaseModel):
     currency: str = Field(default="ETB", min_length=3, max_length=8)
     is_reservable: bool = True
     availability: dict[str, Any] | list[Any] | str | None = None
+    category: str | None = Field(default="Venue")
     description: str | None = Field(default=None, max_length=4000)
     notes: str | None = Field(default=None, max_length=4000)
     status: VenueListingStatus = VenueListingStatus.ACTIVE
@@ -44,6 +45,7 @@ class VenueListingUpdateRequest(BaseModel):
     currency: str | None = Field(default=None, min_length=3, max_length=8)
     is_reservable: bool | None = None
     availability: dict[str, Any] | list[Any] | str | None = None
+    category: str | None = Field(default=None)
     description: str | None = Field(default=None, max_length=4000)
     notes: str | None = Field(default=None, max_length=4000)
     status: VenueListingStatus | None = None
@@ -65,6 +67,7 @@ class VenueListingResponse(BaseModel):
     availability: dict[str, Any] | list[Any] | str | None = None
     description: str | None = None
     notes: str | None = None
+    category: str | None = "Venue"
     status: VenueListingStatus
     created_at: datetime
     updated_at: datetime
@@ -83,6 +86,7 @@ class VenueListingSearchResponse(BaseModel):
     currency: str = "ETB"
     available: bool = True
     is_reservable: bool = True
+    category: str | None = "Venue"
     description: str | None = None
     notes: str | None = None
     vendor: VenueListingVendorSummary | None = None
@@ -103,6 +107,7 @@ class VenueListingDocument(BaseModel):
     availability: dict[str, Any] | list[Any] | str | None = None
     description: str | None = None
     notes: str | None = None
+    category: str | None = "Venue"
     status: VenueListingStatus = VenueListingStatus.ACTIVE
     created_at: datetime
     updated_at: datetime

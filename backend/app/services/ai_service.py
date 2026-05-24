@@ -348,7 +348,7 @@ class AIService:
 
         from app.db.mongodb import event_collection
         from app.services.marketplace import parse_object_id
-        event = await event_collection.find_one({"_id": parse_object_id(event_id)})
+        event = await event_collection.find_one({"_id": parse_object_id(event_id, field_name="event_id")})
         base_date_val = event.get("start_date") if event else None
         
         if isinstance(base_date_val, str):
