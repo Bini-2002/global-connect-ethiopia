@@ -6,7 +6,7 @@ import { getBackendOrigin } from "./app/lib/apiBase";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const backendOrigin = (process.env.BACKEND_ORIGIN || getBackendOrigin()).replace(/\/$/, "");
+const backendOrigin = getBackendOrigin();
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, ".."),
