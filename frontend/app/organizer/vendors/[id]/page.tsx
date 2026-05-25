@@ -28,6 +28,7 @@ export default function OrganizerVendorDetailPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [currentServiceIndex, setCurrentServiceIndex] = useState(0);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [selectedServiceRecord, setSelectedServiceRecord] = useState<any>(null);
   const [requestStep, setRequestStep] = useState(0); // 0=closed, 1=form, 2=confirm
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -101,6 +102,8 @@ export default function OrganizerVendorDetailPage() {
       setSubmitting(false);
     }
   };
+
+  const serviceDetailsEntries = Object.entries(selectedServiceRecord?.service_details || {});
 
   return (
     <div className="min-h-screen ">
@@ -265,14 +268,14 @@ export default function OrganizerVendorDetailPage() {
                                 </div>
 
                                 <div>
-                                  {current.service_details && Object.keys(current.service_details as any).length > 0 && (
+                                  {!!current.service_details && Object.keys(current.service_details).length > 0 && (
                                     <div>
                                       <div className="flex items-center gap-2 mb-4">
                                         <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-[#0a4a37]">Service Details</h3>
                                         <div className="h-px flex-1 bg-slate-200"></div>
                                       </div>
                                       <div className="grid sm:grid-cols-2 gap-3">
-                                        {Object.entries(current.service_details as Record<string, any>).map(([key, value]) => {
+                                        {Object.entries(current.service_details as any).map(([key, value]: [string, any]) => {
                                           const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/^./, str => str.toUpperCase());
                                           let displayValue = value;
                                           if (typeof value === 'boolean') {
@@ -329,29 +332,10 @@ export default function OrganizerVendorDetailPage() {
                       No services listed yet
                     </span>
                   )}
-                        </div>
-                      ))
-                    ) : (vendor.services && vendor.services.length > 0) ? (
-                      <div className="flex flex-wrap gap-2">
-                        {vendor.services.map((service) => (
-                          <span
-                            key={`${vendor.id}-${service}`}
-                            className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700"
-                          >
-                            {service}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
-                        No services listed yet
-                      </span>
-                    )}
                   </div>
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
         </div>
       </main>
 
@@ -433,7 +417,6 @@ export default function OrganizerVendorDetailPage() {
                     </select>
                   </div>
 
-                  {vendor.services.length > 0 && (
                   {vendor && vendor.services && vendor.services.length > 0 && (
                     <div>
                       <label className="mb-2 block text-sm font-medium text-slate-700">Services needed</label>
@@ -487,45 +470,11 @@ export default function OrganizerVendorDetailPage() {
                   >
                     Review Request
                   </button>
-                </form>
-              </section>
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* Service Detail Modal */}
-      {selectedServiceRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm transition-all duration-300">
-          <div 
-            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl animate-in fade-in zoom-in-95"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 z-10 flex items-start justify-between bg-white/90 p-6 backdrop-blur-md border-b border-slate-100">
-              <h2 className="text-2xl font-bold text-[#062E22]">{selectedServiceRecord.title}</h2>
-              <button 
-                type="button"
-                aria-label="Close service details"
-                onClick={() => setSelectedServiceRecord(null)} 
-                className="rounded-full p-2 hover:bg-slate-100 transition-colors bg-slate-50"
-              >
-                <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="p-6 pt-2">
-              {selectedServiceRecord.images && selectedServiceRecord.images.length > 0 && (
-                <div className="mt-2 flex gap-3 overflow-x-auto pb-4 snap-x">
-                  {selectedServiceRecord.images.map((img, idx) => (
-                     <div key={idx} className="relative h-40 w-64 flex-shrink-0 rounded-2xl overflow-hidden bg-slate-100 snap-center shadow-sm">
-                        <Image src={img.url} alt="" fill className="object-cover" />
-                     </div>
-                  ))}
                 </div>
               </>
-            ) : (
+            )
+
+            : (
               <>
                 <div className="p-6 space-y-4">
                   <div>
@@ -558,6 +507,8 @@ export default function OrganizerVendorDetailPage() {
                     <p className="mt-1 text-sm text-slate-600 bg-slate-50 rounded-xl p-3 border border-slate-100 leading-relaxed">
                       {description}
                     </p>
+                  </div>
+                </div>
               {serviceDetailsEntries.length > 0 && (
                 <div className="mt-8">
                   <div className="flex items-center gap-2 mb-4">
@@ -584,6 +535,7 @@ export default function OrganizerVendorDetailPage() {
                     })}
                   </div>
                 </div>
+              )}
 
                 <div className="flex items-center gap-3 p-6 border-t border-slate-100">
                   <button
@@ -606,6 +558,42 @@ export default function OrganizerVendorDetailPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Service Detail Modal */}
+      {selectedServiceRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm transition-all duration-300">
+          <div 
+            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl animate-in fade-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-start justify-between bg-white/90 p-6 backdrop-blur-md border-b border-slate-100">
+              <h2 className="text-2xl font-bold text-[#062E22]">{selectedServiceRecord.title}</h2>
+              <button 
+                type="button"
+                aria-label="Close service details"
+                onClick={() => setSelectedServiceRecord(null)} 
+                className="rounded-full p-2 hover:bg-slate-100 transition-colors bg-slate-50"
+              >
+                <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6 pt-2">
+              {selectedServiceRecord.images && selectedServiceRecord.images.length > 0 && (
+                <div className="mt-2 flex gap-3 overflow-x-auto pb-4 snap-x">
+                  {selectedServiceRecord.images.map((img: any, idx: number) => (
+                     <div key={idx} className="relative h-40 w-64 flex-shrink-0 rounded-2xl overflow-hidden bg-slate-100 snap-center shadow-sm">
+                        <Image src={img.url} alt="" fill className="object-cover" />
+                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
