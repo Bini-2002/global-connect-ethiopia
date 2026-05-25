@@ -25,3 +25,10 @@ export interface AiFaqItem {
   question: string;
   answer: string;
 }
+
+export interface FaqQuestion {
+  id: string;
+  question: string;
+  status: string;
+  created_at: string;
+}

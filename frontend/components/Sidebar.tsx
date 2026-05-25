@@ -107,6 +107,11 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Organizers', href: '/admin/organizers', icon: icons.users },
     { label: 'Vendors', href: '/admin/vendors', icon: icons.vendor },
     { label: 'Revenue Analytics', href: '/admin/analytics', icon: <ChartBarIcon className="w-5 h-5" /> },
+    { label: 'FAQ Questions', href: '/admin/faq', icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      </svg>
+    ) },
     { label: 'Notifications', href: '/notifications', icon: <BellIcon className="w-5 h-5" /> },
     { label: 'Profile', href: '/profile/admin', icon: <UserIcon className="w-5 h-5" /> },
   ],

@@ -108,7 +108,7 @@ export default function SiteHeader({
       {menuOpen && (
         <div className="absolute top-full left-0 w-full border-t border-slate-100/20 bg-white/90 backdrop-blur-2xl px-4 py-6 md:hidden shadow-2xl flex flex-col gap-4">
            <Link href="/about" className="text-lg font-bold text-slate-800">About Us</Link>
-           <Link href="/faq" className="text-lg font-bold text-slate-800">FAQs</Link>
+           <Link href="/faqs" className="text-lg font-bold text-slate-800">FAQs</Link>
            {showSignIn && <Link href="/login" className="mt-4 rounded-2xl bg-emerald-500 py-3 text-center text-lg font-bold text-white shadow-md">Sign In</Link>}
         </div>
       )}

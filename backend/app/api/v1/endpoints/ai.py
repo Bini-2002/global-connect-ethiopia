@@ -31,7 +31,6 @@ async def chat_licensing(request: ChatbotRequest, current_user: dict = Depends(g
 
 @router.get("/chatbot/history", response_model=List[dict])
 async def get_chat_history(current_user: dict = Depends(get_current_user)):
-    # Retrieve chat history for the user (not fully implemented in models but simple to do)
     from app.db.mongodb import ai_chat_session_collection, ai_chat_message_collection
     sessions = await ai_chat_session_collection.find({"user_id": current_user["id"]}).to_list(10)
     result = []
@@ -39,13 +38,6 @@ async def get_chat_history(current_user: dict = Depends(get_current_user)):
         msgs = await ai_chat_message_collection.find({"session_id": s["id"]}).sort("created_at", 1).to_list(100)
         result.append({"session": s, "messages": msgs})
     return result
-
-@router.get("/faq")
-async def get_faq():
-    return [
-        {"question": "Do I need a police permit?", "answer": "Yes, for events over 500 people."},
-        {"question": "How long does approval take?", "answer": "Typically 3-5 business days."}
-    ]
 
 @router.get("/providers/status")
 async def get_provider_status():

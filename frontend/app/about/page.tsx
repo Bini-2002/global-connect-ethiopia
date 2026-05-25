@@ -341,7 +341,7 @@ export default function AboutPage() {
             <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#EC5B13]">Quick Navigation</h4>
             <ul className="space-y-3 text-sm font-medium text-slate-400">
               <li><Link href="/about" className="hover:text-[#EC5B13] transition-colors">About Our Vision</Link></li>
-              <li><Link href="/faq" className="hover:text-[#EC5B13] transition-colors">Regulatory FAQ</Link></li>
+              <li><Link href="/faqs" className="hover:text-[#EC5B13] transition-colors">Regulatory FAQ</Link></li>
               <li><Link href="/contact" className="hover:text-[#EC5B13] transition-colors">Submit Inquiry Support</Link></li>
               <li><Link href="/terms" className="hover:text-[#EC5B13] transition-colors">Portal Terms & Disclaimer</Link></li>
             </ul>
