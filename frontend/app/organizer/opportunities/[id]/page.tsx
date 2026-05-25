@@ -304,7 +304,7 @@ export default function OrganizerOpportunityDetailPage() {
 
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <section className="space-y-6">
-              <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+              <div>
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-3">
@@ -413,7 +413,7 @@ export default function OrganizerOpportunityDetailPage() {
                 )}
               </div>
 
-              <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+              <div>
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#0a4a37]">
@@ -701,7 +701,7 @@ export default function OrganizerOpportunityDetailPage() {
                       ) : attendees.length === 0 ? (
                         <p className="text-sm text-slate-400">No attendees registered yet.</p>
                       ) : (
-                        attendees.map((a) => (
+                        attendees.slice(0, 10).map((a) => (
                           <div key={a.id} className="flex items-center justify-between rounded-lg bg-[#F5FBF8] p-3">
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium text-[#062E22] truncate">
@@ -722,6 +722,14 @@ export default function OrganizerOpportunityDetailPage() {
                             </span>
                           </div>
                         ))
+                      )}
+                      {attendees.length > 10 && (
+                        <Link
+                          href={`/organizer/events/${opportunity.event_id}/attendees`}
+                          className="mt-3 block text-center text-sm font-semibold text-[#062E22] hover:underline"
+                        >
+                          View all {attendees.length} attendees
+                        </Link>
                       )}
                     </div>
                   </>
