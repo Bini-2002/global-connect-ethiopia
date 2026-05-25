@@ -1765,9 +1765,13 @@ async def create_event_task(
     now = utc_now()
     doc = payload.model_dump()
     
+    # Normalize email for consistency
+    if doc.get("assignee_email"):
+        doc["assignee_email"] = doc["assignee_email"].strip().lower()
+    
     # Try to link to user_id if email is provided
     if not doc.get("assignee_user_id") and doc.get("assignee_email"):
-        target_user = await user_collection.find_one({"email": doc["assignee_email"].strip().lower()})
+        target_user = await user_collection.find_one({"email": doc["assignee_email"]})
         if target_user:
             doc["assignee_user_id"] = str(target_user["_id"])
 
