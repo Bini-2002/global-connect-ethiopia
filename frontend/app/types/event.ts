@@ -375,6 +375,18 @@ export interface EventTaskRecord {
   priority: EventTaskPriority;
   status: EventTaskStatus;
   payout_amount?: number | null;
+  escrow_locked?: boolean;
+  escrow_amount?: number | null;
+  escrow_locked_at?: string | null;
+  workspace_open?: boolean;
+  workspace_opened_at?: string | null;
+  workspace_closed?: boolean;
+  workspace_closed_at?: string | null;
+  negotiation_phase_locked?: boolean;
+  negotiation_locked_at?: string | null;
+  rejection_note?: string | null;
+  rejected_at?: string | null;
+  rejection_count?: number;
   created_at: string;
   updated_at: string;
 }

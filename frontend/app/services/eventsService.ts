@@ -523,6 +523,26 @@ export const eventsService = {
   deleteVipReservation: async (eventId: string, reservationId: string): Promise<void> => {
     return api.delete<void>(`/events/${eventId}/vip-reservations/${reservationId}`);
   },
+
+  openWorkspace: async (eventId: string, taskId: string): Promise<EventTaskRecord> => {
+    return api.post<EventTaskRecord>(`/events/${eventId}/tasks/${taskId}/open-workspace`, {});
+  },
+
+  rejectTask: async (eventId: string, taskId: string, note: string): Promise<EventTaskRecord> => {
+    return api.post<EventTaskRecord>(`/events/${eventId}/tasks/${taskId}/reject`, { note });
+  },
+
+  lockVendorNegotiation: async (eventId: string, taskId: string): Promise<EventTaskRecord> => {
+    return api.post<EventTaskRecord>(`/events/${eventId}/tasks/${taskId}/lock-vendor-negotiation`, {});
+  },
+
+  getTasksActivity: async (eventId: string): Promise<any> => {
+    return api.get<any>(`/events/${eventId}/tasks/activity`);
+  },
+
+  submitTaskForApproval: async (eventId: string, taskId: string): Promise<EventTaskRecord> => {
+    return api.post<EventTaskRecord>(`/events/${eventId}/tasks/${taskId}/submit`, {});
+  },
 };
 
 export { EVENT_STATUS_CONFIG };

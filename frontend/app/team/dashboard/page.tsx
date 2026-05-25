@@ -89,21 +89,30 @@ export default function TeamDashboardPage() {
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const handleUpdateStatus = async (
-    task: EventTaskRecord,
-    status: "in_progress" | "pending_approval",
-  ) => {
+  const handleOpenWorkspace = async (task: EventTaskRecord) => {
     try {
       setUpdatingId(task.id);
-      const updated = await eventsService.updateEventTask(
-        task.event_id,
-        task.id,
-        { status },
-      );
+      let updated = task;
+      if (!task.workspace_open) {
+        updated = await eventsService.openWorkspace(task.event_id, task.id);
+        setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+      }
+      router.push(`/team/workspace/${task.id}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to open workspace";
+      alert(msg);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleSubmitTask = async (task: EventTaskRecord) => {
+    try {
+      setUpdatingId(task.id);
+      const updated = await eventsService.submitTaskForApproval(task.event_id, task.id);
       setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to update task status";
+      const msg = err instanceof Error ? err.message : "Failed to submit task";
       alert(msg);
     } finally {
       setUpdatingId(null);
@@ -386,7 +395,23 @@ export default function TeamDashboardPage() {
                                   ? "Pending Approval"
                                   : task.status.replace("_", " ")}
                               </span>
+                              {task.escrow_locked && (
+                                <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                  Escrow Locked
+                                </span>
+                              )}
                             </div>
+                            {task.status === "in_progress" && task.rejection_note && (
+                              <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-2xl">
+                                <p className="text-xs font-black text-red-800 uppercase tracking-wider mb-1">
+                                  Changes Required by Organizer
+                                </p>
+                                <p className="text-sm text-red-700 font-medium">
+                                  {task.rejection_note}
+                                </p>
+                              </div>
+                            )}
                             <p className="text-sm text-slate-500 font-medium leading-relaxed mb-4">
                               {task.description ||
                                 "No specialized instructions provided for this assignment."}
@@ -412,37 +437,46 @@ export default function TeamDashboardPage() {
                           <div className="flex items-center gap-3 pt-2">
                             {task.status === "open" && (
                               <button
-                                onClick={() =>
-                                  void handleUpdateStatus(task, "in_progress")
-                                }
+                                onClick={() => void handleOpenWorkspace(task)}
                                 disabled={updatingId === task.id}
                                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300 shadow-lg shadow-blue-200"
                               >
                                 {updatingId === task.id
-                                  ? "Starting..."
-                                  : "Start Work"}
+                                  ? "Opening..."
+                                  : "Start & Open Workspace"}
                               </button>
                             )}
                             {task.status === "in_progress" && (
-                              <button
-                                onClick={() =>
-                                  void handleUpdateStatus(
-                                    task,
-                                    "pending_approval",
-                                  )
-                                }
-                                disabled={updatingId === task.id}
-                                className="px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300 shadow-lg shadow-amber-200"
-                              >
-                                {updatingId === task.id
-                                  ? "Submitting..."
-                                  : "Submit for Approval"}
-                              </button>
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <button
+                                  onClick={() => router.push(`/team/workspace/${task.id}`)}
+                                  className="px-6 py-3 bg-[#062E22] hover:bg-[#0b3c2e] text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300 shadow-lg"
+                                >
+                                  Go to Workspace
+                                </button>
+                                <button
+                                  onClick={() => void handleSubmitTask(task)}
+                                  disabled={updatingId === task.id}
+                                  className="px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300 shadow-lg shadow-amber-200"
+                                >
+                                  {updatingId === task.id
+                                    ? "Submitting..."
+                                    : "I Have Finished"}
+                                </button>
+                              </div>
                             )}
                             {task.status === "pending_approval" && (
-                              <div className="flex items-center gap-2 px-6 py-3 bg-amber-50 text-amber-600 rounded-2xl text-xs font-black uppercase tracking-widest border border-amber-100">
-                                <Clock className="w-4 h-4" />
-                                Awaiting Organizer Approval
+                              <div className="flex flex-col gap-2">
+                                <button
+                                  onClick={() => router.push(`/team/workspace/${task.id}`)}
+                                  className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-[#062E22] rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300 border border-slate-200"
+                                >
+                                  View Workspace
+                                </button>
+                                <div className="flex items-center gap-2 px-6 py-3 bg-amber-50 text-amber-600 rounded-2xl text-xs font-black uppercase tracking-widest border border-amber-100">
+                                  <Clock className="w-4 h-4" />
+                                  Awaiting Approval
+                                </div>
                               </div>
                             )}
                             {task.status === "done" && (

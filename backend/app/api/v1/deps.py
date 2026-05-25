@@ -200,3 +200,48 @@ allow_ministry = RoleChecker([UserRole.MINISTRY_GOV])
 allow_municipal = RoleChecker([UserRole.MUNICIPAL_GOV])
 allow_police = RoleChecker([UserRole.POLICE])
 
+
+async def check_negotiation_lock(
+    event_id: str | None = None,
+    request_id: str | None = None,
+    current_user: dict | None = None,
+):
+    """Block Team Members if the organizer has locked negotiation for their task."""
+    if not current_user:
+        return
+
+    from app.models.roles import UserRole, to_user_role
+    role = to_user_role(current_user.get("role"))
+    if role != UserRole.TEAM_MEMBER:
+        return
+
+    from app.db.mongodb import event_task_collection, request_collection
+    from app.services.marketplace import parse_object_id
+
+    target_event_id = event_id
+    if not target_event_id and request_id:
+        req_oid = parse_object_id(request_id, field_name="request id")
+        req = await request_collection.find_one({"_id": req_oid})
+        if req:
+            target_event_id = str(req.get("event_id"))
+
+    if not target_event_id:
+        return
+
+    email = current_user.get("email")
+    query = {
+        "event_id": target_event_id,
+        "negotiation_phase_locked": True,
+        "$or": [{"assignee_user_id": current_user["id"]}],
+    }
+    if email:
+        query["$or"].append({"assignee_email": email.strip().lower()})
+
+    task = await event_task_collection.find_one(query)
+    if task:
+        raise HTTPException(
+            status_code=403,
+            detail="Vendor negotiation has been locked by the organizer. You are blocked from negotiating or creating requests."
+        )
+
+

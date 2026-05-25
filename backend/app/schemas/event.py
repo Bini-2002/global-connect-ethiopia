@@ -136,8 +136,29 @@ class EventTaskResponse(BaseModel):
     priority: str
     status: str
     payout_amount: float | None = None
+    # Escrow fields
+    escrow_locked: bool = False
+    escrow_amount: float = 0.0
+    escrow_locked_at: datetime | None = None
+    # Workspace tracking
+    workspace_open: bool = False
+    workspace_opened_at: datetime | None = None
+    workspace_closed: bool = False
+    workspace_closed_at: datetime | None = None
+    # Negotiation phase gate
+    negotiation_phase_locked: bool = False
+    negotiation_locked_at: datetime | None = None
+    # Rejection flow
+    rejection_note: str | None = None
+    rejected_at: datetime | None = None
+    rejection_count: int = 0
     created_at: datetime
     updated_at: datetime
+
+
+class TaskRejectPayload(BaseModel):
+    """Organizer must provide a mandatory note when rejecting a task."""
+    note: str = Field(..., min_length=10, description="Mandatory explanation of what needs to be fixed.")
 
 
 class BookingSettingsUpdate(BaseModel):
