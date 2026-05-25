@@ -95,3 +95,10 @@ ai_chat_session_collection = db.ai_chat_sessions
 ai_chat_message_collection = db.ai_chat_messages
 ai_regulatory_rule_collection = db.ai_regulatory_rules
 ai_proposal_form_link_collection = db.ai_proposal_form_links
+
+# faq collections
+faq_collection = db.faqs
+faq_question_collection = db.faq_questions
+
+# support / contact form collections
+support_collection = db.support_requests

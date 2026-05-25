@@ -22,6 +22,15 @@ export interface ChatMessage {
 }
 
 export interface AiFaqItem {
+  id?: string;
   question: string;
   answer: string;
+}
+
+export interface FaqQuestion {
+  id: string;
+  question: string;
+  status: string;
+  answer?: string;
+  created_at: string;
 }

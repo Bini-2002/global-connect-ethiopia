@@ -52,15 +52,18 @@ export default function ManualAttendeesPage() {
   // Registered attendees list
   const [attendees, setAttendees] = useState<EventBookingRecord[]>([]);
   const [loadingAttendees, setLoadingAttendees] = useState(true);
+  const [attendeesError, setAttendeesError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   const loadAttendees = useCallback(async () => {
     try {
       setLoadingAttendees(true);
+      setAttendeesError(null);
       const data = await api.get<EventBookingRecord[]>(`/events/${eventId}/bookings`);
       setAttendees(data);
-    } catch {
-      // silently fail — list is not critical
+    } catch (err: unknown) {
+      setAttendeesError(err instanceof Error ? err.message : 'Unable to load attendee bookings.');
+      setAttendees([]);
     } finally {
       setLoadingAttendees(false);
     }
@@ -269,6 +272,11 @@ export default function ManualAttendeesPage() {
         {loadingAttendees ? (
           <div className="flex justify-center py-10">
             <div className="w-8 h-8 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : attendeesError ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-center text-sm text-amber-800">
+            <p className="font-semibold">Unable to load attendee list.</p>
+            <p className="mt-2">{attendeesError}</p>
           </div>
         ) : filteredAttendees.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">

@@ -1,5 +1,5 @@
 import { api } from '../lib/api';
-import { ChatbotResponse, AiFaqItem } from '../types/ai';
+import { ChatbotResponse } from '../types/ai';
 
 export const aiService = {
   chatWithLicensingAssistant: async (
@@ -16,10 +16,6 @@ export const aiService = {
     return api.get<any[]>('/ai/chatbot/history');
   },
 
-  getFaq: async (): Promise<AiFaqItem[]> => {
-    return api.get<AiFaqItem[]>('/ai/faq');
-  },
-  
   getProviderStatus: async (): Promise<any> => {
     return api.get<any>('/ai/providers/status');
   },

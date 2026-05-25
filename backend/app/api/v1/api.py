@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     admin_documents,
     admin_vendors,
     ai,
+    faq,
     analytics,
     auth,
     catalog,
@@ -22,6 +23,7 @@ from app.api.v1.endpoints import (
     permits,
     police_proposals,
     proposals,
+    support,
     team,
     users,
     venue_listings,
@@ -59,7 +61,9 @@ api_router.include_router(market_contracts.router, prefix="/contracts", tags=["C
 api_router.include_router(payments.router, prefix="/payments", tags=["Escrow Payments"])
 api_router.include_router(wallet.router, prefix="/wallet", tags=["Vendor Wallet"])
 api_router.include_router(ai.router, prefix="/ai", tags=["AI"])
+api_router.include_router(faq.router, prefix="/faq", tags=["FAQ"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 api_router.include_router(analytics.admin_router, prefix="/admin/analytics", tags=["Admin Analytics"])
 api_router.include_router(team.router, prefix="/team", tags=["Team Member"])
+api_router.include_router(support.router, prefix="/support", tags=["Support"])
