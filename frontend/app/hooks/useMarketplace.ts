@@ -23,21 +23,28 @@ function createErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+let vendorsCache: MarketplaceVendorRecord[] | null = null;
+
 export function useMarketplaceVendors(): ResourceState<MarketplaceVendorRecord[]> {
-  const [data, setData] = useState<MarketplaceVendorRecord[]>([]);
+  const [data, setData] = useState<MarketplaceVendorRecord[]>(vendorsCache ?? []);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!vendorsCache);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    if (vendorsCache && reloadKey === 0) {
+      setLoading(false);
+    }
+
     let active = true;
 
     const load = async () => {
       try {
-        setLoading(true);
+        if (!vendorsCache) setLoading(true);
         setError(null);
         const response = await marketplaceService.listVendors();
         if (active) {
+          vendorsCache = response;
           setData(response);
         }
       } catch (nextError) {
@@ -57,7 +64,15 @@ export function useMarketplaceVendors(): ResourceState<MarketplaceVendorRecord[]
     };
   }, [reloadKey]);
 
-  return { data, error, loading, refresh: () => setReloadKey((value) => value + 1) };
+  return {
+    data,
+    error,
+    loading,
+    refresh: () => {
+      vendorsCache = null;
+      setReloadKey((value) => value + 1);
+    },
+  };
 }
 
 export function useMarketplaceVendor(vendorId: string | null): ResourceState<MarketplaceVendorRecord | null> {

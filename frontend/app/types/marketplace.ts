@@ -95,6 +95,7 @@ export interface MarketplaceVendorRecord {
   id: string;
   user_id: string;
   business_name: string;
+  business_category: string | null;
   services: string[];
   service_records?: VendorServiceRecord[];
   is_verified: boolean;

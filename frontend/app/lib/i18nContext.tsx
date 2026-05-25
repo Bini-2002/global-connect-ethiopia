@@ -21,14 +21,12 @@ const dictionaries: Record<Locale, Record<string, any>> = {
 
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [locale, setLocaleState] = useState<Locale>("en");
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const savedLocale = localStorage.getItem("locale") as Locale;
     if (savedLocale && (savedLocale === "en" || savedLocale === "am")) {
       setLocaleState(savedLocale);
     }
-    setMounted(true);
   }, []);
 
   const setLocale = (newLocale: Locale) => {
@@ -66,10 +64,6 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return value;
   };
-
-  if (!mounted) {
-    return <>{children}</>;
-  }
 
   return (
     <I18nContext.Provider value={{ locale, setLocale, t }}>

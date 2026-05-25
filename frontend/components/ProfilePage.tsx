@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '@/app/lib/api';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -15,6 +15,7 @@ import {
   CalendarDaysIcon,
   IdentificationIcon,
   ChatBubbleLeftEllipsisIcon,
+  CameraIcon,
 } from '@heroicons/react/24/outline';
 
 interface ProfileData {
@@ -26,6 +27,7 @@ interface ProfileData {
   bio: string | null;
   phone: string | null;
   address: string | null;
+  avatar_url: string | null;
   extra_data: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
@@ -93,6 +95,8 @@ export default function ProfilePage({ role }: ProfilePageProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [formBio, setFormBio] = useState('');
@@ -149,6 +153,30 @@ export default function ProfilePage({ role }: ProfilePageProps) {
     }
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      alert('Only JPEG, PNG, GIF, and WebP images are allowed.');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const result = await api.post<{ avatar_url: string }>('/users/me/avatar', formData);
+      setProfile(prev => prev ? { ...prev, avatar_url: result.avatar_url } : prev);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to upload avatar');
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const gradientClass = ROLE_COLORS[profile?.role ?? role] ?? ROLE_COLORS.organizer;
   const badgeClass = ROLE_BADGE_COLORS[profile?.role ?? role] ?? ROLE_BADGE_COLORS.organizer;
   const roleLabel = ROLE_LABELS[profile?.role ?? role] ?? profile?.role ?? role;
@@ -200,8 +228,33 @@ export default function ProfilePage({ role }: ProfilePageProps) {
                 <div className="px-6 pb-6">
                   <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 -mt-12 mb-4">
                     {/* Avatar */}
-                    <div className={`w-24 h-24 rounded-2xl bg-gradient-to-br ${gradientClass} flex items-center justify-center shadow-lg border-4 border-white flex-shrink-0`}>
-                      <span className="text-white text-3xl font-bold">{getInitials(profile.name)}</span>
+                    <div className="relative w-24 h-24 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingAvatar}
+                        className={`w-24 h-24 rounded-2xl bg-gradient-to-br ${gradientClass} flex items-center justify-center shadow-lg border-4 border-white overflow-hidden cursor-pointer hover:opacity-90 transition disabled:opacity-60 group`}
+                      >
+                        {profile.avatar_url ? (
+                          <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-white text-3xl font-bold">{getInitials(profile.name)}</span>
+                        )}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-2xl border-4 border-white">
+                          {uploadingAvatar ? (
+                            <span className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <CameraIcon className="w-6 h-6 text-white" />
+                          )}
+                        </div>
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                      />
                     </div>
                     {/* Edit button */}
                     {!isEditing && (

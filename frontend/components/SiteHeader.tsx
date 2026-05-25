@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 interface SiteHeaderProps {
@@ -25,7 +24,6 @@ export default function SiteHeader({
 }: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(solid);
-  const pathname = usePathname();
 
   useEffect(() => {
     if (solid) return;
@@ -54,15 +52,11 @@ export default function SiteHeader({
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
-          {['About Us', 'FAQs', 'Contact', 'Terms'].map((item) => {
-            const href = item === 'About Us' ? '/about' : `/${item.toLowerCase()}`;
-            const isActive = pathname === href;
-            return (
-              <Link key={item} href={href} className={`text-sm font-semibold transition-colors duration-300 hover:text-emerald-400 ${isActive ? 'text-emerald-400' : scrolled ? 'text-slate-600' : 'text-slate-200'}`}>
-                {item}
-              </Link>
-            );
-          })}
+          {['About Us', 'FAQs', 'Contact', 'Terms'].map((item) => (
+            <Link key={item} href={`/${item.toLowerCase().replace(' ', '')}`} className={`text-sm font-semibold transition-colors duration-300 hover:text-emerald-400 ${scrolled ? 'text-slate-600' : 'text-slate-200'}`}>
+              {item}
+            </Link>
+          ))}
         </div>
 
         <div className="hidden md:flex items-center gap-4">
@@ -108,7 +102,7 @@ export default function SiteHeader({
       {menuOpen && (
         <div className="absolute top-full left-0 w-full border-t border-slate-100/20 bg-white/90 backdrop-blur-2xl px-4 py-6 md:hidden shadow-2xl flex flex-col gap-4">
            <Link href="/about" className="text-lg font-bold text-slate-800">About Us</Link>
-           <Link href="/faqs" className="text-lg font-bold text-slate-800">FAQs</Link>
+           <Link href="/faq" className="text-lg font-bold text-slate-800">FAQs</Link>
            {showSignIn && <Link href="/login" className="mt-4 rounded-2xl bg-emerald-500 py-3 text-center text-lg font-bold text-white shadow-md">Sign In</Link>}
         </div>
       )}

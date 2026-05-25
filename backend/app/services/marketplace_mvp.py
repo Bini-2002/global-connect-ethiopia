@@ -184,6 +184,7 @@ async def serialize_vendor(vendor: dict | None) -> dict:
         "id": str(vendor["_id"]),
         "user_id": stringify_id(vendor.get("user_id")) or "",
         "business_name": get_vendor_business_name(vendor),
+        "business_category": vendor.get("business_category") or vendor.get("step_2", {}).get("business_details", {}).get("business_category"),
         "services": await get_vendor_services(vendor),
         "service_records": await get_vendor_service_records(vendor),
         "is_verified": vendor_is_verified(vendor),

@@ -7,6 +7,7 @@ class ProfileBase(BaseModel):
     bio: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 
 class ProfileUpdate(ProfileBase):

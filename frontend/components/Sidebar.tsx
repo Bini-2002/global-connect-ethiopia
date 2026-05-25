@@ -2,13 +2,11 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { logout } from '@/app/lib/auth';
+import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
   CalendarIcon,
   UsersIcon,
-  CogIcon,
   ChartBarIcon,
   BuildingOfficeIcon,
   UserGroupIcon,
@@ -17,8 +15,6 @@ import {
   XMarkIcon,
   Bars3Icon,
   BriefcaseIcon,
-  UserIcon,
-  BellIcon,
 } from "@heroicons/react/24/outline";
 
 interface SidebarItem {
@@ -99,45 +95,27 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Government', href: '/organizer/government', icon: <ClipboardDocumentListIcon className="w-5 h-5" /> },
     { label: 'Reports & Analytics', href: '/organizer/reports', icon: <ChartBarIcon className="w-5 h-5" /> },
     { label: 'AI Assistant', href: '/organizer/ai-assistant', icon: <SparklesIcon className="w-5 h-5" /> },
-    { label: 'Notifications', href: '/notifications', icon: <BellIcon className="w-5 h-5" /> },
-    { label: 'Profile', href: '/profile/organizer', icon: <UserIcon className="w-5 h-5" /> },
-    { label: 'Settings', href: '/organizer/settings', icon: <CogIcon className="w-5 h-5" /> },
   ],
   admin: [
     { label: 'Organizers', href: '/admin/organizers', icon: icons.users },
     { label: 'Vendors', href: '/admin/vendors', icon: icons.vendor },
     { label: 'Revenue Analytics', href: '/admin/analytics', icon: <ChartBarIcon className="w-5 h-5" /> },
-    { label: 'FAQ Questions', href: '/admin/faq', icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-      </svg>
-    ) },
-    { label: 'Support Requests', href: '/admin/support', icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    ) },
-    { label: 'Notifications', href: '/notifications', icon: <BellIcon className="w-5 h-5" /> },
-    { label: 'Profile', href: '/profile/admin', icon: <UserIcon className="w-5 h-5" /> },
   ],
   ministry: [
     { label: 'Overview', href: '/ministry/proposals', icon: icons.dashboard },
     { label: 'Review Queue', href: '/ministry/proposals', icon: icons.queue },
     { label: 'Approved', href: '/ministry/proposals?tab=approved', icon: icons.check },
     { label: 'Rejected', href: '/ministry/proposals?tab=rejected', icon: icons.reject },
-    { label: 'Profile', href: '/profile/ministry', icon: <UserIcon className="w-5 h-5" /> },
   ],
   municipal: [
     { label: 'Overview', href: '/municipal/proposals', icon: icons.dashboard },
     { label: 'Review Queue', href: '/municipal/proposals', icon: icons.queue },
     { label: 'Approved', href: '/municipal/proposals?tab=approved', icon: icons.check },
     { label: 'Rejected', href: '/municipal/proposals?tab=rejected', icon: icons.reject },
-    { label: 'Profile', href: '/profile/municipal', icon: <UserIcon className="w-5 h-5" /> },
   ],
   police: [
     { label: 'Overview', href: '/police/proposals', icon: icons.dashboard },
     { label: 'Allowed Events', href: '/police/proposals', icon: icons.events },
-    { label: 'Profile', href: '/profile/police', icon: <UserIcon className="w-5 h-5" /> },
   ],
   vendor: [
     { label: 'Dashboard', href: '/vendor/dashboard', icon: icons.dashboard },
@@ -148,20 +126,15 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Venue Reservations', href: '/vendor/venue-listings/reservations', icon: icons.check },
     { label: 'Hotel Reservations', href: '/vendor/hotel-reservations', icon: icons.users },
     { label: 'Wallet', href: '/vendor/wallet', icon: icons.vendor },
-    { label: 'Notifications', href: '/notifications', icon: <BellIcon className="w-5 h-5" /> },
     { label: 'Verification', href: '/vendor/verification', icon: icons.shield },
-    { label: 'Profile', href: '/profile/vendor', icon: <UserIcon className="w-5 h-5" /> },
   ],
   attendee: [
     { label: 'Home', href: '/', icon: <HomeIcon className="w-5 h-5" /> },
-    { label: 'My Profile', href: '/profile/attendee', icon: <UserIcon className="w-5 h-5" /> },
   ],
   team_member: [
     { label: 'My Dashboard', href: '/team/dashboard', icon: <HomeIcon className="w-5 h-5" /> },
     { label: 'Assigned Events', href: '/organizer/events', icon: <CalendarIcon className="w-5 h-5" /> },
     { label: 'Vendors', href: '/organizer/vendors', icon: <BuildingOfficeIcon className="w-5 h-5" /> },
-    { label: 'Notifications', href: '/notifications', icon: <BellIcon className="w-5 h-5" /> },
-    { label: 'Profile', href: '/profile/team', icon: <UserIcon className="w-5 h-5" /> },
   ],
 };
 
@@ -177,15 +150,9 @@ const portalNames: Record<string, string> = {
 
 export default function Sidebar({ role, portalName }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const items = navItems[role] || [];
   const name = portalName || portalNames[role] || 'Portal';
   const [isOpen, setIsOpen] = useState(false);
-
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
-  };
 
   const SidebarContent = (
     <>
@@ -233,19 +200,7 @@ export default function Sidebar({ role, portalName }: SidebarProps) {
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="px-2 md:px-3 py-4 border-t border-slate-100">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-150"
-        >
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          <span suppressHydrationWarning className="truncate">Sign Out</span>
-        </button>
-      </div>
+
     </>
   );
 
