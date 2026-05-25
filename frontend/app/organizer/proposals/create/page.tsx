@@ -174,6 +174,20 @@ export default function CreateProposalPage() {
     if (!formData.municipalOfficeId) errors.push("Municipal office selection is required");
     if (!formData.policeOfficeId) errors.push("Police notification office selection is required");
 
+    // Disallow start/end dates in the past (compare by date, not time)
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    if (formData.start_date) {
+      const s = new Date(formData.start_date);
+      s.setHours(0,0,0,0);
+      if (s < today) errors.push("Start date cannot be in the past");
+    }
+    if (formData.end_date) {
+      const e = new Date(formData.end_date);
+      e.setHours(0,0,0,0);
+      if (e < today) errors.push("End date cannot be in the past");
+    }
+
     if (errors.length > 0) {
       setError(errors.join(". "));
       return false;

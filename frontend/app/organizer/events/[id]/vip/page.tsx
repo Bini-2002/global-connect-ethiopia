@@ -6,6 +6,7 @@ import { Hotel, Plus, Loader2, CheckCircle2, AlertCircle, Trash2, CalendarRange,
 import { useEventWorkspace } from '@/app/hooks/useEventWorkspace';
 import { EventWorkspaceShell } from '@/components/organizer/events';
 import { api } from '@/app/lib/api';
+import { isDateInPast, isEndBeforeStart } from '@/app/lib/dateUtils';
 
 interface HotelVendor {
   vendor_id: string; business_name: string; business_address: string; website_url?: string;
@@ -64,6 +65,7 @@ export default function VipHotelReservationsPage() {
   const [rooms, setRooms] = useState<RoomForm[]>([emptyRoom()]);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+  const [datesInvalid, setDatesInvalid] = useState(false);
   const [success, setSuccess] = useState('');
   const [expandedVendorInfo, setExpandedVendorInfo] = useState<string | null>(null);
 
@@ -92,6 +94,17 @@ export default function VipHotelReservationsPage() {
       const diff = Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000));
       setNights(diff);
     }
+  }, [checkIn, checkOut]);
+
+  useEffect(() => {
+    // mark invalid when either check-in or check-out is in the past, or check-out is <= check-in
+    if (!checkIn && !checkOut) {
+      setDatesInvalid(false);
+      return;
+    }
+    const invalid = isDateInPast(checkIn) || isDateInPast(checkOut) || isEndBeforeStart(checkIn, checkOut);
+    setDatesInvalid(invalid);
+    if (invalid) setFormError('Selected check-in/check-out dates are invalid (past or end before start).');
   }, [checkIn, checkOut]);
 
   const updateRoom = (idx: number, field: keyof RoomForm, value: string | string[]) => {
@@ -415,8 +428,14 @@ export default function VipHotelReservationsPage() {
               </div>
             </div>
 
+            {datesInvalid && (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                Selected check-in/check-out dates are invalid or in the past.
+              </div>
+            )}
+
             <div className="flex justify-end">
-              <button type="submit" disabled={submitting}
+              <button type="submit" disabled={submitting || datesInvalid}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-[#062E22] text-white rounded-xl text-sm font-bold hover:bg-[#0a4a37] transition disabled:opacity-60">
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Hotel className="w-4 h-4" />}
                 {submitting ? 'Submitting & Locking Payment…' : `Submit ${rooms.length} Room${rooms.length > 1 ? 's' : ''} & Lock Payment`}

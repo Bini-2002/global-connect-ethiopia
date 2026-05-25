@@ -12,6 +12,7 @@ import {
   sentenceCase,
   startOfInputDateTime,
 } from '@/components/organizer/events';
+import { isDateInPast, isEndBeforeStart } from '@/app/lib/dateUtils';
 
 interface ScheduleFormState {
   session_title: string;
@@ -101,6 +102,15 @@ export default function EventSchedulePage() {
 
   const handleCreateSession = async () => {
     if (!event) return;
+    // Validate session times: not in the past and end after start
+    if (isDateInPast(sessionForm.start_time) || isDateInPast(sessionForm.end_time)) {
+      setError('Session start or end time cannot be in the past.');
+      return;
+    }
+    if (isEndBeforeStart(sessionForm.start_time, sessionForm.end_time)) {
+      setError('Session end time must be after start time.');
+      return;
+    }
     try {
       setSavingSession(true);
       setError(null);
@@ -338,10 +348,16 @@ export default function EventSchedulePage() {
           </div>
         </div>
 
+        {((sessionForm.start_time && isDateInPast(sessionForm.start_time)) || (sessionForm.end_time && isDateInPast(sessionForm.end_time)) || isEndBeforeStart(sessionForm.start_time, sessionForm.end_time)) && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            Session times are invalid: they may be in the past or the end time precedes the start time.
+          </div>
+        )}
+
         <div className="flex justify-end mt-6">
           <button
             onClick={() => void handleCreateSession()}
-            disabled={savingSession}
+            disabled={savingSession || (sessionForm.start_time && isDateInPast(sessionForm.start_time)) || (sessionForm.end_time && isDateInPast(sessionForm.end_time)) || isEndBeforeStart(sessionForm.start_time, sessionForm.end_time)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50"
           >
             <Bot className="w-4 h-4" />

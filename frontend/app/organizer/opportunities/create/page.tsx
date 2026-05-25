@@ -18,6 +18,7 @@ import { EventListItem } from '@/app/types/event';
 import opportunitiesService from '@/app/services/opportunitiesService';
 import eventsService from '@/app/services/eventsService';
 import Image from 'next/image';
+import { isDateInPast } from '@/app/lib/dateUtils';
 const CATEGORY_OPTIONS = [
   { value: 'catering', label: 'Catering' },
   { value: 'photography', label: 'Photography' },
@@ -108,6 +109,12 @@ export default function CreateOpportunityPage() {
     if (!formData.description.trim()) errors.push('Description is required');
     if (formData.budget_min && formData.budget_max && formData.budget_min > formData.budget_max) {
       errors.push('Minimum budget cannot exceed maximum budget');
+    }
+    if (formData.submission_deadline && isDateInPast(formData.submission_deadline)) {
+      errors.push('Submission deadline cannot be in the past');
+    }
+    if (formData.event_date && isDateInPast(formData.event_date)) {
+      errors.push('Event date cannot be in the past');
     }
     if (errors.length > 0) {
       setError(errors.join('. '));

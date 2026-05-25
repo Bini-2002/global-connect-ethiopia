@@ -103,3 +103,66 @@ This plan is divided into two distinct phases for two developers to execute sequ
 | **Notifications** | Socket connection failed / Notification not appearing | Refresh the page. The app falls back to polling `/api/v1/notifications` every 30 seconds if real-time sockets fail. |
 | **Mock Chapa** | Modal hangs on loading spinner | The mock simulates a 2.5s network delay. Do not click outside the modal until the green success checkmark appears and auto-closes. |
 | **Event Status** | "Event is already cancelled" or "Cannot postpone" HTTP 400 Error | State transitions are one-way. You cannot postpone or cancel an event that is already cancelled or archived. If you hit a dead-end during testing, use the **Clone Event** button to spin up a fresh copy of the event. |
+
+---
+
+## Google Meet Demo Script — 3 Person Showcase (12–15 minutes)
+
+Purpose: A tight, scripted walkthrough to showcase organizer flows, team workflows with submit-for-approval, escrow/payout, and AI-assisted scheduling. Use this runbook for a live demo to stakeholders.
+
+Roles:
+- Presenter A (Organizer) — leads the product tour and runs the Organizer flows (Event/Proposal → Schedule → Opportunities → Contracts). Host responsibilities: start Meet, share primary browser tab.
+- Presenter B (Team Member / Vendor) — demonstrates team tasks, submits work for approval, and as Vendor places a bid and signs contract. Joins with camera on for short interactions.
+- Presenter C (Moderator / QA) — observes, shares terminal if needed, reads verification items, asks questions, and handles fallback steps.
+
+Pre-demo checklist (run before join):
+- Start backend: `cd backend && .venv\Scripts\activate && uvicorn app.main:app --reload --port 8000`.
+- Start frontend: `cd frontend && npm install && npm run dev` (ensure port 3000). If build errors, open the terminal and paste the error for Presenter C to handle.
+- Seed demo data: run any provided seed scripts (e.g., `python scripts/seed_demo_vendors.py`) if needed.
+- Have three browser windows/tabs ready and logged in as Organizer, Team Member, and Vendor. Use test accounts noted in the plan.
+
+URLs to keep handy (local):
+- Organizer create proposal: http://localhost:3000/organizer/proposals/create
+- Organizer opportunities: http://localhost:3000/organizer/opportunities/create
+- Event schedule (example): http://localhost:3000/organizer/events/{eventId}/schedule
+- Event tasks: http://localhost:3000/organizer/events/{eventId}/tasks
+- VIP hotel reservations: http://localhost:3000/organizer/events/{eventId}/vip
+
+Timed script (12–15 minutes):
+- 0:00 — 0:45 — (Presenter C) Quick intro and agenda. Confirm all three presenters are visible. Presenter A shares browser tab.
+- 0:45 — 2:30 — (Presenter A) Open the approved proposal and click "Create Event". Show the event overview page and the AI Scheduler option. Note: if redirected, open `/organizer/proposals/create` directly.
+- 2:30 — 4:00 — (Presenter A) Run AI Scheduler to generate a 3-day itinerary and apply draft. Show one generated session and explain how times and rooms are populated.
+- 4:00 — 5:30 — (Presenter A) Open Opportunities → Create Opportunity (submission_deadline + event_date). Explain validation (no past dates). Create a catering opportunity.
+- 5:30 — 7:00 — (Presenter B as Vendor) Switch to Vendor tab, find the opportunity, and submit a quote. Show contract creation workflow.
+- 7:00 — 8:00 — (Presenter A) Accept the vendor quote and click Sign Contract. Show the Wallet top-up step briefly (mock Chapa). Presenter C can show the terminal logs if payment mock needs verification.
+- 8:00 — 9:30 — (Presenter A) Fund Escrow (show balances: Available vs Locked). Explain the escrow and how it appears on the contract.
+- 9:30 — 10:30 — (Presenter A) Invite a Team Member, assign a task with a payout and a due_date (use a future date). Presenter B (Team Member) picks task, moves to In Progress, and clicks Submit for Approval.
+- 10:30 — 11:30 — (Presenter A) Approve task and (if payout configured) Approve & Pay — demonstrate payout flow. Verify Vendor/Team Member wallet credited.
+- 11:30 — 12:30 — (Presenter B/Presenter C) Quick smoke test: VIP hotel reservation flow (book a room), show booking confirmation.
+- 12:30 — 13:30 — (Presenter C) Q&A, highlight what to test next and fallback steps if something fails.
+
+Presenter tips and cues:
+- When sharing the browser, hide any unrelated tabs with sensitive info. Use a clean profile or incognito session for clarity.
+- Keep terminal ready to show backend logs if an API error occurs — this reassures technical audiences.
+- If AI features time out, skip to a saved schedule or use the pre-seeded schedule in the event.
+
+Fallback steps (quick recovery):
+- If frontend fails to load: refresh, then run `npm run dev` in `frontend` and share the terminal output. Presenter C should paste the first error into the Meet chat.
+- If wallet funding simulation fails: explain the mock behavior and manually adjust demo balances with `scripts/seed_demo_vendors.py` or by calling the internal test API endpoint (Presenter C).
+- If a date validation blocks a necessary demo action, explain that validation is intentional, change the date to a valid future date, and proceed.
+
+Verification checklist (post-demo):
+- Event shows correct AI-scheduled sessions.
+- Opportunity created and vendor quote appears with a generated contract.
+- Escrow locked and then released appropriately after contract completion.
+- Team member task lifecycle: Assigned → In Progress → Submitted → Approved → Payout received.
+
+Recording & assets:
+- Record the Meet session (if allowed) and save the recording link in the project notes.
+- Attach key screenshots: event overview, schedule, escrow funding, approved task, and wallet receipts.
+
+---
+
+If you'd like, I can also:
+- Generate a printable one-page speaker cue card for each presenter.
+- Create a small demo checklist script that runs the seed commands and prints the three test accounts and passwords.

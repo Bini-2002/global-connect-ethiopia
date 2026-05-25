@@ -20,6 +20,23 @@ export default function CreateEventFromProposalPage() {
   const [submitting, setSubmitting] = useState(false);
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [error, setError] = useState<string | null>(null);
+  const [dateInvalid, setDateInvalid] = useState(false);
+
+  useEffect(() => {
+    if (!proposal) {
+      setDateInvalid(false);
+      return;
+    }
+    const now = new Date();
+    const start = proposal.start_date ? new Date(proposal.start_date) : null;
+    const end = proposal.end_date ? new Date(proposal.end_date) : null;
+    // Treat any start or end date in the past as invalid for creating a new event
+    if ((start && start < now) || (end && end < now)) {
+      setDateInvalid(true);
+    } else {
+      setDateInvalid(false);
+    }
+  }, [proposal]);
 
   useEffect(() => {
     let mounted = true;
@@ -171,6 +188,12 @@ export default function CreateEventFromProposalPage() {
                 </div>
               )}
 
+                {dateInvalid && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+                    Event dates are in the past — you cannot create an event with past start or end dates.
+                  </div>
+                )}
+
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
                   {error}
@@ -194,7 +217,7 @@ export default function CreateEventFromProposalPage() {
                 ) : (
                   <button
                     onClick={handleCreateEvent}
-                    disabled={proposal.status !== 'approved' || submitting}
+                    disabled={proposal.status !== 'approved' || submitting || dateInvalid}
                     className="px-4 py-2 bg-[#062E22] text-white rounded-lg text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50"
                   >
                     {submitting ? 'Creating event...' : 'Create Event'}
