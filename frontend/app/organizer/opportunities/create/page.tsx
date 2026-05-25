@@ -54,6 +54,7 @@ export default function CreateOpportunityPage() {
     description: '',
     category: 'catering',
     requirements: '',
+    expected_attendees: undefined,
     budget_min: undefined,
     budget_max: undefined,
     submission_deadline: '',
@@ -371,6 +372,21 @@ const toggleVendorSelection = (vendor: VendorRecord) => {
                     onChange={handleChange}
                     rows={3}
                     placeholder="Specific requirements, qualifications, or conditions for vendors."
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22]"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    Expected Attendees (optional)
+                  </label>
+                  <input
+                    type="number"
+                    name="expected_attendees"
+                    value={formData.expected_attendees || ''}
+                    onChange={handleChange}
+                    min={0}
+                    placeholder="e.g., 500"
                     className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-[#062E22]"
                   />
                 </div>

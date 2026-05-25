@@ -26,6 +26,7 @@ export interface OpportunityRecord {
   budget_min?: number | null;
   budget_max?: number | null;
   currency: string;
+  expected_attendees?: number | null;
   submission_deadline?: string | null;
   event_date?: string | null;
   sourcing_mode: OpportunitySourcingMode;
@@ -100,6 +101,7 @@ export interface CreateOpportunityPayload {
   location?: OpportunityLocation | string;
   budget_min?: number;
   budget_max?: number;
+  expected_attendees?: number;
   submission_deadline?: string;
   event_date?: string;
   sourcing_mode: OpportunitySourcingMode;
