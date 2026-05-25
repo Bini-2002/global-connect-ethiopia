@@ -6,13 +6,14 @@ import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import { getRole, getToken } from '@/app/lib/auth';
 import faqService from '@/app/services/faqService';
-import { FaqQuestion } from '@/app/types/ai';
+import { AiFaqItem, FaqQuestion } from '@/app/types/ai';
 
 export default function AdminFaqPage() {
   const router = useRouter();
-  const [questions, setQuestions] = useState<FaqQuestion[]>([]);
+  const [faqs, setFaqs] = useState<AiFaqItem[]>([]);
+  const [pending, setPending] = useState<FaqQuestion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [answeringId, setAnsweringId] = useState<string | null>(null);
+  const [selectedPending, setSelectedPending] = useState<FaqQuestion | null>(null);
   const [answerText, setAnswerText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -26,27 +27,31 @@ export default function AdminFaqPage() {
       return;
     }
 
-    fetchQuestions();
+    fetchAll();
   }, [router]);
 
-  const fetchQuestions = async () => {
+  const fetchAll = async () => {
     try {
-      const data = await faqService.getFaqQuestions();
-      setQuestions(data);
+      const [faqData, questionData] = await Promise.all([
+        faqService.getFaqs(),
+        faqService.getFaqQuestions(),
+      ]);
+      setFaqs(faqData);
+      setPending(questionData.filter((q) => q.status === 'pending'));
     } catch (err) {
-      console.error('Failed to fetch questions:', err);
+      console.error('Failed to fetch data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAnswer = async (questionId: string) => {
-    if (!answerText.trim()) return;
+  const handleAnswer = async () => {
+    if (!selectedPending || !answerText.trim()) return;
     setSubmitting(true);
     try {
-      await faqService.answerFaqQuestion(questionId, answerText.trim());
-      setQuestions((prev) => prev.filter((q) => q.id !== questionId));
-      setAnsweringId(null);
+      await faqService.answerFaqQuestion(selectedPending.id, answerText.trim());
+      await fetchAll();
+      setSelectedPending(null);
       setAnswerText('');
     } catch (err) {
       console.error('Failed to answer question:', err);
@@ -66,99 +71,128 @@ export default function AdminFaqPage() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50">
       <Sidebar role="admin" />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <DashboardHeader />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto max-w-4xl">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">User Questions</h2>
-                <p className="text-sm text-slate-500 mt-1">Review and respond to questions submitted by users.</p>
+      <DashboardHeader />
+
+      <main className="ml-60 pt-16 p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-[#062E22]">FAQ Management</h1>
+          <p className="text-slate-500 text-sm mt-1">Manage published FAQs and answer user questions.</p>
+        </div>
+
+        <div className="flex gap-6" style={{ height: 'calc(100vh - 8rem)' }}>
+          {/* Left - Published FAQs */}
+          <div className="w-1/2 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <h2 className="text-sm font-bold text-slate-800">Published FAQs</h2>
+                <span className="px-2.5 py-0.5 bg-[#062E22]/10 text-[#062E22] text-xs font-semibold rounded-full">{faqs.length}</span>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {loading ? (
+                <div className="flex justify-center py-16">
+                  <div className="w-8 h-8 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : faqs.length === 0 ? (
+                <div className="py-16 text-center">
+                  <span className="text-4xl">📖</span>
+                  <p className="text-slate-500 mt-3 text-sm">No published FAQs yet.</p>
+                </div>
+              ) : (
+                faqs.map((faq, i) => (
+                  <div key={i} className="rounded-xl border border-slate-200 p-4">
+                    <p className="text-sm font-bold text-slate-800 mb-2">{faq.question}</p>
+                    <p className="text-xs text-slate-600 leading-relaxed">{faq.answer}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Right - Pending Questions */}
+          <div className="w-1/2 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <h2 className="text-sm font-bold text-slate-800">Unanswered Questions</h2>
+                <span className="px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">{pending.length}</span>
               </div>
               <button
-                onClick={fetchQuestions}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                onClick={fetchAll}
+                className="text-xs border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-[#062E22] hover:text-white hover:border-[#062E22] transition font-medium text-slate-600"
               >
                 Refresh
               </button>
             </div>
 
             {loading ? (
-              <div className="flex justify-center py-20">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#062E22] border-t-transparent" />
+              <div className="flex justify-center py-16">
+                <div className="w-8 h-8 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" />
               </div>
-            ) : questions.length === 0 ? (
-              <div className="rounded-2xl border border-slate-200 bg-white p-16 text-center shadow-sm">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
+            ) : pending.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center py-16">
+                  <span className="text-4xl">✅</span>
+                  <p className="text-slate-500 mt-3 text-sm">All questions answered!</p>
                 </div>
-                <h3 className="mt-4 text-lg font-bold text-slate-800">No questions yet</h3>
-                <p className="mt-1 text-sm text-slate-500">User-submitted questions will appear here.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {questions.map((q) => (
-                  <div key={q.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                            q.status === 'answered'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {q.status}
-                          </span>
-                          <span className="text-xs text-slate-400">{formatDate(q.created_at)}</span>
-                        </div>
-                        <p className="text-sm font-semibold text-slate-800">{q.question}</p>
+              <div className="flex-1 flex overflow-hidden">
+                {/* Question list */}
+                <div className="w-1/2 overflow-y-auto p-4 space-y-2 border-r border-slate-100">
+                  {pending.map((q) => (
+                    <button
+                      key={q.id}
+                      onClick={() => { setSelectedPending(q); setAnswerText(''); }}
+                      className={`w-full text-left rounded-xl border p-3 transition ${
+                        selectedPending?.id === q.id
+                          ? 'border-[#062E22] bg-[#062E22]/5'
+                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <p className="text-xs text-slate-400 mb-1">{formatDate(q.created_at)}</p>
+                      <p className="text-sm font-semibold text-slate-800 line-clamp-2">{q.question}</p>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Answer form */}
+                <div className="w-1/2 p-4 flex flex-col overflow-y-auto">
+                  {!selectedPending ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="text-center">
+                        <span className="text-3xl">👆</span>
+                        <p className="text-slate-400 text-xs mt-2">Select a question</p>
                       </div>
                     </div>
-
-                    {answeringId === q.id ? (
-                      <div className="mt-4">
-                        <textarea
-                          value={answerText}
-                          onChange={(e) => setAnswerText(e.target.value)}
-                          placeholder="Type your answer..."
-                          rows={3}
-                          className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20 resize-none"
-                        />
-                        <div className="mt-3 flex justify-end gap-2">
-                          <button
-                            onClick={() => { setAnsweringId(null); setAnswerText(''); }}
-                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => handleAnswer(q.id)}
-                            disabled={submitting || !answerText.trim()}
-                            className="rounded-xl bg-[#062E22] px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-[#0a4a37] transition disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {submitting ? 'Publishing...' : 'Publish Answer'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
+                  ) : (
+                    <>
+                      <p className="text-sm font-bold text-slate-800 mb-4 line-clamp-3">{selectedPending.question}</p>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Your Answer</label>
+                      <textarea
+                        value={answerText}
+                        onChange={(e) => setAnswerText(e.target.value)}
+                        placeholder="Type your answer..."
+                        rows={8}
+                        className="w-full flex-1 rounded-xl border border-slate-200 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20 resize-none"
+                      />
                       <button
-                        onClick={() => setAnsweringId(q.id)}
-                        className="mt-4 rounded-xl border border-[#062E22]/20 bg-[#062E22]/5 px-4 py-2 text-sm font-semibold text-[#062E22] hover:bg-[#062E22]/10 transition"
+                        onClick={handleAnswer}
+                        disabled={submitting || !answerText.trim()}
+                        className="mt-4 w-full rounded-xl bg-[#062E22] py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#0a4a37] transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Answer This Question
+                        {submitting ? 'Publishing...' : 'Publish Answer'}
                       </button>
-                    )}
-                  </div>
-                ))}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

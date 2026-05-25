@@ -79,6 +79,7 @@ async def get_faq_questions(current_user: dict = Depends(allow_admin)):
             id=q["id"],
             question=q["question"],
             status=q.get("status", "pending"),
+            answer=q.get("answer"),
             created_at=q["created_at"],
         )
         for q in questions

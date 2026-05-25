@@ -46,6 +46,7 @@ class FaqQuestionResponse(BaseModel):
     id: str
     question: str
     status: str
+    answer: Optional[str] = None
     created_at: datetime
 
 

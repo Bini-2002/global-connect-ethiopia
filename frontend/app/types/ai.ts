@@ -30,5 +30,6 @@ export interface FaqQuestion {
   id: string;
   question: string;
   status: string;
+  answer?: string;
   created_at: string;
 }
