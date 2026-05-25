@@ -21,6 +21,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  webpack: (config, { dev }) => {
+    if (dev) {
+      // Disable filesystem cache in dev to prevent ArrayBuffer allocation errors
+      config.cache = false;
+    }
+    return config;
+  },
   async rewrites() {
     return [
       {

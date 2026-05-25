@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "node ./scripts/clean-build-output.js && next build",
+    "dev": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" next dev",
+    "build": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" node ./scripts/clean-build-output.js && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "clean:cache": "rimraf .next"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -21,6 +22,8 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "cross-env": "^7.0.3",
+    "rimraf": "^5.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "eslint": "^9",
