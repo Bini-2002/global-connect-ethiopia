@@ -34,7 +34,7 @@ export const opportunitiesService = {
   },
 
   closeOpportunity: async (opportunityId: string): Promise<OpportunityRecord> => {
-    return api.post<OpportunityRecord>(`/opportunities/${opportunityId}/close`);
+    return api.post<OpportunityRecord>(`/opportunities/${opportunityId}/close`, {});
   },
 
   // Proposal endpoints

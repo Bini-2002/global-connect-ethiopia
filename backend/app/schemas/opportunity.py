@@ -56,6 +56,7 @@ class OpportunityResponse(BaseModel):
     budget_min: float | None = None
     budget_max: float | None = None
     currency: str = "ETB"
+    expected_attendees: int | None = None
     submission_deadline: datetime | None = None
     event_date: datetime | None = None
     sourcing_mode: OpportunitySourcingMode
@@ -125,6 +126,7 @@ class OpportunityCreateRequest(BaseModel):
     budget_min: float | None = Field(default=None, ge=0)
     budget_max: float | None = Field(default=None, ge=0)
     currency: str = Field(default="ETB", min_length=3, max_length=8)
+    expected_attendees: int | None = Field(default=None, ge=0)
     submission_deadline: datetime | None = None
     event_date: datetime | None = None
     sourcing_mode: OpportunitySourcingMode = OpportunitySourcingMode.OPEN_BID
@@ -141,6 +143,7 @@ class OpportunityUpdateRequest(BaseModel):
     budget_min: float | None = Field(default=None, ge=0)
     budget_max: float | None = Field(default=None, ge=0)
     currency: str | None = Field(default=None, min_length=3, max_length=8)
+    expected_attendees: int | None = Field(default=None, ge=0)
     submission_deadline: datetime | None = None
     event_date: datetime | None = None
     sourcing_mode: OpportunitySourcingMode | None = None
@@ -199,6 +202,7 @@ class OpportunityDocument(BaseModel):
     budget_min: float | None = Field(default=None, ge=0)
     budget_max: float | None = Field(default=None, ge=0)
     currency: str = "ETB"
+    expected_attendees: int | None = None
     submission_deadline: datetime | None = None
     event_date: datetime | None = None
     sourcing_mode: OpportunitySourcingMode = OpportunitySourcingMode.OPEN_BID

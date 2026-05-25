@@ -25,7 +25,9 @@ import {
   OpportunityProposalStatus,
   OpportunitySourcingMode,
 } from '@/app/types/opportunity';
+import { EventBookingRecord } from '@/app/types/event';
 import opportunitiesService from '@/app/services/opportunitiesService';
+import eventsService from '@/app/services/eventsService';
 
 const STATUS_LABELS: Record<OpportunityProposalStatus, string> = {
   draft: 'Draft',
@@ -79,6 +81,10 @@ export default function OrganizerOpportunityDetailPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [showCounterModal, setShowCounterModal] = useState<string | null>(null);
   const [counterAmount, setCounterAmount] = useState('');
+  const [dismissedError, setDismissedError] = useState(false);
+
+  const [attendees, setAttendees] = useState<EventBookingRecord[]>([]);
+  const [attendeesLoading, setAttendeesLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -100,6 +106,18 @@ export default function OrganizerOpportunityDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (opportunity?.event_id) {
+      setAttendeesLoading(true);
+      eventsService.getMyBookings(opportunity.event_id)
+        .then(setAttendees)
+        .catch(() => setAttendees([]))
+        .finally(() => setAttendeesLoading(false));
+    } else {
+      setAttendees([]);
+    }
+  }, [opportunity?.event_id]);
 
   const handlePublish = async () => {
     try {
@@ -251,6 +269,16 @@ export default function OrganizerOpportunityDetailPage() {
       />
 
       <main className="pt-16 md:ml-60 p-6">
+        {error && !dismissedError && (
+          <div className="mx-auto max-w-7xl mb-6">
+            <div className="flex items-start justify-between rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <span>{error}</span>
+              <button onClick={() => { setDismissedError(true); setError(null); }} className="ml-4 text-red-500 hover:text-red-700 shrink-0">
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
         <div className="mx-auto max-w-7xl space-y-6">
           <Link
             href="/organizer/opportunities"
@@ -466,7 +494,7 @@ export default function OrganizerOpportunityDetailPage() {
                         )}
 
                         <div className="mt-4 flex flex-wrap gap-2">
-                          {['submitted', 'client_countered', 'vendor_countered'].includes(
+                          {['submitted', 'vendor_countered'].includes(
                             proposal.status
                           ) ? (
                             <>
@@ -486,17 +514,29 @@ export default function OrganizerOpportunityDetailPage() {
                                 disabled={actionLoading === proposal.id}
                                 className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
                               >
-                                <CheckCircle className="h-3 w-3" />
-                                Accept
+                                {actionLoading === proposal.id ? (
+                                  <>Accepting...</>
+                                ) : (
+                                  <><CheckCircle className="h-3 w-3" /> Accept</>
+                                )}
                               </button>
                               <button
                                 onClick={() => setShowRejectModal(proposal.id)}
-                                className="flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                                disabled={actionLoading === proposal.id}
+                                className="flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
                               >
                                 <XCircle className="h-3 w-3" />
                                 Reject
                               </button>
                             </>
+                          ) : proposal.status === 'client_countered' ? (
+                            <button
+                              onClick={() => setShowRejectModal(proposal.id)}
+                              className="flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                            >
+                              <XCircle className="h-3 w-3" />
+                              Reject
+                            </button>
                           ) : (
                             ['converted', 'selected'].includes(proposal.status.toLowerCase()) && proposal.contract_id && (
                               <Link
@@ -562,7 +602,7 @@ export default function OrganizerOpportunityDetailPage() {
                               {proposal.counter_round}
                             </td>
                             <td className="py-3">
-                              {['submitted', 'client_countered', 'vendor_countered'].includes(
+                              {['submitted', 'vendor_countered'].includes(
                                 proposal.status
                               ) ? (
                                 <div className="flex gap-2">
@@ -579,17 +619,26 @@ export default function OrganizerOpportunityDetailPage() {
                                   </button>
                                   <button
                                     onClick={() => handleAccept(proposal.id)}
-                                    className="rounded bg-green-600 px-2 py-1 text-xs font-semibold text-white hover:bg-green-700"
+                                    disabled={actionLoading === proposal.id}
+                                    className="rounded bg-green-600 px-2 py-1 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                                   >
-                                    Accept
+                                    {actionLoading === proposal.id ? 'Accepting...' : 'Accept'}
                                   </button>
                                   <button
                                     onClick={() => setShowRejectModal(proposal.id)}
-                                    className="rounded border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                    disabled={actionLoading === proposal.id}
+                                    className="rounded border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
                                   >
                                     Reject
                                   </button>
                                 </div>
+                              ) : proposal.status === 'client_countered' ? (
+                                <button
+                                  onClick={() => setShowRejectModal(proposal.id)}
+                                  className="rounded border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                >
+                                  Reject
+                                </button>
                               ) : (
                                 ['converted', 'selected'].includes(proposal.status.toLowerCase()) && proposal.contract_id && (
                                   <Link
@@ -663,6 +712,55 @@ export default function OrganizerOpportunityDetailPage() {
                   </div>
                 </div>
               )}
+
+              <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-[#062E22]" />
+                  <h3 className="font-bold text-[#062E22]">Attendees</h3>
+                </div>
+                {opportunity.event_id ? (
+                  <>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Expected: {opportunity.expected_attendees ?? 'N/A'}
+                    </p>
+                    <div className="mt-4 space-y-2 max-h-64 overflow-y-auto">
+                      {attendeesLoading ? (
+                        <div className="flex justify-center py-4">
+                          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#062E22] border-t-transparent" />
+                        </div>
+                      ) : attendees.length === 0 ? (
+                        <p className="text-sm text-slate-400">No attendees registered yet.</p>
+                      ) : (
+                        attendees.map((a) => (
+                          <div key={a.id} className="flex items-center justify-between rounded-lg bg-[#F5FBF8] p-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-[#062E22] truncate">
+                                {a.attendee_name || 'Unknown'}
+                              </p>
+                              <p className="text-xs text-slate-500 truncate">
+                                {a.attendee_email || ''}
+                              </p>
+                            </div>
+                            <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${
+                              a.check_in_status === 'checked_in'
+                                ? 'bg-green-100 text-green-700'
+                                : a.booking_status === 'confirmed'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {a.check_in_status === 'checked_in' ? 'Checked In' : a.booking_status}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className="mt-3 text-sm text-slate-400">
+                    No event linked to this opportunity.
+                  </p>
+                )}
+              </div>
             </aside>
           </div>
         </div>
