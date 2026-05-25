@@ -1,24 +1,117 @@
 'use client';
 
 import Link from 'next/link';
+import {
+  LayoutDashboard,
+  Store,
+  Calendar,
+  FileText,
+  Ticket,
+  Sparkles,
+  Palette,
+  Users,
+  Globe,
+  Shield,
+  UserCheck,
+  Target,
+  XCircle,
+  Check,
+} from 'lucide-react';
 
-const MILESTONES = [
-  { year: '2024', title: 'Platform Conception', desc: 'Initiated planning under Ministry of Innovation and Technology to streamline public events licensing.' },
-  { year: '2025', title: 'Phase 1 & 2 Release', desc: 'Rolled out organizer dashboards, permit approval systems, and vendor service negotiations.' },
-  { year: '2026', title: 'Phase 3 Launch', desc: 'Introduced live attendee booking, QR-based secure check-ins, and direct AI-assisted licensing guidelines.' },
+const FEATURES = [
+  {
+    icon: <LayoutDashboard className="w-7 h-7" />,
+    title: 'Organizer Dashboard',
+    desc: 'Plan and manage events independently with a complete digital workspace.',
+  },
+  {
+    icon: <Store className="w-7 h-7" />,
+    title: 'Vendor Marketplace',
+    desc: 'Discover and book trusted service providers including catering, photography, AV, and logistics.',
+  },
+  {
+    icon: <Calendar className="w-7 h-7" />,
+    title: 'Centralized Event Calendar',
+    desc: 'Prevent scheduling conflicts and venue congestion across major events.',
+  },
+  {
+    icon: <FileText className="w-7 h-7" />,
+    title: 'Digital Licensing System',
+    desc: 'Submit and approve event permits digitally through integrated government workflows.',
+  },
+  {
+    icon: <Ticket className="w-7 h-7" />,
+    title: 'QR Ticketing System',
+    desc: 'Secure ticket sales with QR codes and real-time validation for attendees.',
+  },
+  {
+    icon: <Sparkles className="w-7 h-7" />,
+    title: 'AI-Powered Assistance',
+    desc: 'Smart scheduling, budgeting, and event planning powered by artificial intelligence.',
+  },
+  {
+    icon: <Palette className="w-7 h-7" />,
+    title: 'Design Tool',
+    desc: 'Create event flyers and promotional materials with an integrated design workspace.',
+  },
 ];
 
-const PILLARS = [
-  { title: 'Transparency', desc: 'Bridging event organizers and municipal authorities with a clear, digitized review process.' },
-  { title: 'Efficiency', desc: 'Reducing bureaucracy and permit approval turnaround times from weeks to just a few days.' },
-  { title: 'Community', desc: 'Ensuring that every event attendee receives a safe, verified, and premium check-in experience.' },
+const AUDIENCES = [
+  {
+    icon: <Users className="w-6 h-6" />,
+    title: 'Event Organizers',
+    desc: 'Individuals, companies, institutions, and youth groups planning professional events.',
+  },
+  {
+    icon: <Store className="w-6 h-6" />,
+    title: 'Vendors',
+    desc: 'Catering, photography, AV, logistics, and other service providers.',
+  },
+  {
+    icon: <Globe className="w-6 h-6" />,
+    title: 'International Hosts',
+    desc: 'NGOs, embassies, and corporate organizations hosting events in Ethiopia.',
+  },
+  {
+    icon: <Shield className="w-6 h-6" />,
+    title: 'Government Bodies',
+    desc: 'Institutions responsible for licensing and event regulation.',
+  },
+  {
+    icon: <UserCheck className="w-6 h-6" />,
+    title: 'Attendees',
+    desc: 'Users who want to discover and attend secure, well-organized events.',
+  },
+];
+
+const PROBLEMS = [
+  'High costs from traditional event agencies that exclude small organizers',
+  'Fragmented communication relying on emails, calls, and spreadsheets',
+  'Frequent event overlaps due to lack of centralized scheduling',
+  'Unregulated ticket sales leading to overcrowding and security risks',
+  'Slow and manual government licensing processes',
+];
+
+const TEAM = [
+  { name: 'Biniyam Getachew', role: 'Developer' },
+  { name: 'Mikiyas Assefa', role: 'Developer' },
+  { name: 'Samrawit Alemu', role: 'Developer' },
+  { name: 'Meron Gedamu', role: 'Developer' },
+  { name: 'Miraf Tsegaye', role: 'Developer' },
+];
+
+const IMPACTS = [
+  { title: 'Digitize the Industry', desc: 'Replace manual workflows with a unified digital platform for event management.' },
+  { title: 'Support Local SMEs', desc: 'Give small businesses visibility and fair market access through our vendor marketplace.' },
+  { title: 'Improve Safety & Trust', desc: 'Ensure transparency and security in event management and ticketing.' },
+  { title: 'Modern Infrastructure', desc: 'Build secure, scalable digital infrastructure for Ethiopia\'s event ecosystem.' },
 ];
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-slate-50 font-[Inter,sans-serif] text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 overflow-x-hidden">
       {/* Header */}
-      <nav className="fixed inset-x-0 top-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm border-b border-slate-100">
+      <nav className="fixed inset-x-0 top-0 z-50 bg-white shadow-sm border-b border-slate-200">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2 font-bold text-[#062E22] text-lg">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#062E22]">
@@ -28,95 +121,259 @@ export default function AboutPage() {
           </Link>
           <Link
             href="/"
-            className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition"
           >
             Back to Home
           </Link>
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="pt-24 pb-20">
-        {/* Hero Section */}
-        <section className="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8 mt-10">
-          <span className="inline-block rounded-full bg-[#062E22]/10 px-3 py-1 text-xs font-semibold tracking-wide text-[#062E22] uppercase">
-            Our Vision & Journey
-          </span>
-          <h1 className="mt-4 text-4xl font-extrabold leading-tight text-[#062E22] sm:text-5xl">
-            Connecting Ethiopia through <span className="bg-gradient-to-r from-[#0a4a37] to-[#1a6648] bg-clip-text text-transparent">Professional Events</span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
-            Global Connect Ethiopia is the nation's premier digital infrastructure built to unify event organizers, government authorities, local vendors, and attendees under a single, highly-secure, and intuitive workspace.
+      {/* About Us */}
+      <section className="mx-auto max-w-3xl px-4 pt-28 pb-0 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-[#062E22]">About us</h1>
+        <p className="mt-4 text-sm leading-relaxed text-slate-600">
+          Global Connect Ethiopia is an intelligent, homegrown web-based event management platform
+          designed to transform how professional events are planned, managed, and executed in Ethiopia.
+          It acts as a unified digital ecosystem that connects organizers with trusted vendors,
+          professionals, travel networks, and regulatory bodies. The platform makes event organization
+          more transparent, accessible, and fully client-driven.
+        </p>
+      </section>
+
+      {/* Mission & Vision */}
+      <section className="mx-auto max-w-3xl px-4 pt-12 pb-20 sm:px-6 lg:px-8 space-y-12">
+        <div>
+          <h2 className="text-xl font-bold text-[#062E22]">Our Mission</h2>
+          <p className="mt-4 text-sm leading-relaxed text-slate-600">
+            The mission of Global Connect Ethiopia is to empower individuals, institutions, and
+            international organizers to independently design and host high-quality events through a
+            centralized and affordable digital system.
           </p>
-        </section>
+          <ul className="mt-6 space-y-3">
+            <li className="flex items-start gap-3 text-sm text-slate-600">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#062E22]/10 text-[#062E22]">
+                <Check className="w-3 h-3" />
+              </span>
+              Reduce cost barriers by eliminating dependence on expensive external event agencies
+            </li>
+            <li className="flex items-start gap-3 text-sm text-slate-600">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#062E22]/10 text-[#062E22]">
+                <Check className="w-3 h-3" />
+              </span>
+              Centralize all event operations including vendors, logistics, communication, and management
+            </li>
+            <li className="flex items-start gap-3 text-sm text-slate-600">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#062E22]/10 text-[#062E22]">
+                <Check className="w-3 h-3" />
+              </span>
+              Improve coordination and eliminate scheduling conflicts across major events
+            </li>
+          </ul>
+        </div>
 
-        {/* Vision Pillars */}
-        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-20">
-          <div className="grid gap-8 md:grid-cols-3">
-            {PILLARS.map((pillar) => (
+        <div>
+          <h2 className="text-xl font-bold text-[#062E22]">Our Vision</h2>
+          <p className="mt-4 text-sm leading-relaxed text-slate-600">
+            The vision is to build a localized and scalable digital ecosystem that modernizes
+            Ethiopia&apos;s event industry and makes it globally competitive.
+          </p>
+          <ul className="mt-6 space-y-3">
+            <li className="flex items-start gap-3 text-sm text-slate-600">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#062E22]/10 text-[#062E22]">
+                <Check className="w-3 h-3" />
+              </span>
+              Replacing fragmented and manual systems with a unified national platform
+            </li>
+            <li className="flex items-start gap-3 text-sm text-slate-600">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#062E22]/10 text-[#062E22]">
+                <Check className="w-3 h-3" />
+              </span>
+              Positioning Ethiopia as a regional hub for professional events (MICE industry)
+            </li>
+            <li className="flex items-start gap-3 text-sm text-slate-600">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#062E22]/10 text-[#062E22]">
+                <Check className="w-3 h-3" />
+              </span>
+              Introducing AI-powered automation for smarter event planning and management
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      {/* Core Features */}
+      <section className="bg-slate-900 py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center space-y-4 mb-16">
+            <h2 className="text-3xl font-bold tracking-tight text-white">Core Features</h2>
+            <p className="mx-auto max-w-2xl text-lg text-slate-400 font-medium">
+              Global Connect Ethiopia provides a complete digital solution for event management.
+            </p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {FEATURES.map((feature) => (
               <div
-                key={pillar.title}
-                className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition hover:shadow-md hover:-translate-y-0.5 duration-300"
+                key={feature.title}
+                className="group rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 hover:shadow-lg hover:shadow-black/10"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#062E22]/10 text-[#062E22]">
-                  <span className="text-xl font-bold">★</span>
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#EC5B13]/20 text-[#EC5B13] group-hover:bg-[#EC5B13]/30 group-hover:scale-110 transition-all duration-300">
+                  {feature.icon}
                 </div>
-                <h3 className="mt-5 text-xl font-bold text-[#062E22]">{pillar.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-slate-500">{pillar.desc}</p>
+                <h3 className="mt-5 text-lg font-bold text-white">{feature.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-400">{feature.desc}</p>
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Milestone Timeline */}
-        <section className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 mt-24">
-          <h2 className="text-3xl font-extrabold text-[#062E22] text-center">Our Timeline</h2>
-          <div className="mt-12 relative border-l-2 border-slate-200 pl-6 ml-4 space-y-12">
-            {MILESTONES.map((item) => (
-              <div key={item.year} className="relative">
-                <div className="absolute -left-[35px] top-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#062E22] bg-white text-[#062E22]">
-                  <div className="h-2 w-2 rounded-full bg-[#062E22]" />
-                </div>
-                <div>
-                  <span className="text-sm font-bold text-[#062E22]">{item.year}</span>
-                  <h3 className="text-lg font-bold text-slate-800">{item.title}</h3>
-                  <p className="mt-1 text-sm text-slate-500 leading-relaxed">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* Who It Is For */}
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+        <div className="text-center space-y-4 mb-16">
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Our Audience</h2>
+          <p className="mx-auto max-w-2xl text-lg text-slate-500 font-medium">
+            The platform serves a wide range of users across the event ecosystem.
+          </p>
+        </div>
 
-        {/* Call to Action */}
-        <section className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 mt-24">
-          <div className="rounded-[2rem] bg-[#062E22] p-10 text-center text-white shadow-xl relative overflow-hidden">
-            <div className="relative z-10">
-              <h2 className="text-2xl font-bold">Help shape the future of event governance</h2>
-              <p className="mx-auto mt-3 max-w-md text-sm text-white/80">
-                Join our ecosystem as a vendor, organizer, or attendee, and experience seamless coordination.
-              </p>
-              <div className="mt-6 flex justify-center gap-4">
-                <Link
-                  href="/register"
-                  className="rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-[#062E22] hover:bg-slate-100 transition shadow-md"
-                >
-                  Create an Account
-                </Link>
-                <Link
-                  href="/login"
-                  className="rounded-xl border border-white/40 px-6 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition"
-                >
-                  Sign In
-                </Link>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {AUDIENCES.map((audience) => (
+            <div
+              key={audience.title}
+              className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+            >
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#062E22]/10 text-[#062E22]">
+                {audience.icon}
               </div>
+              <h3 className="mt-4 text-sm font-bold text-[#062E22]">{audience.title}</h3>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">{audience.desc}</p>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Team Section */}
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+        <div className="text-center space-y-4 mb-16">
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Built by ASTU Students</h2>
+          <p className="mx-auto max-w-2xl text-lg text-slate-500 font-medium">
+            Developed by Computer Science and Engineering students from Adama Science and Technology
+            University (ASTU), School of Electrical Engineering and Computing.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-6">
+          {TEAM.map((member) => (
+            <div
+              key={member.name}
+              className="flex flex-col items-center rounded-2xl bg-white border border-slate-200 p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md w-44"
+            >
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#062E22] to-[#0A4A37] text-white text-xl font-bold">
+                {member.name.charAt(0)}
+              </div>
+              <h3 className="mt-4 text-sm font-bold text-slate-900 text-center">{member.name}</h3>
+              <p className="mt-1 text-xs font-medium text-slate-400">{member.role}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Impact & Goals */}
+      <section className="bg-[#062E22] py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center space-y-4 mb-16">
+            <h2 className="text-3xl font-bold tracking-tight text-white">Our Commitment</h2>
+            <p className="mx-auto max-w-2xl text-lg text-white/70 font-medium">
+              Global Connect Ethiopia aims to transform the event landscape through these key objectives.
+            </p>
           </div>
-        </section>
-      </main>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {IMPACTS.map((item) => (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center backdrop-blur-lg transition-all duration-300 hover:-translate-y-1 hover:bg-white/10"
+              >
+                <h3 className="text-lg font-bold text-white">{item.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-white/70">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Call to Action */}
+      <section className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8 text-center">
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900 mb-4">
+          Ready to Transform Your Event Experience?
+        </h2>
+        <p className="mx-auto max-w-xl text-base font-medium text-slate-500 mb-8">
+          Join thousands of organizers, vendors, and attendees building Ethiopia&apos;s event ecosystem.
+        </p>
+        <Link
+          href="/register"
+          className="inline-block rounded-xl bg-[#062E22] px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-[#0A4A37] transition-all duration-300"
+        >
+          Start Organizing Your Event
+        </Link>
+      </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-8 text-center text-xs text-slate-400">
-        © 2026 Global Connect Ethiopia. All rights reserved.
+      <footer className="bg-[#02100C] px-4 pt-20 pb-10 text-white relative z-10 border-t border-white/5">
+        <div className="mx-auto grid max-w-7xl gap-12 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 font-bold group">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#062E22] to-[#0A4A37]">
+                <span className="text-lg font-black text-white">G</span>
+              </div>
+              <span className="text-xl tracking-tight font-extrabold text-white">Global Connect</span>
+            </div>
+            <p className="text-sm leading-relaxed text-slate-400 font-medium">
+              The statutory digital coordination network simplifying regulatory permit workflows,
+              vendor verification status, and attendee QR verification tags in Addis Ababa and beyond.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#EC5B13]">Quick Navigation</h4>
+            <ul className="space-y-3 text-sm font-medium text-slate-400">
+              <li><Link href="/about" className="hover:text-[#EC5B13] transition-colors">About Our Vision</Link></li>
+              <li><Link href="/faq" className="hover:text-[#EC5B13] transition-colors">Regulatory FAQ</Link></li>
+              <li><Link href="/contact" className="hover:text-[#EC5B13] transition-colors">Submit Inquiry Support</Link></li>
+              <li><Link href="/terms" className="hover:text-[#EC5B13] transition-colors">Portal Terms & Disclaimer</Link></li>
+            </ul>
+          </div>
+
+          <div className="space-y-6">
+            <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#EC5B13]">Platform Portals</h4>
+            <ul className="space-y-3 text-sm font-medium text-slate-400">
+              <li><Link href="/login" className="hover:text-[#EC5B13] transition-colors">Organizer Workspace</Link></li>
+              <li><Link href="/login" className="hover:text-[#EC5B13] transition-colors">Vendor Service Desk</Link></li>
+              <li><Link href="/login" className="hover:text-[#EC5B13] transition-colors">Municipal Approvals Portal</Link></li>
+              <li><Link href="/login" className="hover:text-[#EC5B13] transition-colors">Attendee Registration</Link></li>
+            </ul>
+          </div>
+
+          <div className="space-y-6">
+            <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#EC5B13]">System Integrity</h4>
+            <div className="space-y-3 text-xs font-medium text-slate-400">
+              <p className="flex gap-2"><span className="text-[#EC5B13]">✓</span> Permitting workflow officially aligned with Ministry protocols.</p>
+              <p className="flex gap-2"><span className="text-[#EC5B13]">✓</span> Automated QR codes securely verified against local registries.</p>
+              <p className="flex gap-2"><span className="text-[#EC5B13]">✓</span> AI chatbot operates under licensing regulations advisory.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto mt-20 max-w-7xl border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-xs font-medium text-slate-500">
+            &copy; 2026 Global Connect Ethiopia. All statutory rights reserved.
+          </p>
+          <div className="flex gap-4">
+            <Link href="#" className="text-slate-500 hover:text-[#EC5B13] transition-colors">Twitter</Link>
+            <Link href="#" className="text-slate-500 hover:text-[#EC5B13] transition-colors">LinkedIn</Link>
+            <Link href="#" className="text-slate-500 hover:text-[#EC5B13] transition-colors">Instagram</Link>
+          </div>
+        </div>
       </footer>
     </div>
   );
