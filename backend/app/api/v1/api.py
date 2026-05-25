@@ -23,6 +23,7 @@ from app.api.v1.endpoints import (
     permits,
     police_proposals,
     proposals,
+    support,
     team,
     users,
     venue_listings,
@@ -65,3 +66,4 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 api_router.include_router(analytics.admin_router, prefix="/admin/analytics", tags=["Admin Analytics"])
 api_router.include_router(team.router, prefix="/team", tags=["Team Member"])
+api_router.include_router(support.router, prefix="/support", tags=["Support"])
