@@ -28,7 +28,7 @@ export default function TermsPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#062E22]">
               <span className="text-sm font-bold text-white">G</span>
             </div>
-            Global Connect Ethiopia
+            Event-Sphere
           </Link>
           <Link
             href="/"
@@ -76,7 +76,7 @@ export default function TermsPage() {
               <div id="intro" className="mb-10 scroll-mt-24">
                 <h2 className="text-2xl font-bold text-[#062E22] border-b border-slate-100 pb-2">1. Introduction</h2>
                 <p className="mt-4 text-sm text-slate-600 leading-relaxed">
-                  Welcome to Global Connect Ethiopia. By accessing or using our platform, dashboards, chatbot advisor, or registry tools, you agree to comply with and be bound by the statutory regulations defined under the Ministry of Innovation and Technology (MInT) and partner municipal offices.
+                  Welcome to Event-Sphere. By accessing or using our platform, dashboards, chatbot advisor, or registry tools, you agree to comply with and be bound by the statutory regulations defined under the Ministry of Innovation and Technology (MInT) and partner municipal offices.
                 </p>
                 <p className="mt-3 text-sm text-slate-600 leading-relaxed">
                   If you disagree with any segment of these licensing terms, you are requested to cease operations within the portal immediately.
@@ -89,7 +89,7 @@ export default function TermsPage() {
                   The platform provides specialized access tiers for **Organizers, Vendors, Municipal Authorities, and Attendees**. You represent and warrant that all credential entries (including phone number validation and national registry IDs) are entirely truthful and correct.
                 </p>
                 <p className="mt-3 text-sm text-slate-600 leading-relaxed">
-                  Keep your account secure at all times. Global Connect Ethiopia is not responsible for unauthorized activities performed under compromised organizer credentials.
+                  Keep your account secure at all times. Event-Sphere is not responsible for unauthorized activities performed under compromised organizer credentials.
                 </p>
               </div>
 
@@ -123,7 +123,7 @@ export default function TermsPage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white py-8 text-center text-xs text-slate-400">
-        © 2026 Global Connect Ethiopia. All rights reserved.
+        © 2026 Event-Sphere. All rights reserved.
       </footer>
     </div>
   );

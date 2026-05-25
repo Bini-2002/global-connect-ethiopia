@@ -383,7 +383,7 @@ export default function LandingPage() {
                   Create Account
                 </Link>
                 <Link href="/login" className="w-full sm:w-auto px-8 py-4 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-white font-bold tracking-wide hover:bg-white/10 transition-all">
-                  Access Portal
+                  Sign-In
                 </Link>
               </>
             )}
@@ -713,7 +713,7 @@ export default function LandingPage() {
 
         <div className="mx-auto mt-20 max-w-7xl border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs font-medium text-slate-500">
-            © 2026 Global Connect Ethiopia. All statutory rights reserved.
+            © 2026 Event-Sphere. All statutory rights reserved.
           </p>
           <div className="flex gap-4">
             <Link href="#" className="text-slate-500 hover:text-white transition-colors">Twitter</Link>

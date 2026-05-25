@@ -184,7 +184,7 @@ export default function BookingDetailPage() {
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-slate-150">
                     <p className="text-xs text-slate-400 font-medium">Account Name</p>
-                    <p className="text-sm font-semibold text-[#062E22] mt-1">Global Connect Ethiopia Ltd.</p>
+                    <p className="text-sm font-semibold text-[#062E22] mt-1">Event-Sphere Ltd.</p>
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-slate-150 sm:col-span-2">
                     <p className="text-xs text-slate-400 font-medium">Account Number</p>

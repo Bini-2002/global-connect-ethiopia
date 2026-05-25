@@ -96,7 +96,7 @@ export default function Step2orgReg({formData, setFormData,handleChange,handleFi
 
     {/* Footer */}
     <footer className="mt-8 text-center text-sm text-gray-600">
-      <p>© 2024 Global Connect Ethiopia. All rights reserved.</p>
+      <p>© 2024 Event-Sphere. All rights reserved.</p>
       <div className="flex justify-center gap-4 mt-2">
         <a href="#">Privacy Policy</a>
         <a href="#">Terms of Service</a>

@@ -10,7 +10,7 @@ export const en: Record<string, any> = {
     loading: "Loading...",
   },
   home: {
-    welcome: "Welcome to Global Connect Ethiopia",
+    welcome: "Welcome to Event-Sphere",
     subtitle: "Your premier portal for event management and vendor coordination.",
     getStarted: "Get Started",
   },

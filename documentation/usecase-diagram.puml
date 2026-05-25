@@ -1,0 +1,82 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle stick
+skinparam usecase {
+  BackgroundColor #E6F7FF
+  BorderColor #2F4F4F
+  ArrowColor #2F4F4F
+}
+skinparam rectangle {
+  BorderColor #2F4F4F
+  BackgroundColor White
+}
+
+actor "Government Officials" as GO
+actor Police as P
+actor Organizer as O
+actor Vendor as V
+actor Attendee as A
+actor Admin as ADM
+actor "Team Member" as TM
+
+rectangle "Global Connect Ethiopia System" as SYS {
+  usecase "Review and Approve Proposal" as UC1
+  usecase "Issue Event Permit" as UC2
+  usecase "Assign Security Plan" as UC3
+  usecase "Inspect Compliance" as UC4
+  usecase "Generate Reports and Analytics" as UC5
+  usecase "Monitor Incident Response" as UC6
+  usecase "Submit Event Proposal" as UC7
+  usecase "Publish Event Listing" as UC8
+  usecase "Manage Event Schedule" as UC9
+  usecase "Check In Attendee" as UC10
+  usecase "Manage Payments" as UC11
+  usecase "Register Vendor" as UC12
+  usecase "Submit Offer or Quotation" as UC13
+  usecase "Browse Events" as UC14
+  usecase "Book Ticket or Slot" as UC15
+
+  UC2 .> UC1 : <<include>>
+  UC4 .> UC3 : <<include>>
+  UC6 .> UC4 : <<extend>>
+  UC8 .> UC7 : <<include>>
+  UC10 .> UC9 : <<include>>
+  UC11 .> UC15 : <<extend>>
+  UC13 .> UC12 : <<extend>>
+}
+
+GO --> UC1
+GO --> UC2
+GO --> UC3
+GO --> UC4
+GO --> UC5
+
+P --> UC3
+P --> UC4
+P --> UC6
+
+O --> UC7
+O --> UC8
+O --> UC9
+O --> UC10
+O --> UC11
+
+V --> UC12
+V --> UC8
+V --> UC13
+V --> UC11
+
+A --> UC14
+A --> UC15
+A --> UC10
+
+ADM --> UC11
+ADM --> UC5
+
+TM --> UC9
+TM --> UC6
+TM --> UC5
+
+@enduml

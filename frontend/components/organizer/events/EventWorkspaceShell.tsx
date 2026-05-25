@@ -278,7 +278,7 @@ export default function EventWorkspaceShell({
                   </div>
                   <div className="bg-slate-50 px-8 py-4 border-t border-slate-100 flex justify-center">
                     <p className="text-xs text-slate-400 font-medium italic">
-                      Professional Security Enforcement • Global Connect Ethiopia
+                      Professional Security Enforcement • Event-Sphere
                     </p>
                   </div>
                 </div>

@@ -140,7 +140,7 @@ export default function FaqPage() {
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-8 text-center text-xs text-slate-400">
-        © 2026 Global Connect Ethiopia. All rights reserved.
+        © 2026 Event-Sphere. All rights reserved.
       </footer>
 
       {modalOpen && (

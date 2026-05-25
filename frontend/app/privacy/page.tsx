@@ -27,7 +27,7 @@ export default function PrivacyPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#062E22]">
               <span className="text-sm font-bold text-white">G</span>
             </div>
-            Global Connect Ethiopia
+            Event-Sphere
           </Link>
           <Link
             href="/"
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
             </span>
             <h1 className="mt-4 text-4xl font-extrabold text-[#062E22]">Privacy Policy</h1>
             <p className="mx-auto mt-3 max-w-lg text-slate-500">
-              This page explains how Global Connect Ethiopia handles account, event, and verification data across the platform.
+              This page explains how Event-Sphere handles account, event, and verification data across the platform.
             </p>
           </div>
 
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-8 text-center text-xs text-slate-400">
-        © 2026 Global Connect Ethiopia. All rights reserved.
+        © 2026 Event-Sphere. All rights reserved.
       </footer>
     </div>
   );

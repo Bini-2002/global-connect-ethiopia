@@ -173,7 +173,7 @@ export default function LoginPage() {
 
           {/** Register Link */}
           <p className="text-center mt-6 text-sm text-slate-600">
-            New to Global Connect Ethiopia?{' '}
+            New to Event-Sphere?{' '}
             <Link href="/register" className="text-amber-600 hover:text-amber-700 font-medium">
               Create an account
             </Link>
@@ -187,7 +187,7 @@ export default function LoginPage() {
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-4">
-            © 2024 Global Connect Ethiopia. Empowering the Digital Transformation of Ethiopian Events.
+            © 2024 Event-Sphere. Empowering the Digital Transformation of Ethiopian Events.
           </p>
         </div>
       </main>

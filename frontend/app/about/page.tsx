@@ -135,7 +135,7 @@ export default function AboutPage() {
       <section className="mx-auto max-w-3xl px-4 pt-24 pb-0 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-[#062E22]">About us</h1>
         <p className="mt-4 text-sm leading-relaxed text-slate-600">
-          Global Connect Ethiopia is an intelligent, homegrown web-based event management platform
+          Event-Sphere is an intelligent, homegrown web-based event management platform
           designed to transform how professional events are planned, managed, and executed in Ethiopia.
           It acts as a unified digital ecosystem that connects organizers with trusted vendors,
           professionals, travel networks, and regulatory bodies. The platform makes event organization
@@ -148,7 +148,7 @@ export default function AboutPage() {
         <div>
           <h2 className="text-xl font-bold text-[#062E22]">Our Mission</h2>
           <p className="mt-4 text-sm leading-relaxed text-slate-600">
-            The mission of Global Connect Ethiopia is to empower individuals, institutions, and
+            The mission of Event-Sphere is to empower individuals, institutions, and
             international organizers to independently design and host high-quality events through a
             centralized and affordable digital system.
           </p>
@@ -209,7 +209,7 @@ export default function AboutPage() {
           <div className="text-center space-y-4 mb-16">
             <h2 className="text-3xl font-bold tracking-tight text-white">Core Features</h2>
             <p className="mx-auto max-w-2xl text-lg text-slate-400 font-medium">
-              Global Connect Ethiopia provides a complete digital solution for event management.
+              Event-Sphere provides a complete digital solution for event management.
             </p>
           </div>
 
@@ -287,7 +287,7 @@ export default function AboutPage() {
           <div className="text-center space-y-4 mb-16">
             <h2 className="text-3xl font-bold tracking-tight text-white">Our Commitment</h2>
             <p className="mx-auto max-w-2xl text-lg text-white/70 font-medium">
-              Global Connect Ethiopia aims to transform the event landscape through these key objectives.
+              Event-Sphere aims to transform the event landscape through these key objectives.
             </p>
           </div>
 
@@ -369,7 +369,7 @@ export default function AboutPage() {
 
         <div className="mx-auto mt-20 max-w-7xl border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs font-medium text-slate-500">
-            &copy; 2026 Global Connect Ethiopia. All statutory rights reserved.
+            &copy; 2026 Event-Sphere. All statutory rights reserved.
           </p>
           <div className="flex gap-4">
             <Link href="#" className="text-slate-500 hover:text-[#EC5B13] transition-colors">Twitter</Link>

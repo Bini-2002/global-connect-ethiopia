@@ -195,13 +195,13 @@ function RegistrationFormContent() {
             </div>
             {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
             <p className="text-xs text-center text-slate-500">
-              By clicking "Continue", you agree to Global Connect Ethiopia's{" "}
+              By clicking "Continue", you agree to Event-Sphere's{" "}
               <Link href="/terms" className="text-amber-600 hover:text-amber-700 font-medium">Terms of Service</Link> and <Link href="/privacy" className="text-amber-600 hover:text-amber-700 font-medium">Privacy Policy</Link>.
             </p>
           </form>
 
           <div className="mt-8 pt-6 border-t border-slate-200">
-            <p className="text-center text-xs text-slate-400">© 2024 Global Connect Ethiopia. All rights reserved.</p>
+            <p className="text-center text-xs text-slate-400">© 2024 Event-Sphere. All rights reserved.</p>
           </div>
         </div>
       </div>

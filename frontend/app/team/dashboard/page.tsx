@@ -152,7 +152,7 @@ export default function TeamDashboardPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Team Portal</h1>
               <p className="text-[#8CB988] text-sm font-medium">
-                Global Connect Ethiopia • Workforce
+                Event-Sphere • Workforce
               </p>
             </div>
           </div>

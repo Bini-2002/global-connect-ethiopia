@@ -83,7 +83,7 @@ export default function TeamRegisterPage() {
             <User className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white">Team Hub</h1>
-          <p className="text-white/60 mt-2 text-sm">Global Connect Ethiopia</p>
+          <p className="text-white/60 mt-2 text-sm">Event-Sphere</p>
         </div>
 
         <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-[28px] p-8">

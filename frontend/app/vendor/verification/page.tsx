@@ -278,7 +278,7 @@ function RegistrationForm({ onSubmitted, onSignOut }: { onSubmitted: () => void;
             <label className="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)}
                 className="mt-0.5 h-4 w-4 accent-[#062E22]" />
-              <span className="text-sm text-slate-700">I agree to Global Connect Ethiopia's Terms of Service and Privacy Policy.</span>
+              <span className="text-sm text-slate-700">I agree to Event-Sphere's Terms of Service and Privacy Policy.</span>
             </label>
           </div>
 
