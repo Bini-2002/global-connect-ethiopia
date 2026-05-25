@@ -272,7 +272,7 @@ export default function VendorDashboardPage() {
               </div>
               <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Vendor Dashboard</h1>
               <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-500 font-medium">
-                Manage your service catalog, review incoming requests, and finalize contracts. Your central hub for growing your business on Global Connect.
+                Manage your service catalog, review incoming requests, and finalize contracts. Your central hub for growing your business on Event-Sphere.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 relative z-10">

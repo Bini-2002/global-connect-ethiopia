@@ -327,9 +327,9 @@ export default function AboutPage() {
           <div className="space-y-6">
             <div className="flex items-center gap-3 font-bold group">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#062E22] to-[#0A4A37]">
-                <span className="text-lg font-black text-white">G</span>
+                <span className="text-lg font-black text-white">E</span>
               </div>
-              <span className="text-xl tracking-tight font-extrabold text-white">Global Connect</span>
+              <span className="text-xl tracking-tight font-extrabold text-white">Event-Sphere</span>
             </div>
             <p className="text-sm leading-relaxed text-slate-400 font-medium">
               The statutory digital coordination network simplifying regulatory permit workflows,

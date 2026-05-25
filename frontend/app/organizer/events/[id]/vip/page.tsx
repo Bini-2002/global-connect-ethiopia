@@ -295,7 +295,7 @@ export default function VipHotelReservationsPage() {
                                 <a href={v.website_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{v.website_url}</a>
                               </p>
                             )}
-                            <p><span className="font-semibold text-slate-700">Hotel Profile:</span> Verified Global Connect Partner</p>
+                            <p><span className="font-semibold text-slate-700">Hotel Profile:</span> Verified Event-Sphere Partner</p>
                           </div>
                           {v.service_details && Object.keys(v.service_details).length > 0 && (
                             <div className="border-t border-slate-200 pt-3">

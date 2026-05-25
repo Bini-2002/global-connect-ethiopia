@@ -264,10 +264,10 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-3 font-bold group">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#062E22] to-emerald-600 shadow-lg shadow-emerald-900/20 group-hover:scale-105 transition-transform duration-300">
-              <span className="text-lg font-black text-white tracking-tighter">G</span>
+              <span className="text-lg font-black text-white tracking-tighter">E</span>
             </div>
             <span className={`text-xl tracking-tight font-extrabold transition-colors duration-300 ${scrolled ? 'text-[#062E22]' : 'text-white'}`}>
-              Global Connect <span className="text-emerald-400">Ethiopia</span>
+              Event-<span className="text-emerald-400">Sphere</span>
             </span>
           </Link>
 
@@ -672,9 +672,9 @@ export default function LandingPage() {
           <div className="space-y-6">
             <div className="flex items-center gap-3 font-bold group">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#062E22] to-emerald-600">
-                <span className="text-lg font-black text-white">G</span>
+                <span className="text-lg font-black text-white">E</span>
               </div>
-              <span className="text-xl tracking-tight font-extrabold text-white">Global Connect</span>
+              <span className="text-xl tracking-tight font-extrabold text-white">Event-Sphere</span>
             </div>
             <p className="text-sm leading-relaxed text-slate-400 font-medium">
               The statutory digital coordination network simplifying regulatory permit workflows, vendor verification status, and attendee QR verification tags in Addis Ababa and beyond.
