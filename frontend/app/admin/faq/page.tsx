@@ -16,6 +16,10 @@ export default function AdminFaqPage() {
   const [selectedPending, setSelectedPending] = useState<FaqQuestion | null>(null);
   const [answerText, setAnswerText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editQuestion, setEditQuestion] = useState('');
+  const [editAnswer, setEditAnswer] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getToken();
@@ -58,6 +62,34 @@ export default function AdminFaqPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEdit = async (faqId: string) => {
+    if (!editQuestion.trim() || !editAnswer.trim()) return;
+    try {
+      await faqService.updateFaq(faqId, { question: editQuestion.trim(), answer: editAnswer.trim() });
+      await fetchAll();
+      setEditingId(null);
+    } catch (err) {
+      console.error('Failed to update FAQ:', err);
+    }
+  };
+
+  const handleDelete = async (faqId: string) => {
+    try {
+      await faqService.deleteFaq(faqId);
+      await fetchAll();
+      setConfirmDeleteId(null);
+    } catch (err) {
+      console.error('Failed to delete FAQ:', err);
+    }
+  };
+
+  const startEdit = (faq: AiFaqItem) => {
+    setEditingId(faq.id!);
+    setEditQuestion(faq.question);
+    setEditAnswer(faq.answer);
+    setConfirmDeleteId(null);
   };
 
   const formatDate = (dateStr: string) => {
@@ -103,9 +135,42 @@ export default function AdminFaqPage() {
                 </div>
               ) : (
                 faqs.map((faq, i) => (
-                  <div key={i} className="rounded-xl border border-slate-200 p-4">
-                    <p className="text-sm font-bold text-slate-800 mb-2">{faq.question}</p>
-                    <p className="text-xs text-slate-600 leading-relaxed">{faq.answer}</p>
+                  <div key={faq.id || i} className="rounded-xl border border-slate-200 p-4">
+                    {editingId === faq.id ? (
+                      <>
+                        <input
+                          value={editQuestion}
+                          onChange={(e) => setEditQuestion(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 p-2 text-sm font-bold text-slate-800 mb-2 focus:outline-none focus:ring-2 focus:ring-[#062E22]/20"
+                        />
+                        <textarea
+                          value={editAnswer}
+                          onChange={(e) => setEditAnswer(e.target.value)}
+                          rows={3}
+                          className="w-full rounded-lg border border-slate-200 p-2 text-xs text-slate-600 leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#062E22]/20 resize-none"
+                        />
+                        <div className="flex justify-end gap-2 mt-2">
+                          <button onClick={() => setEditingId(null)} className="text-xs border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition font-medium text-slate-600">Cancel</button>
+                          <button onClick={() => handleEdit(faq.id!)} className="text-xs bg-[#062E22] text-white px-3 py-1.5 rounded-lg hover:bg-[#0a4a37] transition font-medium">Save</button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-bold text-slate-800 mb-2">{faq.question}</p>
+                        <p className="text-xs text-slate-600 leading-relaxed">{faq.answer}</p>
+                        <div className="flex justify-end gap-2 mt-2">
+                          <button onClick={() => startEdit(faq)} className="text-xs border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition font-medium text-slate-600">Edit</button>
+                          {confirmDeleteId === faq.id ? (
+                            <>
+                              <button onClick={() => handleDelete(faq.id!)} className="text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition font-medium">Confirm</button>
+                              <button onClick={() => setConfirmDeleteId(null)} className="text-xs border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition font-medium text-slate-600">Cancel</button>
+                            </>
+                          ) : (
+                            <button onClick={() => { setConfirmDeleteId(faq.id!); setEditingId(null); }} className="text-xs border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 transition font-medium">Delete</button>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))
               )}
@@ -140,7 +205,6 @@ export default function AdminFaqPage() {
               </div>
             ) : (
               <div className="flex-1 flex overflow-hidden">
-                {/* Question list */}
                 <div className="w-1/2 overflow-y-auto p-4 space-y-2 border-r border-slate-100">
                   {pending.map((q) => (
                     <button
@@ -158,12 +222,10 @@ export default function AdminFaqPage() {
                   ))}
                 </div>
 
-                {/* Answer form */}
                 <div className="w-1/2 p-4 flex flex-col overflow-y-auto">
                   {!selectedPending ? (
                     <div className="flex-1 flex items-center justify-center">
                       <div className="text-center">
-                        <span className="text-3xl">👆</span>
                         <p className="text-slate-400 text-xs mt-2">Select a question</p>
                       </div>
                     </div>
@@ -175,8 +237,8 @@ export default function AdminFaqPage() {
                         value={answerText}
                         onChange={(e) => setAnswerText(e.target.value)}
                         placeholder="Type your answer..."
-                        rows={8}
-                        className="w-full flex-1 rounded-xl border border-slate-200 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20 resize-none"
+                        rows={4}
+                        className="w-full rounded-xl border border-slate-200 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#062E22]/20 resize-none"
                       />
                       <button
                         onClick={handleAnswer}

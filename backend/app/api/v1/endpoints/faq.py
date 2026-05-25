@@ -85,6 +85,38 @@ async def get_faq_questions(current_user: dict = Depends(allow_admin)):
         for q in questions
     ]
 
+@router.put("/{faq_id}", response_model=FaqResponse)
+async def update_faq(faq_id: str, data: FaqUpdate, current_user: dict = Depends(allow_admin)):
+    from app.db.mongodb import faq_collection
+    from bson import ObjectId
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    update_data["updated_at"] = datetime.utcnow()
+    result = await faq_collection.update_one(
+        {"_id": ObjectId(faq_id)},
+        {"$set": update_data}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="FAQ not found")
+    faq = await faq_collection.find_one({"_id": ObjectId(faq_id)})
+    return FaqResponse(
+        id=str(faq["_id"]),
+        question=faq["question"],
+        answer=faq["answer"],
+        active=faq["active"],
+        created_at=faq["created_at"],
+        updated_at=faq["updated_at"],
+    )
+
+@router.delete("/{faq_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_faq(faq_id: str, current_user: dict = Depends(allow_admin)):
+    from app.db.mongodb import faq_collection
+    from bson import ObjectId
+    result = await faq_collection.delete_one({"_id": ObjectId(faq_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="FAQ not found")
+
 @router.post("/questions/{question_id}/answer", response_model=FaqResponse)
 async def answer_faq_question(question_id: str, data: FaqAnswerRequest, current_user: dict = Depends(allow_admin)):
     from app.db.mongodb import faq_question_collection, faq_collection
