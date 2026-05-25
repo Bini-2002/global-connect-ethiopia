@@ -89,6 +89,8 @@ class OpportunityProposalResponse(BaseModel):
     vendor_id: str
     vendor_user_id: str
     vendor_service_id: str | None = None
+    vendor_name: str | None = None
+    vendor_business_name: str | None = None
     submission_mode: ProposalSubmissionMode | None = None
     status: OpportunityProposalStatus
     awaiting_action_by: MarketplaceActor

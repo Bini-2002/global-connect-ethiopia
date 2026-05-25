@@ -76,6 +76,13 @@ export default function OrganizerOpportunityDetailPage() {
 
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedProposals, setSelectedProposals] = useState<Set<string>>(new Set());
+  const [actedProposals, setActedProposals] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem(`acted_proposals_${opportunityId}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    }
+    return new Set();
+  });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -106,6 +113,10 @@ export default function OrganizerOpportunityDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    sessionStorage.setItem(`acted_proposals_${opportunityId}`, JSON.stringify([...actedProposals]));
+  }, [actedProposals, opportunityId]);
 
   useEffect(() => {
     if (opportunity?.event_id) {
@@ -147,6 +158,7 @@ export default function OrganizerOpportunityDetailPage() {
     try {
       setActionLoading(proposalId);
       await opportunitiesService.acceptProposal(opportunityId, proposalId);
+      setActedProposals((prev) => new Set(prev).add(proposalId));
       await fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to accept proposal');
@@ -161,6 +173,7 @@ export default function OrganizerOpportunityDetailPage() {
       await opportunitiesService.rejectProposal(opportunityId, proposalId, { reason: rejectReason });
       setShowRejectModal(null);
       setRejectReason('');
+      setActedProposals((prev) => new Set(prev).add(proposalId));
       await fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reject proposal');
@@ -177,6 +190,7 @@ export default function OrganizerOpportunityDetailPage() {
       });
       setShowCounterModal(null);
       setCounterAmount('');
+      setActedProposals((prev) => new Set(prev).add(proposalId));
       await fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to counter proposal');
@@ -456,7 +470,7 @@ export default function OrganizerOpportunityDetailPage() {
                         <div className="flex items-start justify-between">
                           <div>
                             <h3 className="font-bold text-[#062E22]">
-                              {proposal.vendor_name || 'Unknown Vendor'}
+                              {proposal.vendor_business_name || proposal.vendor_name || 'Unknown Vendor'}
                             </h3>
                             <span
                               className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -494,7 +508,13 @@ export default function OrganizerOpportunityDetailPage() {
                         )}
 
                         <div className="mt-4 flex flex-wrap gap-2">
-                          {['submitted', 'vendor_countered'].includes(
+                          {['selected', 'converted'].includes(proposal.status) ? (
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-xs font-semibold text-green-700">
+                              <CheckCircle className="h-3 w-3" />
+                              Accepted
+                            </span>
+                          ) : actedProposals.has(proposal.id) ||
+                            ['rejected', 'withdrawn', 'expired'].includes(proposal.status) ? null : ['submitted', 'vendor_countered'].includes(
                             proposal.status
                           ) ? (
                             <>
@@ -529,24 +549,7 @@ export default function OrganizerOpportunityDetailPage() {
                                 Reject
                               </button>
                             </>
-                          ) : proposal.status === 'client_countered' ? (
-                            <button
-                              onClick={() => setShowRejectModal(proposal.id)}
-                              className="flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                            >
-                              <XCircle className="h-3 w-3" />
-                              Reject
-                            </button>
-                          ) : (
-                            ['converted', 'selected'].includes(proposal.status.toLowerCase()) && proposal.contract_id && (
-                              <Link
-                                href={`/organizer/contracts/${proposal.contract_id}`}
-                                className="inline-flex items-center justify-center rounded-lg bg-[#062E22] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0a4a37]"
-                              >
-                                View Contract
-                              </Link>
-                            )
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     ))}
@@ -582,7 +585,7 @@ export default function OrganizerOpportunityDetailPage() {
                                   className="h-4 w-4 rounded border-slate-300"
                                 />
                                 <span className="font-medium text-[#062E22]">
-                                  {proposal.vendor_name || 'Unknown Vendor'}
+                                  {proposal.vendor_business_name || proposal.vendor_name || 'Unknown Vendor'}
                                 </span>
                               </div>
                             </td>
@@ -602,7 +605,13 @@ export default function OrganizerOpportunityDetailPage() {
                               {proposal.counter_round}
                             </td>
                             <td className="py-3">
-                              {['submitted', 'vendor_countered'].includes(
+                              {['selected', 'converted'].includes(proposal.status) ? (
+                                <span className="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">
+                                  <CheckCircle className="h-3 w-3" />
+                                  Accepted
+                                </span>
+                              ) : actedProposals.has(proposal.id) ||
+                                ['rejected', 'withdrawn', 'expired'].includes(proposal.status) ? null : ['submitted', 'vendor_countered'].includes(
                                 proposal.status
                               ) ? (
                                 <div className="flex gap-2">
@@ -632,23 +641,7 @@ export default function OrganizerOpportunityDetailPage() {
                                     Reject
                                   </button>
                                 </div>
-                              ) : proposal.status === 'client_countered' ? (
-                                <button
-                                  onClick={() => setShowRejectModal(proposal.id)}
-                                  className="rounded border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
-                                >
-                                  Reject
-                                </button>
-                              ) : (
-                                ['converted', 'selected'].includes(proposal.status.toLowerCase()) && proposal.contract_id && (
-                                  <Link
-                                    href={`/organizer/contracts/${proposal.contract_id}`}
-                                    className="inline-block rounded bg-[#062E22] px-3 py-1 text-xs font-semibold text-white hover:bg-[#0a4a37]"
-                                  >
-                                    View Contract
-                                  </Link>
-                                )
-                              )}
+                              ) : null}
                             </td>
                           </tr>
                         ))}
@@ -660,29 +653,6 @@ export default function OrganizerOpportunityDetailPage() {
             </section>
 
             <aside className="space-y-6">
-              <div className="sticky top-24 rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="font-bold text-[#062E22]">Actions</h3>
-                <div className="mt-4 space-y-3">
-                  {selectedProposals.size > 0 && canReview && (
-                    <button
-                      onClick={() => {
-                        const firstSelected = Array.from(selectedProposals)[0];
-                        handleAccept(firstSelected);
-                      }}
-                      className="w-full rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
-                    >
-                      Accept Selected ({selectedProposals.size})
-                    </button>
-                  )}
-                  <Link
-                    href="/organizer/opportunities"
-                    className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-center text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
-                  >
-                    Back to List
-                  </Link>
-                </div>
-              </div>
-
               {selectedProposals.size > 1 && (
                 <div className="rounded-[24px] border border-slate-200 bg-white p-5">
                   <h4 className="font-semibold text-[#062E22]">
@@ -698,7 +668,7 @@ export default function OrganizerOpportunityDetailPage() {
                           className="flex justify-between rounded-lg bg-slate-50 p-3"
                         >
                           <span className="text-sm font-medium">
-                            {proposal.vendor_name}
+                            {proposal.vendor_business_name || proposal.vendor_name || 'Unknown Vendor'}
                           </span>
                           <span className="text-sm font-bold text-[#062E22]">
                             {formatCurrency(

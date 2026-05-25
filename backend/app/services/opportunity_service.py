@@ -41,7 +41,7 @@ from app.services.marketplace import (
     utc_now,
 )
 from app.services.contract_service import ContractService
-from app.services.marketplace_mvp import add_request_message, create_request
+from app.services.marketplace_mvp import add_request_message, create_request, get_vendor_business_name
 
 
 class OpportunityService:
@@ -582,7 +582,7 @@ class OpportunityService:
             active_delta=1,
             now=now,
         )
-        return self._serialize_proposal(created)
+        return await self._serialize_proposal(created)
 
     async def list_proposals_for_opportunity(
         self,
@@ -613,17 +613,17 @@ class OpportunityService:
         else:
             raise HTTPException(status_code=403, detail="Only organizers or vendors can view proposals")
 
-        return [self._serialize_proposal(proposal) for proposal in proposals if proposal]
+        return [await self._serialize_proposal(proposal) for proposal in proposals if proposal]
 
     async def list_my_proposals(self, *, current_user: dict) -> list[OpportunityProposalResponse]:
         await require_vendor_profile(current_user)
         proposals = await self.proposal_repository.list_by_vendor(current_user["id"])
-        return [self._serialize_proposal(proposal) for proposal in proposals]
+        return [await self._serialize_proposal(proposal) for proposal in proposals]
 
     async def list_actionable_proposals(self, *, current_user: dict) -> list[OpportunityProposalResponse]:
         await require_organizer_profile(current_user)
         proposals = await self.proposal_repository.list_actionable_for_client(current_user["id"])
-        return [self._serialize_proposal(proposal) for proposal in proposals]
+        return [await self._serialize_proposal(proposal) for proposal in proposals]
 
     async def get_proposal_detail(
         self,
@@ -654,7 +654,7 @@ class OpportunityService:
         else:
             raise HTTPException(status_code=403, detail="Only organizers or vendors can view proposals")
 
-        return self._serialize_proposal(proposal)
+        return await self._serialize_proposal(proposal)
 
     async def counter_proposal(
         self,
@@ -752,7 +752,7 @@ class OpportunityService:
         refreshed = await self.proposal_repository.get_by_id(proposal_id)
         if not refreshed:
             raise HTTPException(status_code=404, detail="Proposal not found")
-        return self._serialize_proposal(refreshed)
+        return await self._serialize_proposal(refreshed)
 
     async def reject_proposal(
         self,
@@ -829,7 +829,7 @@ class OpportunityService:
         refreshed = await self.proposal_repository.get_by_id(proposal_id)
         if not refreshed:
             raise HTTPException(status_code=404, detail="Proposal not found")
-        return self._serialize_proposal(refreshed)
+        return await self._serialize_proposal(refreshed)
 
     async def withdraw_proposal(
         self,
@@ -903,7 +903,7 @@ class OpportunityService:
         refreshed = await self.proposal_repository.get_by_id(proposal_id)
         if not refreshed:
             raise HTTPException(status_code=404, detail="Proposal not found")
-        return self._serialize_proposal(refreshed)
+        return await self._serialize_proposal(refreshed)
 
     async def accept_proposal(
         self,
@@ -1079,7 +1079,7 @@ class OpportunityService:
         refreshed = await self.proposal_repository.get_by_id(proposal_id)
         if not refreshed:
             raise HTTPException(status_code=404, detail="Proposal not found")
-        return self._serialize_proposal(refreshed)
+        return await self._serialize_proposal(refreshed)
 
     async def _validate_submission_access(
         self,
@@ -1199,7 +1199,14 @@ class OpportunityService:
             parts.append(f"Selection note: {payload.selection_note.strip()}")
         return " | ".join(parts)
 
-    def _serialize_proposal(self, document: dict) -> OpportunityProposalResponse:
+    async def _serialize_proposal(self, document: dict) -> OpportunityProposalResponse:
+        vendor_business_name = None
+        vendor_name = None
+        vendor_oid = parse_object_id(document["vendor_id"], field_name="vendor id")
+        vendor = await vendor_collection.find_one({"_id": vendor_oid})
+        if vendor:
+            vendor_business_name = get_vendor_business_name(vendor)
+            vendor_name = await get_user_name(document["vendor_user_id"])
         return OpportunityProposalResponse(
             id=str(document["_id"]),
             opportunity_id=document["opportunity_id"],
@@ -1207,6 +1214,8 @@ class OpportunityService:
             vendor_id=document["vendor_id"],
             vendor_user_id=document["vendor_user_id"],
             vendor_service_id=document.get("vendor_service_id"),
+            vendor_name=vendor_name,
+            vendor_business_name=vendor_business_name,
             submission_mode=document.get("submission_mode"),
             status=document["status"],
             awaiting_action_by=document["awaiting_action_by"],
