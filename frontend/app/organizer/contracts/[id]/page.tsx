@@ -105,7 +105,95 @@ export default function OrganizerContractDetailPage() {
     }
   };
 
-  const pdfUrl = marketplaceService.getContractPdfUrl(contractId);
+  const handleDownloadReceipt = () => {
+    if (!contract) return;
+    const c = contract;
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Contract Receipt - ${c.id}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f1f5f9; padding: 40px 20px; color: #1e293b; }
+  .receipt { max-width: 780px; margin: 0 auto; background: #fff; border-radius: 32px; box-shadow: 0 4px 24px rgba(0,0,0,.06); overflow: hidden; }
+  .header { background: #062E22; padding: 32px 40px; }
+  .header h1 { color: #fff; font-size: 22px; font-weight: 700; letter-spacing: .01em; }
+  .header p { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+  .body { padding: 32px 40px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .field { }
+  .field .label { font-size: 11px; text-transform: uppercase; letter-spacing: .16em; color: #94a3b8; font-weight: 600; }
+  .field .value { font-size: 16px; font-weight: 600; color: #062E22; margin-top: 4px; }
+  .amount-row { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-top: 1px solid #e2e8f0; margin-top: 24px; }
+  .amount-row .label { font-size: 14px; color: #64748b; }
+  .amount-row .value { font-size: 28px; font-weight: 800; color: #062E22; }
+  .status-badge { display: inline-block; padding: 4px 14px; border-radius: 9999px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .status-badge.active { background: #dcfce7; color: #166534; }
+  .status-badge.pending { background: #fef9c3; color: #854d0e; }
+  .status-badge.cancelled { background: #fee2e2; color: #991b1b; }
+  .signatures { display: flex; gap: 16px; margin-top: 24px; padding-top: 24px; border-top: 1px solid #e2e8f0; }
+  .signature-box { flex: 1; padding: 16px; border-radius: 16px; background: #f8fafc; }
+  .signature-box.signed { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .signature-box .name { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .08em; }
+  .signature-box .status { font-size: 14px; font-weight: 600; margin-top: 4px; }
+  .signature-box .status.done { color: #16a34a; }
+  .signature-box .status.pending { color: #d97706; }
+  .footer { text-align: center; padding: 20px 40px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; }
+  @media print { body { padding: 0; background: #fff; } .receipt { box-shadow: none; border-radius: 0; } .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style></head>
+<body>
+<div class="receipt">
+  <div class="header">
+    <h1>Contract Receipt</h1>
+    <p>#${c.id.slice(0, 8).toUpperCase()} &middot; ${new Date(c.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+  </div>
+  <div class="body">
+    <div class="grid">
+      <div class="field"><div class="label">Contract Title</div><div class="value">${c.title || 'Vendor Contract'}</div></div>
+      <div class="field"><div class="label">Status</div><div class="value"><span class="status-badge ${c.status === 'CANCELLED' ? 'cancelled' : ['FUNDED','COMPLETED','PAID'].includes(c.status) ? 'active' : 'pending'}">${c.status}</span></div></div>
+      <div class="field"><div class="label">Vendor</div><div class="value">${c.vendor_business_name || c.vendor_id || 'N/A'}</div></div>
+      <div class="field"><div class="label">Organizer</div><div class="value">${c.organizer_name || c.organizer_id || 'N/A'}</div></div>
+      <div class="field"><div class="label">Escrow</div><div class="value">${c.escrow_status}</div></div>
+      <div class="field"><div class="label">Payment</div><div class="value">${c.payment_status}</div></div>
+    </div>
+    <div class="amount-row">
+      <span class="label">Total Contract Amount</span>
+      <span class="value">${c.currency || 'ETB'} ${(c.amount || 0).toLocaleString()}</span>
+    </div>
+    ${c.terms ? `<div style="margin-top:24px;padding-top:24px;border-top:1px solid #e2e8f0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.16em;color:#94a3b8;font-weight:600">Terms &amp; Conditions</div><p style="margin-top:8px;font-size:14px;color:#475569;line-height:1.6">${c.terms}</p></div>` : ''}
+    ${c.scope ? `<div style="margin-top:24px;padding-top:24px;border-top:1px solid #e2e8f0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.16em;color:#94a3b8;font-weight:600">Scope of Work</div><p style="margin-top:8px;font-size:14px;color:#475569;line-height:1.6">${c.scope}</p></div>` : ''}
+    <div class="signatures">
+      <div class="signature-box ${c.signed_by_organizer ? 'signed' : ''}">
+        <div class="name">Organizer</div>
+        <div class="status ${c.signed_by_organizer ? 'done' : 'pending'}">${c.signed_by_organizer ? '✓ Signed' : 'Pending'}</div>
+        ${c.signed_by_organizer_at ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">${new Date(c.signed_by_organizer_at).toLocaleDateString()}</div>` : ''}
+      </div>
+      <div class="signature-box ${c.signed_by_vendor ? 'signed' : ''}">
+        <div class="name">Vendor</div>
+        <div class="status ${c.signed_by_vendor ? 'done' : 'pending'}">${c.signed_by_vendor ? '✓ Signed' : 'Pending'}</div>
+        ${c.signed_by_vendor_at ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">${new Date(c.signed_by_vendor_at).toLocaleDateString()}</div>` : ''}
+      </div>
+    </div>
+    <div style="margin-top:24px;padding-top:24px;border-top:1px solid #e2e8f0">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+        <div class="field"><div class="label">Created</div><div class="value" style="font-size:14px">${c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</div></div>
+        <div class="field"><div class="label">Funded</div><div class="value" style="font-size:14px">${c.funded_at ? new Date(c.funded_at).toLocaleDateString() : '—'}</div></div>
+        <div class="field"><div class="label">Paid</div><div class="value" style="font-size:14px">${c.paid_at ? new Date(c.paid_at).toLocaleDateString() : '—'}</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">Generated by Global Connect Ethiopia &middot; Contract #${c.id.slice(0, 8).toUpperCase()}</div>
+</div>
+</body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contract-receipt-${contractId.slice(0, 8)}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -126,15 +214,13 @@ export default function OrganizerContractDetailPage() {
               Back to contracts
             </Link>
             {contract && contract.status !== 'draft' ? (
-              <a
-                href={pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={handleDownloadReceipt}
                 className="inline-flex items-center gap-2 px-4 py-2 border border-amber-300 bg-amber-50 text-amber-800 rounded-xl text-sm font-semibold hover:bg-amber-100 transition"
               >
                 <FileDown className="w-4 h-4" />
-                Download PDF
-              </a>
+                Download Receipt
+              </button>
             ) : null}
           </div>
 
