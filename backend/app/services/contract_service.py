@@ -91,6 +91,8 @@ class ContractService:
             "signed_by_vendor": bool(contract.get("signed_by_vendor", False)),
             "signed_by_organizer_at": contract.get("signed_by_organizer_at"),
             "signed_by_vendor_at": contract.get("signed_by_vendor_at"),
+            "organizer_name": await get_user_display_name(contract["organizer_id"]),
+            "vendor_business_name": get_vendor_business_name(vendor) if vendor else "Unknown Vendor",
             "funded_at": contract.get("funded_at"),
             "completed_at": contract.get("completed_at"),
             "paid_at": contract.get("paid_at"),

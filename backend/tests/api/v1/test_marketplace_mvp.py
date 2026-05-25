@@ -132,6 +132,7 @@ def client() -> TestClient:
 @pytest.fixture()
 def setup_marketplace(monkeypatch: pytest.MonkeyPatch):
     from app.services import marketplace_mvp
+    import app.db.mongodb as db_mongodb
 
     collections = {
         "vendor_collection": FakeCollection(),
@@ -148,6 +149,8 @@ def setup_marketplace(monkeypatch: pytest.MonkeyPatch):
 
     for name, fake_collection in collections.items():
         monkeypatch.setattr(marketplace_mvp, name, fake_collection)
+        if hasattr(db_mongodb, name):
+            monkeypatch.setattr(db_mongodb, name, fake_collection)
 
     organizer_user_id = ObjectId()
     vendor_user_id = ObjectId()
@@ -435,10 +438,10 @@ def test_withdrawal_reserves_wallet_balance_and_records_history(
     current_user_ref = setup_marketplace["current_user_ref"]
     organizer_user = setup_marketplace["organizer_user"]
 
-    async def fake_initialize_withdrawal(*args, **kwargs):
-        return {"success": True, "tx_ref": "wd-test-001", "provider_reference": "chapa-transfer-001"}
+    async def fake_initiate_chapa_transfer(*args, **kwargs):
+        return {"status": "success", "message": "Simulated Chapa transfer successful.", "data": {"reference": "wd-test-001"}}
 
-    monkeypatch.setattr("app.services.chapa_service.initialize_withdrawal", fake_initialize_withdrawal)
+    monkeypatch.setattr("app.services.chapa_service.initiate_chapa_transfer", fake_initiate_chapa_transfer)
 
     current_user_ref["user"] = organizer_user
     assert client.post("/api/v1/wallet/deposit", json={"amount": 1000}).status_code == 200
@@ -452,7 +455,8 @@ def test_withdrawal_reserves_wallet_balance_and_records_history(
             "notes": "Quarterly vendor payout",
         },
     )
-    assert withdrawal_response.status_code == 201
+    assert False, withdrawal_response.json()
+    assert False, withdrawal_response.json()
     assert withdrawal_response.json()["status"] == "PROCESSING"
     assert withdrawal_response.json()["provider_reference"] == "chapa-transfer-001"
     withdrawal_id = withdrawal_response.json()["id"]
