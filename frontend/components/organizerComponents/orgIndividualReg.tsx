@@ -25,7 +25,7 @@ export default function OrgIndividualReg({formData, setFormData,handleChange,han
            <label className=" block text-sm font-medium text-slate-700 mb-1">Personal Bio</label>
            <textarea
              name="personal_bio"
-             placeholder="Share your professional background and interest in Global Connect..."
+             placeholder="Share your professional background and interest in Event-Sphere..."
              value={formData.personal_bio}
              onChange={handleChange}
              className="w-full border border-slate-300 rounded-lg p-2"

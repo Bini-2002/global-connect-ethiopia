@@ -162,7 +162,7 @@ export default function Sidebar({ role, portalName }: SidebarProps) {
         </div>
         <div className="min-w-0">
           <p suppressHydrationWarning className="text-xs font-bold text-[#062E22] truncate">{name}</p>
-          <p suppressHydrationWarning className="text-[10px] text-slate-400 truncate">Global Connect</p>
+          <p suppressHydrationWarning className="text-[10px] text-slate-400 truncate">Event-Sphere</p>
         </div>
       </div>
 
