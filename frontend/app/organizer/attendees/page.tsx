@@ -12,6 +12,7 @@ export default function OrganizerAttendeesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bookingsError, setBookingsError] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadAttendeesOverview = async () => {
@@ -21,6 +22,9 @@ export default function OrganizerAttendeesPage() {
       try {
         const data = await eventsService.getEvents();
         setEvents(data);
+        if (data.length > 0) {
+          setSelectedEventId(data[0].id);
+        }
         setBookingsError(null);
 
         const bookingResults = await Promise.allSettled(
@@ -52,9 +56,6 @@ export default function OrganizerAttendeesPage() {
     void loadAttendeesOverview();
   }, []);
 
-  const loadedAttendeesCount = Object.values(bookingsByEvent).reduce((sum, bookings) => sum + bookings.length, 0);
-  const fallbackAttendeesCount = events.reduce((sum, event) => sum + (event.booked_count ?? 0), 0);
-  const totalAttendees = Math.max(loadedAttendeesCount, fallbackAttendeesCount);
   const hasEvents = events.length > 0;
 
   return (
@@ -89,68 +90,73 @@ export default function OrganizerAttendeesPage() {
                 <div className="w-10 h-10 border-4 border-[#062E22] border-t-transparent rounded-full animate-spin" />
               </div>
             </div>
-          ) : totalAttendees > 0 ? (
-            <div className="grid gap-6">
-              <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                <h2 className="text-xl font-semibold text-[#062E22]">Registered Attendees</h2>
-                <p className="mt-2 text-slate-500">
-                  You have {totalAttendees} attendees registered across {events.length} event{events.length === 1 ? '' : 's'}.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                <h2 className="text-lg font-semibold text-[#062E22]">Event Attendance</h2>
-                <div className="mt-6 space-y-6">
-                  {events.map((event) => {
-                    const attendees = bookingsByEvent[event.id] ?? [];
-                    return (
-                      <div key={event.id} className="rounded-3xl border border-slate-200 p-5 hover:border-[#062E22] hover:bg-slate-50 transition">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                          <div>
-                            <Link href={`/organizer/events/${event.id}/attendees`} className="block">
-                              <p className="text-lg font-semibold text-[#062E22] hover:underline">{event.title}</p>
-                              <p className="text-sm text-slate-500">{event.location} · {event.date}</p>
-                            </Link>
-                          </div>
-                          <span className="inline-flex rounded-full bg-[#062E22] px-3 py-1 text-sm font-semibold text-white">
-                            {attendees.length} attendee{attendees.length === 1 ? '' : 's'}
-                          </span>
-                        </div>
-
-                        {attendees.length > 0 ? (
-                          <ul className="mt-5 space-y-3">
-                            {attendees.slice(0, 4).map((attendee) => (
-                              <li key={attendee.id} className="rounded-2xl bg-slate-50 p-4">
-                                <p className="font-semibold text-slate-900">
-                                  {attendee.attendee_name || attendee.attendee_email || attendee.booking_reference}
-                                </p>
-                                <p className="mt-1 text-sm text-slate-500">
-                                  {attendee.attendee_email ? `${attendee.attendee_email} · ` : ''}
-                                  {attendee.booking_reference}
-                                </p>
-                              </li>
-                            ))}
-                            {attendees.length > 4 && (
-                              <li className="text-sm text-slate-500">+{attendees.length - 4} more attendee{attendees.length - 4 === 1 ? '' : 's'}...</li>
-                            )}
-                          </ul>
-                        ) : (
-                          <p className="mt-4 text-sm text-slate-500">
-                            This event has no registered attendees yet. Open its attendee workspace to manage bookings.
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
           ) : hasEvents ? (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-10 text-slate-600">
-              <h2 className="text-2xl font-semibold text-[#062E22]">No attendees registered yet.</h2>
-              <p className="mt-3 text-sm">
-                Your events are ready, but attendee registrations have not arrived. Open an event to view and manage attendee bookings.
-              </p>
+            <div className="grid gap-6">
+              {/* Event Selector */}
+              <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+                <label htmlFor="event-selector" className="block text-sm font-semibold text-[#062E22] mb-3">
+                  Select Event
+                </label>
+                <select
+                  id="event-selector"
+                  value={selectedEventId || ''}
+                  onChange={(e) => setSelectedEventId(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22] text-slate-700"
+                >
+                  {events.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.title} - {event.location} · {event.date}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Attendees for Selected Event */}
+              {selectedEventId && (
+                <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+                  {(() => {
+                    const selectedEvent = events.find(e => e.id === selectedEventId);
+                    const attendees = bookingsByEvent[selectedEventId] ?? [];
+                    return (
+                      <>
+                        <h2 className="text-xl font-semibold text-[#062E22]">{selectedEvent?.title}</h2>
+                        <p className="mt-2 text-slate-500">
+                          {selectedEvent?.location} · {selectedEvent?.date}
+                        </p>
+                        
+                        <div className="mt-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-[#062E22]">Registered Attendees</h3>
+                            <span className="inline-flex rounded-full bg-[#062E22] px-3 py-1 text-sm font-semibold text-white">
+                              {attendees.length} attendee{attendees.length === 1 ? '' : 's'}
+                            </span>
+                          </div>
+
+                          {attendees.length > 0 ? (
+                            <div className="space-y-3">
+                              {attendees.map((attendee) => (
+                                <div key={attendee.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:border-[#062E22] transition">
+                                  <p className="font-semibold text-slate-900">
+                                    {attendee.attendee_name || attendee.attendee_email || attendee.booking_reference}
+                                  </p>
+                                  <div className="mt-2 flex flex-col gap-1 text-sm text-slate-600">
+                                    {attendee.attendee_email && <p>📧 {attendee.attendee_email}</p>}
+                                    <p>🔖 {attendee.booking_reference}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-500 py-8 text-center">
+                              This event has no registered attendees yet. Open its attendee workspace to manage bookings.
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           ) : (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-10 text-slate-600">
