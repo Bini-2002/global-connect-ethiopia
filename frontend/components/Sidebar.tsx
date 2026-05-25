@@ -10,8 +10,6 @@ import {
   ChartBarIcon,
   BuildingOfficeIcon,
   UserGroupIcon,
-  ClipboardDocumentListIcon,
-  SparklesIcon,
   XMarkIcon,
   Bars3Icon,
   BriefcaseIcon,
@@ -92,9 +90,7 @@ const navItems: Record<string, SidebarItem[]> = {
     { label: 'Wallet', href: '/organizer/wallet', icon: icons.vendor },
     { label: 'Attendees', href: '/organizer/attendees', icon: <UsersIcon className="w-5 h-5" /> },
     { label: 'Team', href: '/organizer/team', icon: <UserGroupIcon className="w-5 h-5" /> },
-    { label: 'Government', href: '/organizer/government', icon: <ClipboardDocumentListIcon className="w-5 h-5" /> },
     { label: 'Reports & Analytics', href: '/organizer/reports', icon: <ChartBarIcon className="w-5 h-5" /> },
-    { label: 'AI Assistant', href: '/organizer/ai-assistant', icon: <SparklesIcon className="w-5 h-5" /> },
   ],
   admin: [
     { label: 'Organizers', href: '/admin/organizers', icon: icons.users },
