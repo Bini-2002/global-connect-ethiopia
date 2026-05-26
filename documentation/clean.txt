@@ -1,0 +1,2340 @@
+Global Connect Ethiopia – International Professional Event Hub
+A Project documentation Submitted to the Department of Computer Science and Engineering
+School of Electrical Engineering and Computing Presented in Partial Fulfillment of the Requirement for the Degree of Bachelor of Science in Computer Science and Engineering
+December 2025 Adama, Ethiopia
+DECLARATION
+We are students of Adama Science and Technology University in the School of Electrical Engineering and Computing in the Department of Computer Science and Engineering. The information found in this project is our original work. And all sources of materials that will be used for the project work will be fully acknowledged.
+ 
+NO
+Name
+ID
+Signature
+1.
+Biniyam Getachew
+ UGR/25297/14
+2.
+Mikiyas Assefa
+ UGR/26349/14
+3,
+Samrawit Alemu
+ UGR/25320/14
+4.
+Meron Gedamu
+ UGR/26408/14
+5.
+Miraf Tsegaye
+ UGR/25702/14
+Date of Submission: June 10, 2024,
+This project has been submitted for examination with our approval as a university advisor.
+Advisor Name Signature
+TABLE OF CONTENTS
+CHAPTER 1: INTRODUCTION1
+1.1 Introduction1
+1.2 Background of the Project1
+1.3 Statement of the Problem2
+1.4. Objective of the Project3
+1.4.1 General Objective3
+1.4.2. Specific Objectives3
+1.5 Scope and Limitation of the Project4
+1.5.1 Scope of the project4
+1.5.2 Limitation of the project5
+1.6. Deliverables6
+1.7. Feasibility Study8
+1.7.1. Technical Feasibility8
+1.7.2. Operational Feasibility9
+1.7.3. Economic Feasibility10
+1.8. Significance of the Project11
+1.9. Beneficiaries of the Project12
+1.10. Methodology14
+1.10.1 Agile Development Framework14
+1.11 Development tools16
+1.12. Required Resources with Cost18
+1.13. Task and Schedule.19
+1.14. Team Composition20
+CHAPTER 2 : DESCRIPTION OF EXISTING SYSTEM AND LITERATURE REVIEW21
+2.1. Major Function of Existing System21
+2.2 Users of the Current System23
+2.3 Drawback of the Current System26
+2.4 Literature Review28
+Chapter 3: Proposed System32
+3.1. Overview32
+3.2. Functional requirement32
+3.3. Non-functional requirement34
+3.4. System Model35
+3.4.1 Scenario35
+3.4.2. Use Case Description38
+3.5. Object Model64
+3.5.1. Data Dictionary64
+3.5.2. Class diagram75
+3.5.3. Dynamic Model75
+3.5.4. Sequence diagram76
+3.5.5 Activity Diagram84
+3.5.6 State-Chart Diagram90
+CHAPTER 4 : SYSTEM DESIGN95
+4.1. Overview95
+4.2. Purpose of the System Design95
+4.3. Design Goals96
+4.4 Proposed System Architecture97
+4.5 System Decomposition98
+4.6  Subsystem Description99
+4.7 Persistent Data Management104
+Data Storage Strategy104
+Data Relationships104
+Data Integrity and Optimization104
+4.8. Component Diagram112
+4.8.1 Components112
+4.9. Database Diagram114
+4.9.1. Entities and Attributes114
+4.9.2 Entity-Relationship Diagram117
+4.10 Access Control117
+CHAPTER 5: IMPLEMENTATION120
+5.1 Overview120
+5.2 Coding Standards121
+5.3 Development Tools122
+5.4 Prototype124
+5.5⁠ Implementation Detail126
+Con⁠cl⁠usio​n129
+Reference130
+ 
+LIST OF TABLES
+Table 1 : Development Tools16
+Table 2 : Required Resources with Cost18
+Table 3 : Task and Schedule19
+Table 4 :Team Composition20
+Table 5: Functional Requirements32
+Table 6: Non-Functional Requirements35
+Table 7:Submit Event Proposal40
+Table 8:Ministry Review & Verification41
+Table 9:Municipal Location Allowance & Police Notification42
+Table 10:create & publish event43
+Table 11:Reserve Venue44
+Table 12:Vendor Registration45
+Table 13:Approve vendors46
+Table 14:Vendor List Service & Quote Request47
+Table 15:Create & Sign Contract48
+Table 16: Publish Ticketed Event & Configure Inventory49
+Table 17: Purchase Paid Ticket49
+Table 18: Prevent Overbooking50
+Table 19: Generate & Print Badge51
+Table 20: On-site Incident Report52
+Table 21: Send Post-Event Survey & Collect Feedback53
+Table 22: Publish Final Event Roadmap & Lessons Learned54
+Table 23: Generate Event Schedule via AI55
+Table 24: Generate Event Schedule via AI56
+Table 27: Invite Committee Member57
+Table 28: Assign Tasks to Committee58
+Table 29: Broadcast Event Announcement59
+Table 30: Create/Edit Event Budget60
+Table 31: Track Revenue Analytics61
+Table 32: Configure Notification Preferences62
+Table 33 : Data dictionary65
+LIST OF FIGURES
+figure 1:Use-case diagram63
+figure 2 : Class Diagram75
+figure 3: User-login76
+figure 4: User-registration77
+figure 5: Submit event proposal77
+figure 6 : Ministry  review & Verification78
+figure 7: Create and Publish event78
+figure 8: Generate event schedule via AI79
+figure 9: Vendor Registration79
+figure 10: Approve Vendor80
+figure 11: Create ad Sign contract80
+figure 12: Configure inventory & Enable sales81
+figure 13: Publish Ticket81
+figure 14: Purchase Ticket81
+figure 15: Generate & Print Badge82
+figure 16: On-site Incident Report82
+figure 17: Send Post-Event Survey83
+figure 18: Track Revenue Analytics83
+figure 19: Event Proposal and Ministry Verification (Licensing)84
+figure 20: Municipal Permit and Event Publishing85
+figure 21: AI-Assisted schedule generation and finalization86
+figure 22: Invitation and task assignment87
+figure 23: Vendor registration and approval87
+figure 24: Vendor quote acceptance and contract signing88
+figure 25: Ticket purchase and inventory management88
+figure 26:On-site Attendee Check-in and Badge Issuance89
+figure 27: Financial Settlement and Vendor Payout89
+figure 28: Event Proposal90
+figure 29: Contract Engagement91
+figure 30:  Vendor Account Lifecycle92
+figure 31:  Accommodation Booking93
+figure 32: Ticket Inventory Block94
+figure 36. Component diagram114
+figure 37. Entity-Relationship diagram117
+figure 38. Home page125
+figure 39. Event creation page125
+figure 40. Vendor dashboard126
+figure 41. Organizer dashboard126
+ACRONYM
+ASTU : Adama Science and Technology University
+GC : Global Connect
+UI : User Interface
+UX : User Experience
+API : Application Programming Interface
+DB : Database
+DBMS : Database Management System
+IPDU : Integrated Promotional Design Utility
+UML : Unified Modeling Language
+SDLC : Software Development Life Cycle
+SRS : Software Requirements Specification
+QA : Quality Assurance
+CI/CD : Continuous Integration / Continuous Deployment
+IDE : Integrated Development Environment
+JWT : JSON Web Token
+HTML : HyperText Markup Language
+CSS : Cascading Style Sheets
+JS : JavaScript
+HTTP : Hypertext Transfer Protocol
+HTTPS : Hypertext Transfer Protocol Secure
+TCP/IP : Transmission Control Protocol / Internet Protocol
+PWA : Progressive Web Application
+CRUD : Create, Read, Update, Delete
+AI : Artificial Intelligence
+UXD : User Experience Design
+ACKNOWLEDGEMENT
+We would like to express our sincere gratitude to all individuals and institutions that contributed to the successful development of this project.
+First and foremost, we extend our heartfelt appreciation to Mr. Daniel Tsegaye, our project advisor, for his continuous support, constructive guidance, and invaluable feedback throughout the course of this work. His expertise and mentorship were essential in shaping the direction and quality of this project.
+We are also grateful to Adama Science and Technology University for providing us with the opportunity, resources, and academic environment necessary to undertake and complete this project. The university’s commitment to fostering innovation and research has played a significant role in our learning and growth.
+Our special thanks also go to Professor Nebiyu Baye , Former State Minister of Culture and Sport, for generously sharing practical insights and information regarding government processes related to event licensing, collaboration with public institutions, and formal procedures. His contribution enriched the relevance and applicability of our system within Ethiopia’s event-management ecosystem.
+Finally, we extend appreciation to everyone who supported us directly or indirectly during this journey. Their encouragement and contributions have been instrumental to the accomplishment of this work.
+ABSTRACT
+Global Connect Ethiopia is an intelligent web-based event management platform designed to revolutionize how professional events are planned and executed in Ethiopia. Unlike traditional systems that rely on external event organizers, the platform empowers clients to independently design, manage, and host their own events through a unified digital ecosystem. By integrating all essential components vendors, venues, professionals, travel, lodging, and communication. The system ensures efficient coordination, transparency, and real-time control from concept development to post-event analytics.
+Built using modern web technologies (React, FastAPI, and MongoDB), Global Connect Ethiopia introduces innovative features such as AI-assisted event roadmaps, cost estimation tools, and chatbot-based planning support. Users can access vendor ratings, select services based on event type, and receive data-driven insights to optimize their decisions. The platform’s modular design also supports multiple event domains technology summits, investment forums, research conferences, and cultural expos while ensuring enterprise-grade security for high-profile guests and government events.
+By addressing the limitations of imported systems like Flawless Events and Eventbrite, Global Connect Ethiopia delivers a localized, cost-effective, and scalable solution aligned with Ethiopia’s digital transformation goals. It promotes local innovation, supports small and medium enterprises, and strengthens Ethiopia’s position as a regional hub for professional conferences and international collaborations.
+CHAPTER 1: INTRODUCTION
+1.1 Introduction
+The event-management sector in Ethiopia is expanding rapidly due to economic growth, foreign investment, and increased digital adoption. Yet, professional events, technology summits, investment forums, research conferences still rely heavily on manual coordination and fragmented service networks.
+Global Connect Ethiopia proposes an end-to-end digital solution that consolidates all stakeholders into a single ecosystem. By integrating event scheduling, vendor management, participant networking, and analytics, the system streamlines operations while improving transparency and accessibility.
+Digital platforms such as Eventbrite or Hopin have transformed global event management, but they lack localization for the Ethiopian market, language preferences, and regional service integration. Developing a home-grown platform aligns with Ethiopia’s national digital-transformation agenda and provides a learning opportunity in modern software architecture.
+1.2 Background of the Project
+The event industry in Ethiopia has grown rapidly over the past decade, driven by increasing interest in concerts, conferences, cultural shows, exhibitions, and international programs. However, the digital infrastructure that supports event planning and management has not kept pace with this growth. Existing event management platforms in Ethiopia are limited in scope, often expensive, and primarily focused on ticket sales rather than empowering clients to independently organize and manage their events.
+Currently available systems do not provide a client-led event management approach, where users can plan, coordinate, and execute events under their own supervision. Most platforms are designed for private event organizer companies, leaving individuals, institutions, or international organizers without a centralized digital solution to oversee the full event lifecycle.
+Additionally, the lack of coordinated event information frequently leads to scheduling conflicts, where two or more major events such as concerts or cultural nights occur simultaneously. This results in audience distribution issues, financial losses, and attendee dissatisfaction. For example, large-scale events by artists or international institutions may overlap due to the absence of a unified event visibility system.
+Furthermore, essential processes such as licensing, security clearance, permit approval, and official communication with government entities are still largely manual. International hosts, private companies, and regional organizers face bureaucratic delays because there is no integrated digital platform to submit proposals, obtain permissions, or manage compliance requirements.
+These gaps highlight the need for a unified, user-driven, technology-enabled event management platform that streamlines planning, improves transparency, and enhances coordination among stakeholders.
+1.3 Statement of the Problem
+The current event management ecosystem in Ethiopia faces several critical challenges:
+1. High cost of event organization services: Most existing platforms charge high service fees, making them inaccessible for smaller organizers, individuals, or youth-led projects.
+2. Lack of a client-driven event management system: There is no platform that allows users to independently plan, organize, and execute events under their own supervision. Existing systems primarily support event organizer companies rather than empowering the clients themselves.
+3. Absence of coordination leading to event overlaps: Major events often occur at the same time such as concerts, exhibitions, or cultural nights, because organizers have no access to a centralized dashboard of upcoming events. This causes audience overload, venue congestion, and financial loss for both hosts and attendees.
+4. Unregulated ticket sales and overbooking: Some event organizers oversell tickets for profit, leading to overcrowded venues, security risks, and poor attendee experience.
+5. Lack of digital integration with government bodies: Event licensing, security approval, and other official processes remain manual and time-consuming. International and regional organizers face unnecessary delays due to the absence of a digital permit and approval workflow.
+These limitations create a significant gap in Ethiopia’s event ecosystem. The proposed system aims to address this gap by providing:
+An affordable, subscription-based platform for organizers
+A centralized dashboard displaying upcoming events by category
+Transparent and controlled ticketing mechanisms
+A digital channel for licensing, permissions, and government communication
+A platform where local and international organizers can plan events efficiently and securely
+In summary, the project addresses the need for an accessible, coordinated, and transparent event management solution that supports both domestic and international event hosts.
+1.4. Objective of the Project
+1.4.1 General Objective
+To design, develop, and implement an integrated digital event management platform that enables users to efficiently plan, organize, coordinate, and manage events through a unified, transparent, and user-driven system.
+1.4.2. Specific Objectives
+The specific objectives of the project are to:
+1. To analyze and document system requirements based on the needs of event organizers, vendors, participants, and government stakeholders.
+2. To design a comprehensive system architecture that supports role-based access, event planning tools, vendor management, licensing workflows, and attendee services.
+3. To develop a client-driven event creation and management module that allows users to design, schedule, and supervise their events independently.
+4. To implement a centralized event listing and scheduling mechanism to reduce event overlaps, promote coordination, and provide visibility of upcoming events across categories.
+5. To create a vendor marketplace module where users can browse, evaluate, and book service providers based on availability, ratings, and service types.
+6. To integrate a digital licensing and approval workflow that enables government bodies to review event proposals and issue permits electronically.
+7. To develop a transparent and secure ticketing system that prevents overbooking and enhances the overall attendee experience.
+8. To incorporate intelligent assistance or recommendation tools to support organizers in budgeting, vendor selection, and event optimization.
+9. To implement analytics and reporting features to provide insights into attendance, revenue, budgeting, and overall event performance.
+10. To ensure multilingual support, accessibility compliance, and usability testing to make the platform accessible to both local and international users.
+11. To test, evaluate, and validate the system through functional, performance, and user acceptance testing to ensure reliability and effectiveness.
+1.5 Scope and Limitation of the Project
+1.5.1 Scope of the project
+The scope of this project is centered on developing a web-based event management platform designed specifically for the Ethiopian event ecosystem. The system is limited to major urban areas where digital infrastructure and event-hosting activities are more developed, allowing for realistic implementation and testing. The platform supports event creation, scheduling, vendor coordination, and regulatory communication within selected cities, ensuring that it aligns with Ethiopia’s administrative processes and cultural context.
+Within this scope, the project includes:
+Implementation focused on Ethiopia’s major cities such as Addis Ababa, Adama, Hawassa, and other large urban centers.
+Support for event planning and scheduling relevant to Ethiopia’s local practices.
+A digital environment that accommodates national regulatory workflows for event licensing and administrative communication.
+Role-based access for organizers, vendors, participants, and government representatives.
+A prototype-level system designed to function within Ethiopia’s current digital infrastructure.
+1.5.2 Limitation of the project
+The project also operates within several boundaries imposed by time, resources, and technological feasibility. These limitations define what the system will not cover in its current development cycle. The platform does not extend to rural or semi-urban communities, nor does it attempt to integrate with international event systems, advanced real-time security tools, or large-scale commercial infrastructures.
+Key limitations of the project include:
+No coverage of rural and low-infrastructure areas where digital adoption remains limited.
+No integration with foreign ticketing systems, embassy platforms, or international event-management services.
+The system remains a web-based prototype, meaning no mobile application or offline mode is included.
+High-traffic load testing, commercial scalability, and real-time crowd-management features are outside the project’s scope.
+Full government system integration is simulated rather than operational.
+These boundaries ensure the project remains achievable within the academic timeframe while remaining realistic for Ethiopia’s current urban digital landscape.
+1.6. Deliverables
+This section formally outlines the tangible outputs and products that will be delivered upon the successful completion of the Global Connect Ethiopia – International Professional Event Hub project. These deliverables are the culmination of the system development life cycle, designed to meet the specified objectives and requirements for a client-driven digital event management platform.
+To clarify the value proposition, deliverables are categorized into Client-Facing Products (the system itself) and Academic & Project Artifacts (documentation required for project validation).
+A. Client-Facing Product Deliverables
+The core tangible output for the end-users (Organizers, Vendors, Participants, and Government).
+I. Fully Functional Web Application (Global Connect Ethiopia)
+The complete, multi-user web-based platform, developed using the React, FastAPI (Python), and MongoDB stack. The application will be deployed to a public-facing hosting environment (Vercel/Render) and accessible via a registered domain. 
+Client Services & Features: This platform serves as the integrated digital ecosystem for the client, delivering the following core functionalities:
+o Organizer Empowerment: A client-driven dashboard for independent event creation, design, scheduling, management, and supervision.
+o Integrated Promotional Design Utility (IPDU): A built-in tool allowing organizers to create and customize event-specific promotional materials (social media images, flyers) directly from the interface using pre-defined templates.
+o Digital Marketplace: A dedicated portal for Vendors to list services, manage booking requests, and maintain profiles/ratings.
+o Government Digital Channel: A secure interface for government bodies to review event proposals and issue digital licenses/permits.
+o Centralized Coordination: A system-wide scheduling mechanism that provides visibility of upcoming events to prevent overlaps.
+o Intelligent Assistance: Automated recommendation tools to assist organizers with budgeting and vendor selection.
+Completion Criteria: Successful deployment and continuous 99% uptime during the initial testing period. All system modules must be operational, passing user acceptance testing (UAT) across the defined user roles. The IPDU must successfully generate and store customizable image files.
+B. Academic & Project Artifacts
+Documentation and materials required to demonstrate academic merit, technical soundness, and project feasibility.
+II. Academic and Technical Reports
+Description: A comprehensive package of formal documentation:
+1. Technical System Manual: A detailed report on the system architecture, FastAPI backend structure, database schema (MongoDB), API endpoint documentation (OpenAPI), and the IPDU design logic.
+2. Final Academic Report: The complete project thesis/paper documenting the problem statement, objectives, methodology (Agile SDLC), analysis (UML), implementation, and conclusions.
+Completion Criteria: All documentation is finalized, peer-reviewed for technical accuracy, and stored in a version-controlled repository.
+III. Test Data and Performance Report
+Description: A consolidated report detailing Quality Assurance (QA) activities, including unit testing, integration testing, and performance metrics (response times, load handling).
+Completion Criteria: The system successfully handles simulated traffic loads as defined in the project scope. All critical bugs identified during Sprint 5 are resolved and documented.
+IV. Deployment and Maintenance Manual
+Description: A guide for system infrastructure, including instructions for re-deploying frontend/backend components, database backup/restoration (MongoDB Atlas), and API key management.
+Completion Criteria: The manual must be verified by a third party to ensure the system can be re-deployed independently.
+V. Presentation and Demonstration Materials
+Description: A professional presentation package, including slides, a live demonstration script, and an executive summary video highlighting the platform’s innovative features.
+Completion Criteria: Successful final project defense and demonstration to stakeholders/faculty.
+1.7. Feasibility Study
+1.7.1. Technical Feasibility
+Technical feasibility analyzes the availability of the necessary resources, hardware, software, and technical expertise required to successfully develop and deploy the system.
+Technology Stack Suitability: The project utilizes a modern, robust, and open-source technology stack consisting of React.js for the frontend, FastAPI (Python) for the backend, and MongoDB for the database. These technologies are industry standards, well-documented, and highly compatible, ensuring a stable and scalable system architecture.
+Development Expertise: The development team, composed of senior Computer Science and Engineering students, possesses the requisite skills in full-stack development, database design, and system architecture. The choice of Python (FastAPI) leverages the team's strong academic foundation in algorithmic logic and data processing.
+Infrastructure Availability: The system is designed to run on standard cloud infrastructure. Development requires only standard personal computers and internet access, which are readily available at Adama Science and Technology University. Deployment utilizes cost-effective platforms like Vercel and Render, which eliminate the need for expensive, proprietary on-premise servers.
+Integration Capabilities: The technical design supports essential integrations, such as the Canva API for the Integrated Promotional Design Utility (IPDU) and local payment gateways (e.g., Chapa), which are technically feasible via standard RESTful API protocols.
+1.7.2. Operational Feasibility
+Operational feasibility examines the degree to which the system aligns with existing business processes and the likelihood of user adoption and satisfaction.
+Process Improvement:
+The platform addresses critical operational bottlenecks in the current manual ecosystem, such as physical ticketing, in-person licensing, and fragmented vendor searches. By digitizing these workflows, the system drastically reduces administrative overhead for both event organizers and government bodies.
+User Acceptance and Usability:
+To ensure high adoption rates, the system features a user-centric design with role-specific dashboards (Organizer, Vendor, Participant, Government). The interface supports both English and Amharic, lowering language barriers and ensuring accessibility for a wider demographic in Ethiopia.
+Administrative Compliance:
+The system respects the existing regulatory framework by digitizing the actual permit approval workflow used by local authorities, rather than attempting to bypass it. This alignment increases the likelihood of support from government stakeholders.
+Maintenance:
+The project uses modular code structures (Microservices/Modular Monolith via FastAPI), making long-term maintenance, debugging, and feature updates manageable for future developers or administrators.
+1.7.3. Economic Feasibility
+Economic feasibility assesses the cost-effectiveness of the project, weighing the development and operational costs against the projected benefits and value generated.
+Cost-Benefit Analysis:
+The development cost is minimal, primarily restricted to hosting fees, domain registration, and internet access (estimated at approximately 2,000 – 4,000 ETB for the initial phase). In contrast, the potential economic benefit is substantial, as the platform facilitates revenue generation for local SMEs, vendors, and event organizers who currently lack digital visibility.
+Resource Utilization:
+The project maximizes resource efficiency by utilizing open-source frameworks (React, FastAPI, MongoDB) that require no licensing fees. This approach significantly lowers the barrier to entry compared to purchasing proprietary event management software.
+Return on Investment (ROI):
+While the initial academic prototype is non-commercial, a commercial deployment would see a high ROI through a potential subscription model or commission-based ticketing fees. The platform also generates indirect economic value by boosting event tourism and professional networking within Ethiopia.
+1.8. Significance of the Project
+The Global Connect Ethiopia platform represents a major step toward digital transformation in Ethiopia’s professional event industry. Its significance can be analyzed in four major dimensions:
+A. Technological Significance
+Introduces modern web architecture integrating React (frontend), Nest.js (backend), and MongoDB (database) — providing students with hands-on experience in full-stack development.
+Demonstrates practical application of distributed computing, API integration, and cloud-based deployment.
+Promotes secure data management through encryption, role-based access, and multi-factor authentication—essential for handling VIP and corporate event data.
+Serves as a foundation for future innovations, such as AI-powered matchmaking, real-time translation, or mobile app extensions.
+B. Academic and Research Significance
+Serves as a capstone application of theoretical courses (Software Engineering, Databases, Networks, and Web Security).
+Encourages problem-solving and critical thinking, as students implement real-world business logic, performance optimization, and user experience design.
+Contributes to academic literature by offering a localized case study for digital event management systems in developing countries.
+C. Socio-Economic Significance
+· Digitalizes Ethiopia’s event sector, reducing manual coordination and increasing efficiency.
+· Provides visibility for local vendors and SMEs, enabling fair competition and wider market access.
+· Creates networking opportunities between local startups, investors, and global professionals.
+· Supports Ethiopia’s tourism, investment, and innovation ecosystem by providing an accessible event-hosting platform.
+· Encourages local tech entrepreneurship and job creation in software development, event management, and digital services.
+D. Institutional and National Significance
+· Aligns with the Ethiopian Digital Transformation Strategy (2025) by promoting ICT-based solutions for national industries.
+· Positions Ethiopia as a regional hub for international conferences and digital collaboration.
+· Contributes to the government’s goal of building a knowledge-based economy by fostering innovation and professionalism.
+· Sets a model for academic–industry collaboration, showing how university projects can address real societal needs.
+1.9. Beneficiaries of the Project
+The proposed system provides tangible benefits to multiple groups within the Ethiopian event ecosystem. Its client-driven architecture ensures that organizers, vendors, government officials, and attendees experience streamlined processes tailored to their needs. The platform enhances the planning experience, reduces manual overhead, and creates new opportunities for digital service delivery.
+The key beneficiaries include:
+Event Organizers: They gain a self-service environment to plan, schedule, and manage events without relying on external firms. The system reduces cost, improves coordination, and enhances control over the entire event lifecycle.
+Vendors and Service Providers: Catering companies, photographers, designers, logistics providers, and other vendors benefit from increased visibility, digital bookings, and customer ratings that enhance trust.
+Participants and Attendees:They benefit from clear schedules, secure digital ticketing, reduced overbooking, and improved access to event information.
+Government and Regulatory Bodies:Authorities responsible for licensing, security clearance, and event oversight can receive digital proposals, review requests, and issue approvals through a unified interface, reducing administrative delays.
+Corporate and International Hosts (NGOs, Embassies, Institutions): These stakeholders can plan and coordinate professional events in Ethiopia more efficiently, supported by standardized workflows and reliable digital communication.
+Academic Community: Students, researchers, and faculty benefit from a practical, real-world system demonstrating modern software engineering practices, architecture, and user-centered design.
+1.10. Methodology
+The Agile Software Development Life Cycle (SDLC) was chosen for this project because it supports flexibility, iterative progress, and constant stakeholder collaboration. This approach ensures that the system can evolve through continuous user feedback and testing, producing a functional prototype at every phase.
+1.10.1 Agile Development Framework
+Agile development divides the project into iterative cycles (sprints), typically lasting two to four weeks. Each sprint results in a deliverable component of the system—allowing early testing, stakeholder review, and refinement.
+Phase 1: Requirement Analysis (Sprint 1)
+Objective: Understand stakeholder needs and define the functional and non-functional requirements.
+Activities:
+Conducted interviews with event organizers, vendors, and participants.
+Identified pain points in current manual event coordination systems.
+Drafted the Software Requirement Specification (SRS) document.
+Created initial user personas and use cases to model system roles.
+Deliverable: SRS document and approved backlog of system features
+Phase 2: System Design (Sprint 2)
+Objective: Translate requirements into a technical blueprint.
+Activities:
+Designed system architecture (frontend, backend, and database).
+Created UML diagrams (use case, sequence, and activity diagrams).
+Designed the database schema in MongoDB with collections for events, users, payments, and vendors.
+Designed wireframes and UI prototypes using Figma.
+Deliverable: System design documentation and architectural diagrams.
+Phase 3: Development (Sprints 3–4)
+Objective: Build the system components based on approved designs.
+Activities:
+Developed the frontend interface using React.js with responsive components and routing.
+Implemented backend APIs using FastAPI, ensuring modularity and RESTful communication.
+Integrated MongoDB Atlas for secure cloud data storage.
+Added role-based authentication (organizer, vendor, participant, VIP).
+Implemented payment gateway (Chapa API) and data analytics dashboard.
+Deliverable: Functional version of the Global Connect Ethiopia web platform.
+Phase 4: Testing and Integration (Sprint 5)
+Objective: Ensure system functionality, performance, and security compliance.
+Activities:
+Conducted unit and integration tests using Jest and Postman.
+Performed User Acceptance Testing (UAT) with sample event data.
+Evaluated system for load handling, data encryption, and VIP security features.
+Fixed identified bugs and optimized response times.
+Deliverable: Tested, integrated, and optimized system ready for deployment.
+Phase 5: Deployment and Documentation (Sprint 6)
+Objective: Deploy the system for public access and prepare documentation.
+Activities:
+Hosted frontend on Vercel and backend on Render, linked with MongoDB Atlas.
+Registered the custom domain for public access.
+Prepared user manuals, technical documentation, and final presentation slides.
+Deliverable: Fully functional deployed system, documentation, and project presentation.
+Phase 6: Maintenance and Feedback
+Objective: Continuously improve the system based on user feedback.
+Activities:
+Monitor user behavior and system analytics.
+Collect feedback from early adopters (organizers, vendors).
+Implement updates and performance improvements through periodic sprints.
+Deliverable: Updated and scalable version of the platform ensuring long-term usability.
+1.11 Development tools
+Table 1 : Development Tools
+Category
+Tool / Technology
+Purpose / Usage
+Frontend Technologies
+React.js
+Builds dynamic, modular, and responsive user interfaces.
+Tailwind CSS / Material UI
+Provides fast styling, layout structure, and reusable UI components.
+Backend Technologies
+FastAPI (Python)
+Develops high-performance backend APIs with built-in validation and documentation.
+Uvicorn
+ASGI server used to run the FastAPI backend locally.
+Database Tools
+MongoDB Community Edition
+Local NoSQL database for storing events, users, vendors, tickets, and system records.
+MongoDB Compass
+GUI for managing collections, running queries, and monitoring local database activity.
+Development & Design Tools
+Figma / Adobe XD
+Used for UI/UX wireframing, prototyping, and interface design.
+VS Code
+Primary integrated development environment for coding and debugging.
+IPDU (Integrated Promotional Design Utility)
+Custom tool for generating event promotional materials within the system.
+Testing Tools
+Postman
+Tests backend API endpoints through localhost.
+PyTest
+Performs unit and integration tests for backend components.
+Jest + React Testing Library
+Tests frontend components, UI behavior, and interactions.
+Browser Developer Tools
+Debugs client-side scripts, layout, and performance issues.
+Project Management Tools
+Git & GitHub
+Manages version control, pull requests, team collaboration, and repo hosting.
+Trello / Jira
+Supports sprint planning, task tracking, and Agile workflow management.
+Local Deployment Tools
+Node.js + NPM
+Runs the React frontend and manages dependencies.
+Python Virtual Environment (venv)
+Manages isolated backend dependency environments.
+Docker & Docker Compose (optional)
+Containerizes the full stack for consistent local deployment.
+1.12. Required Resources with Cost
+Table 2 : Required Resources with Cost
+Resource
+Description
+Cost (ETB)
+Laptops
+Developer machines (owned)
+–
+Internet
+Campus lab
+-
+Domain & Hosting
+Web domain and deployment
+1 000
+Documentation
+For printing
+1000
+Total
+-
+2000
+ 
+1.13. Task and Schedule.
+Table 3 : Task and Schedule
+Project Phase
+Tasks / Activities
+Timeline
+Phase 1: Documentation & Planning
+Problem analysis, requirement gathering, drafting Chapters 1–3, literature review, methodology, UML draft, advisor revisions, final documentation submission.
+Until December 29
+Phase 2: System Design
+System architecture, database schema, UI/UX wireframes, technical specification preparation.
+Early Jan – Mid Jan
+Phase 3: Implementation
+Front-end (React), backend (FastAPI), MongoDB setup, authentication, event workflows, vendor modules, dashboards, initial IPDU development.
+Jan – Apr (4 months)
+Phase 4: Testing & Integration
+Unit testing, integration testing, bug fixes, performance improvement, user acceptance testing.
+Late April
+Phase 5: Final Presentation & Submission
+Demo preparation (localhost), submission of final documentation & code, presentation, project defense.
+Early May
+ 
+ 
+ 
+1.14. Team Composition
+Table 4 :Team Composition
+Team Member
+Assigned Role
+Primary Responsibilities
+Biniyam Getachew
+Database Developer
+Design MongoDB schema for users, events, vendors, tickets.
+Configure local MongoDB and manage collections.
+Create indexes and optimize queries.
+Prepare seed data for testing and demo.
+Samrawit Alemu
+Backend Developer
+Develop RESTful APIs using FastAPI.
+Implement authentication, authorization, and business logic.
+Integrate backend with MongoDB.
+Manage local backend server setup and deployment environment.
+Meron Gedamu
+UI/UX Designer
+Create wireframes, mockups, and prototypes using Figma.
+Design user flows and interface layouts.
+Prepare visual guidelines for frontend implementation.
+Support usability testing and design revisions.
+Mikiyas Assefa
+Frontend Developer
+Build user interfaces using React.js.
+Apply responsive styling using Tailwind CSS.
+Integrate frontend with backend APIs.
+Handle client-side state management and UI logic.
+Miraf Tsegaye
+QA Engineer
+Prepare test cases for UI, API, and database operations.
+Conduct unit tests (PyTest, Jest) and integration testing.
+Identify, document, and track bugs.
+Lead user acceptance testing and final system validation.
+ 
+CHAPTER 2 : DESCRIPTION OF EXISTING SYSTEM AND LITERATURE REVIEW
+2.1. Major Function of Existing System
+Existing event management systems, both within Ethiopia and across global platforms, provide essential digital services that support the planning, coordination, and execution of events. These systems have evolved to address fundamental challenges such as ticket sales, event promotion, attendee registration, vendor management, and analytical reporting. Although the level of sophistication varies between local and international tools, the core objective remains consistent: enabling organizers to streamline event operations efficiently.
+In the Ethiopian context, current systems include local platforms such as Tikva Events, Shengo Events, and several homegrown event‑organizing companies that maintain partial digital infrastructures. Local ticketing and event‑aggregation platforms, including Ahun App and Chapa Tickets, are also notable contributors to the ecosystem. These systems typically provide basic functions such as event listing, ticket purchase, promotional support, and attendee registration. Their strength lies in contextual relevance—integrating local payment methods, addressing cultural expectations, and supporting promotional strategies suited to the Ethiopian market. However, they often rely on manual or semi‑digital workflows, lacking fully automated vendor‑booking modules, advanced analytics, or large‑scale event scheduling capabilities.
+In contrast, global reference systems such as Eventbrite, Ticketmaster, Cvent, Meetup, and Eventzilla offer highly developed event‑management environments. These platforms support end‑to‑end workflows, beginning with event creation and extending to ticket sales, attendee management, session scheduling, on‑site check‑in, and post‑event data analysis. They incorporate marketing tools such as automated email campaigns, discount code management, and integrated promotional dashboards. Advanced systems further provide vendor‑booking capabilities, virtual event support, exhibitor management, and communication modules that streamline collaboration between organizers, participants, and stakeholders.
+The major functions of these systems can be understood through the essential tasks they perform. Ticket sales remain a primary feature, enabling organizers to define ticket types, set prices, control availability, and process secure payments. Event promotion functions include publishing event pages, generating promotional materials, and enabling built-in social sharing. Vendor‑booking features, available in more sophisticated platforms, allow organizers to contract service providers such as caterers, photographers, decorators, or technical teams directly through the system. Event scheduling functions assist in defining timelines, session structures, locations, and resource allocation. Basic registration processes are facilitated through attendee sign‑ups, digital confirmation, and automated reminders. Marketing tools improve audience reach, while analytics modules offer insights into attendance patterns, ticket sales performance, and user engagement.
+The operational workflow of these systems typically begins with user input. Organizers submit essential event information, including event details, ticket configurations, payment preferences, promotional materials, and additional registration requirements. The system processes these inputs by publishing event pages, managing ticket inventory, facilitating financial transactions, and storing registration data securely. During this process, the platform automates communication through confirmation messages, event reminders, and updates. On event day, many systems support attendee check‑in using QR codes or digital tickets. Finally, organizers receive comprehensive outputs such as revenue reports, attendance records, and performance analytics that inform future event planning.
+Overall, existing event management systems play a crucial role in modernizing the event industry by integrating administrative, promotional, and analytical functions into unified digital platforms. Their capabilities range from basic listing and ticketing services found in local Ethiopian systems to comprehensive, data‑driven, and fully automated solutions offered by global platforms. Understanding these existing systems provides a foundation for identifying gaps and designing improved, localized solutions tailored to the Ethiopian context.
+2.2 Users of the Current System
+Existing event-management systems are used by multiple stakeholder groups whose needs, expectations, and level of satisfaction vary depending on the sophistication of the platform and the local context in which it operates. In Ethiopia, where the digital event industry is still developing, these users interact with systems in ways that reflect both emerging digital habits and persistent limitations in infrastructure. Understanding the characteristics, motivations, and experiences of each user group is essential for evaluating the shortcomings of current systems and guiding the design of improved solutions.
+Event Organizers
+Event organizers are the primary users of event-management systems. This group includes professional planners, entertainment promoters, cultural-event coordinators, youth-led initiatives, private companies, and independent organizers. Their central need is to efficiently plan, promote, and manage events through a centralized digital environment. They typically expect tools for ticket sales, event promotion, audience management, and real-time data on registrations. Organizers in Ethiopia, for instance, often rely on partially digital systems or a combination of social media, mobile-money services, and third-party ticketing platforms. While these tools help increase visibility and streamline payment collection, organizers frequently encounter gaps such as the absence of built-in scheduling tools, limited vendor-management capabilities, and inadequate analytics. As a result, many operational tasks continue to be handled manually, reducing scalability and increasing the risk of miscommunication.
+Vendors and Service Providers
+Vendors including:
+Caterers 
+Decorators 
+Audiovisual Technicians 
+Photographers 
+Security providers 
+Venue operators 
+form another important user group. Their interest in event-management systems lies primarily in access to clients. Vendors expect exposure to event organizers, the ability to showcase services, and clear communication about event requirements. In global platforms, vendors can participate in integrated marketplaces that allow them to receive bookings, manage availability, and build credibility through ratings. In Ethiopia, however, a formalized digital vendor ecosystem is largely absent. Most vendor interactions take place through personal networks or direct messaging. This lack of structured support reduces market transparency, limits opportunities for small vendors, and creates inefficiencies in event planning. Vendors often express the need for a digital system that reliably connects them with clients, standardizes communication, and prevents last-minute logistical conflicts.
+Participants and Attendees
+Participants who attend events, purchase tickets, or register for sessions form the largest numerical user base. Their primary needs include easy registration, secure payment, reliable event information, and a smooth check-in process. Attendees expect seamless digital experiences that provide clarity regarding schedules, pricing, venue directions, and updates. In Ethiopia, platforms that support digital ticketing have greatly improved access, but users still report challenges such as limited payment options, inconsistent event information, and unreliable confirmation systems. These issues can lead to mistrust, especially for high-demand events where overselling or misinformation has occurred in the past. Attendees increasingly expect digital confirmations, QR-code tickets, and timely notifications all of which are inconsistently available in current systems.
+Corporate Hosts and Institutions
+Corporate hosts including NGOs, embassies, educational institutions, private companies, and government-linked organizations use event systems for conferences, seminars, workshops, and professional gatherings. Their needs extend beyond basic ticketing and include advanced registration systems, participant categorization (e.g., speakers, VIPs), official communications, and post-event reporting. Globally, systems such as Cvent or Eventzilla provide such functionality through detailed analytics, customizable registration forms, and automated communication workflows. In Ethiopia, corporate hosts often resort to manual tools like spreadsheets and email lists, supplemented by basic registration modules from local platforms. They frequently find that existing systems lack the level of professionalism, data management, and security required for formal or diplomatic events. This gap reduces operational efficiency and complicates stakeholder coordination.
+Government and Licensing Bodies
+Although government offices play a central role in regulating events through licensing and compliance checks, their direct use of event-management systems remains minimal. In many cases, application processes for permits, security approvals, and venue clearance remain largely manual. While government entities stand to benefit from digital integration—such as automated verification of event details or centralized event scheduling—the absence of such systems creates delays for organizers. Licensing bodies expect accuracy, transparency, and reliable documentation, but current systems rarely provide structured interfaces for official review. This disconnect between event platforms and regulatory processes represents a major limitation in Ethiopia’s event ecosystem.
+Summary of User Expectations and Limitations
+Across all user categories, common expectations include efficiency, transparency, and reliability. Event organizers seek comprehensive tools that reduce manual workload; vendors want structured access to clients; participants expect convenience and trustworthy information; institutions need professional features and analytics; and government bodies require verifiable data and streamlined workflows. However, existing systems—particularly in Ethiopia—do not fully meet these expectations due to fragmented services, limited automation, and lack of integrated vendor and regulatory functions.
+The gaps experienced by these users highlight the need for an improved event-management platform that centralizes activities, enhances communication, supports decision-making through analytics, and aligns digital functions with real-world processes. Understanding the users of current systems forms a crucial foundation for designing solutions that address the unique challenges and opportunities of Ethiopia’s event ecosystem.
+2.3 Drawback of the Current System
+Event management in Ethiopia is still limited by fragmented workflows, outdated tools, and the absence of integrated digital platforms. Existing local and international systems fail to support the full event lifecycle or meet Ethiopia’s regulatory and infrastructural needs. The following major drawbacks justify the need for a unified event hub like our project.
+1. Limited to Ticketing and Registration Only
+Most event systems in Ethiopia only provide basic ticketing and attendee registration services. They do not include critical tools such as event planning, budgeting, vendor coordination, resource allocation, or on-site management. Because these features are missing, clients cannot design or control their events independently. Instead, they must depend heavily on event organizing companies that handle everything manually, which reduces efficiency, increases mistakes, and makes the whole process slow and expensive.
+2. No Client-Led Event Planning Tools
+Current platforms do not allow clients whether individuals, businesses, or international participants to plan events by themselves. Features like drag-and-drop layout design, automated budgeting, venue suggestions, scheduling tools, and resource management are completely missing. This lack of self-service tools forces clients to rely on organizers even for simple tasks, reduces transparency, and increases the overall cost and time needed to prepare an event.
+3. No Integration With Government Licensing and Approvals
+There is no digital connection between event systems and government offices responsible for permissions, security approval, or licensing. Organizers still have to visit offices physically, submit paper documents, make phone calls, and follow long manual workflows. This causes delays, miscommunication, and an increased risk of events happening without proper authorization. The absence of a unified system also makes it difficult for authorities to monitor upcoming events and ensure compliance with safety regulations.
+4. Event Scheduling Conflicts
+Since Ethiopia lacks a centralized event coordination dashboard, it is common for major events, concerts, conferences, exhibitions, and festivals to overlap on the same day. This leads to audience splitting, venue competition, parking issues, and reduced ticket sales for organizers. Without a national event calendar or conflict-detection feature, organizers have no visibility into what other events are happening, resulting in poor planning and unnecessary financial losses.
+5. Overbooking and Weak Control Systems
+Many events experience overbooking, fake ticket duplication, and poor crowd control because the current systems do not provide real-time validation or attendee tracking. Tickets can be easily copied or oversold beyond venue limits, creating safety concerns and damaging the reputation of event organizers. Without digital gate systems, QR validation, or live attendance dashboards, organizers have very little control over entrance management.
+6. No Vendor Marketplace
+There is no system that connects event organizers or clients to reliable vendors such as caterers, decorators, sound engineers, DJs, photographers, security services, or transportation companies. People must depend on personal contacts or random social media posts, which often leads to inconsistent quality and delays. A missing vendor marketplace means clients cannot compare prices, check ratings, or communicate with multiple providers in a structured way.
+ 7. International Systems Are Not Localized
+International platforms like Eventbrite, Hopin, and Cvent are not suitable for Ethiopia because they are not designed for local payment methods, do not support government licensing processes, and lack Amharic or other local language support. These systems assume fast internet speeds and stable infrastructure, which many Ethiopian regions do not have. Additionally, they are expensive and primarily built for Western markets, making them inaccessible for most local event organizers.
+8. No Multi-Role Dashboards
+Event organizers, vendors, government authorities, and attendees all require different dashboards to manage their responsibilities. However, current systems treat all users the same and offer no specialized interfaces. Without role-based dashboards, communication becomes chaotic, approvals are delayed, and event workflow management becomes complex. This lack of separation also reduces accountability and transparency among stakeholders.
+9. High Costs and Limited Automation
+Because most event processes are manual such as budgeting, vendor coordination, pricing, and reporting, event management becomes expensive and time-consuming. There is no automation for generating quotations, scheduling tasks, monitoring finances, or analyzing attendee behavior. This results in inefficiency, inconsistent pricing, and higher service costs for clients.
+ 
+2.4 Literature Review
+This section reviews scholarly work related to digital event management, digital transformation, e-government automation, marketplace platforms, ticketing and crowd systems, smart-city technologies, ICT adoption in Ethiopia, and user-centered design. The goal is to provide academic grounding for the Global Connect Ethiopia project and identify existing gaps that the system aims to address.
+1. Digital Event Systems
+Research shows that event management has increasingly shifted from manual processes to digital platforms that integrate registration, ticketing, scheduling, and communication. Ryan (2020) studied the “digital maturity” of events and found that organizations progress through stages—from basic online registrations to fully integrated platforms that support analytics, audience engagement, and real-time updates. Higher digital maturity correlates with improved attendee experiences and operational efficiency.
+Prototype studies such as those published in Procedia Computer Science (2020) demonstrate that most web-based event management tools focus on simple functions like event creation, attendee lists, and basic notifications. However, many lack advanced modules such as marketplace features, role-based access, vendor onboarding, or analytics dashboards.
+These studies indicate that while event-management systems exist, many are feature-limited and not designed for multi-stakeholder ecosystems like vendors, organizers, VIPs, and participants—an area directly addressed by Global Connect Ethiopia.
+2. Digital Transformation in Event Planning
+Digital transformation research consistently highlights the shift from traditional operations to technology-enabled, data-driven processes.  Verhoef et al. (2021) argue that transformation requires integration across systems, customer-centric design, and continuous improvement rather than simply digitizing old workflows.
+Specifically within the event sector, Ragab and Salama (2021) explain that digital solutions improve planning efficiency, sustainability, and coordination among event stakeholders. Their work shows that digital tools—such as automated registration, centralized vendor information and integrated communication—are critical for modern event management.
+This literature reinforces the need for a unified digital platform that supports multiple event processes rather than separate tools, which aligns with the proposed Global Connect Ethiopia system architecture.
+3. E-Government Integration and Service Automation
+E-government studies, particularly within Ethiopia, provide insights into user adoption, institutional readiness, and challenges in digital service delivery. Studies show that user trust, perceived usefulness, and system quality are major determinants of e-government adoption. Poor digital literacy, low internet quality, and lack of awareness remain obstacles. AAU studies (2021) further report that citizens’ readiness to adopt digital services improves with training, clarity of information, and well-designed user interfaces.
+These findings indicate that any digital platform designed for the Ethiopian public must prioritize trust, accessibility, local language support, and a simple user experience. Global Connect Ethiopia incorporates these considerations by offering Amharic/English interfaces, transparent vendor information, and secure workflows for VIP/government events.
+4. Vendor–Client Digital Marketplaces
+Marketplace literature focuses on how platforms connect service providers and customers. Hagiu and Wright (2020) describe multi-sided platforms as systems where value increases with active participation from both vendors and users. Their findings stress that platform policies, incentives, and trust mechanisms shape vendor behavior and user satisfaction. Shi et al. (2021) showed that promotion strategies, such as featured listings and recommendation algorithms, increase marketplace engagement.
+Research on e-commerce trust models (2022) further reveals that clear vendor profiles, transparent communication, verified reviews, and secure payment options increase adoption.
+These findings directly inform the vendor directory and marketplace components of Global Connect Ethiopia, which include verified vendor profiles, rating systems, and secure digital payments (e.g., Chapa integration).
+5. Ticketing and Crowd Management Systems
+Crowd management is a critical component of large event platforms. Still (2014) provides foundational principles for crowd behavior, emphasizing the need for controlled entry, pre-event planning, and monitoring of attendee flow. Safety Science studies (2019) show that congestion risks can be reduced through time-slot ticketing, dynamic admission, and real-time monitoring. IEEE research on QR and RFID-based ticketing (2020) demonstrates the effectiveness of digital ticketing for secure access control.
+These findings justify the integration of QR-generated tickets, slot-based scheduling, and live capacity dashboards in Global Connect Ethiopia.
+6. Smart-City Digital Platforms
+Smart-city research discusses the integration of digital tools to support urban services. IEEE Smart Cities Initiative (2019) outlines architectures that emphasize modularity, interoperability, and real-time data sharing. Talari et al. (2017) identify common challenges such as system fragmentation and lack of centralized platforms. Studies on digital urban services (2020–2023) highlight the role of integrated platforms in enhancing city-level coordination, especially for events, transportation, and public communication.
+These insights support the platform’s long-term goal of integrating with city services, mapping, government systems, and event-infrastructure data.
+7. ICT Adoption in Ethiopia and Developing Countries
+Studies on ICT adoption in Ethiopia (Misganaw, 2020; Belachew, 2021) reveal recurring barriers: inconsistent connectivity, limited digital skills, trust issues, and the high cost of technology. Public-sector ICT diffusion research (AAU, 2020–2022) also notes that successful adoption depends on awareness, usability, affordability, and training initiatives.
+This emphasizes the importance of designing systems with low-bandwidth support, intuitive workflows, and strong trust-building mechanisms. Global Connect Ethiopia addresses these issues through optimized UI, Amharic/English options, secure registration, and simplified workflows for both vendors and organizers.
+8. User-Centered Design in Digital Event Platforms
+User-centered design (UCD) is essential for ensuring accessibility and adoption. Norman (2013) argues that systems must reduce cognitive load, minimize steps, and offer intuitive interactions. Abras et al. (2004) describe UCD as an iterative process that relies on user feedback, prototyping, and usability testing.
+These principles guide the design of Global Connect Ethiopia, ensuring that interfaces are simple, visually clear, multilingual, and role-specific.
+Gap Analysis
+The literature demonstrates strong global progress in event technology, digital transformation, e-government integration, and marketplace platforms. However, several gaps remain—especially in developing-country contexts such as Ethiopia:
+Lack of integrated systems: Existing event platforms focus on single functions like ticketing or registration.
+Limited local adaptation: Most systems reviewed are designed for high-income countries. They do not reflect Ethiopia’s ICT challenges, multilingual needs, or local payment systems.
+Missing vendor–client ecosystems: Research on marketplaces highlights the importance of trust and transparency, yet most event prototypes lack built-in vendor directories, ratings, or marketplace modules.
+Incomplete crowd management features: While studies recommend time-slot ticketing and real-time capacity monitoring, these features are rarely found in systems used in the Ethiopian context.
+Weak focus on user experience in developing countries: Studies indicate that digital literacy and trust affect adoption, but local event platforms do not consistently prioritize UX, onboarding, or accessibility.
+Global Connect Ethiopia fills these gaps by providing a comprehensive, multilingual, secure, and user-centered digital platform designed specifically for Ethiopia’s event ecosystem. It unifies event scheduling, ticketing, vendor marketplace services, VIP modules, and analytics into a single scalable system that aligns with both global research and local needs.
+Chapter 3: Proposed System
+3.1. Overview
+This chapter focuses on defining and analyzing the system's requirements, beginning with an outline of both functional and non-functional specifications. To demonstrate how the proposed solution addresses current issues, it presents various operational scenarios. The chapter concludes by providing a comprehensive set of UML-compatible models, including use-case, activity, sequence, and class diagrams, along with data persistence details.
+3.2. Functional requirement
+Table 5: Functional Requirements
+ID
+Functionality
+FR-1
+The system shall allow organizers to submit event proposals with required documents for government approval.
+FR-2
+The system shall allow government and municipal officers to review, approve, or reject proposals and issue digital event permits.
+FR-3
+The system shall allow organizers to create events, add event details, and publish them to a public calendar.
+FR-4
+The system shall allow vendors to register, upload legal documents, and be approved by administrators.
+FR-5
+The system shall allow organizers to request quotes, negotiate, and sign digital contracts with vendors.
+FR-6
+The system shall allow organizers to set ticket types, and attendees shall register or purchase tickets online.
+FR-7
+The system shall process online ticket payments through integrated payment gateways and generate digital tickets.
+FR-8
+The system shall generate QR badges and provide checklists and incident reporting tools for on-site event management.
+FR-9
+The system shall collect attendee feedback and generate summary reports for organizers.
+FR-10
+The system shall allow the event organizer to invite committee members, assign roles, delegate tasks, set deadlines, and track task completion status for an event.
+FR-11
+The system shall enable organizers to broadcast announcements to different audience groups via in-app notifications.
+FR-12
+The system shall allow organizers to create, edit, and manage event budgets, including cost line items, estimated expenses, and version tracking.
+FR-13
+The system shall generate real-time financial analytics showing ticket sales, vendor payments, sponsorship revenue, and budget-to-actual comparisons.
+FR-14
+The system shall allow users to configure notification preferences, including preferred channels and event-related triggers.
+FR-15
+The system shall support event cancellation, postponement, and archival while notifying relevant stakeholders accordingly.
+This section specifies the functional requirements of the proposed system or solution, such as the actions, behaviors, or operations that it must perform or support, or the services or outcomes that it must provide or produce.
+3.3. Non-functional requirement
+Table 6: Non-Functional Requirements
+ID
+Functionalities
+NFR1 — Performance
+Core pages shall load within 2 seconds under normal network conditions.
+NFR2 — Availability
+The system shall maintain at least 99.5% uptime.
+NFR3 — Security
+All sensitive data shall be encrypted in transit and at rest using industry-standard protocols.
+NFR4 — Access Control
+Role-based access control (RBAC) shall be enforced for organizers, vendors, government offices, and administrators.
+NFR5 — Scalability
+The system shall scale to support large events with high concurrent users during ticketing peaks.
+NFR6 — Usability
+The interface shall be simple and allow new users to create an event within 10 minutes.
+NFR7 — Multi-Language Support
+The platform shall support English and Amharic throughout major user flows.
+NFR8 — Compatibility
+The system shall function properly on major browsers and mobile devices.
+NFR9 — Reliability & Backup
+The system data shall be backed up daily and have a recovery point objective (RPO) of 24 hours.
+NFR-10: Audit Logging
+The system shall log all critical actions (proposal reviews, approvals, rejections, financial transactions, and contract signing) for accountability and regulatory auditing.
+NFR-11: Availability
+The system shall maintain a minimum uptime of 99.5%, especially during peak ticket-sale periods.
+NFR-12: Data Integrity
+The system shall ensure transactional consistency for ticket sales, payments, and bookings using rollback and recovery mechanisms.
+NFR-13: Performance
+The system shall process ticket purchase requests within few seconds under normal operating conditions.
+NFR-14: Maintainability
+The system shall be modular and follow clean architecture principles to support future enhancements such as mobile apps and third-party integrations.
+3.4. System Model
+3.4.1 Scenario
+Scenario 1:⁠ User R​eg⁠istration and Acc‍o⁠un‌t Creation
+1.     Th​e us​e​r accesses the Global Connect Ethiopia platform through​ a web browser
+2.     T‌he user selects th‍e “Re‍gister” option.
+3.     T⁠he sys​tem dis⁠plays t‍he re​gistra⁠tion for⁠m.
+4.     The user enters⁠ personal details such as name,⁠ emai‍l, ro‌le selection​ (organi‌zer, ven​dor, attendee), and passwor​d.
+5.​     T‍he system validates‍ the input data‍.
+6.     T‌he system creat⁠es a new user accou‌nt and s‌tores it in the data‍base.
+7.     The user receives‍ a confirmation message and is redirected to the login⁠ page or da​shboard.
+ 
+S‍ce‌na‌rio 2: User Login and Role-Based Access
+1‌.     The user opens the Global Connect Ethio​pia platform.
+2.     The user enters valid login credentials.
+3.     The system verifies the​ crede⁠ntials.
+4.     The system identifies the use‌r’s role‍.
+5.     The⁠ system redir​e​cts the⁠ user t⁠o t‍he appropriate da‍sh​board based on the⁠ir role.
+‌6.     The user g⁠ain‍s access to authorize‌d syste⁠m feature‌s.
+ 
+Scenario 3: Orga⁠nizer Requests Vendor S​ervices
+1.‌     The‍ organizer logs into the system.
+2.     The org‍anizer navigates to the‌ vendor marketplace section.
+3.     The sy​stem displ‌ays‍ a li​st of⁠ appro‌ved vendors.
+4.     ‌The organi​zer vie⁠w‍s vendo​r​ profiles‌ and service d‍etails.
+⁠5‍.     The orga​nizer sends‌ a s‌ervic⁠e request or qu⁠otation request to select⁠ed vendors.​
+6.     The system notifie​s the vendors o​f the request.
+7.     Vend⁠ors respon⁠d with quote⁠s or av‍ailabil‌ity infor⁠mation.
+ 
+Scenario 4: Ven⁠dor R⁠e⁠sponds to Org⁠anizer Request
+1.     T⁠he ven​dor logs int‌o t⁠he system.
+2.     Th‍e vendor views i​ncomi‍ng service requests.
+3.     The vendor reviews event⁠ details and service requirements.
+4.​     T​he vendor submits⁠ a⁠ quotation or proposal.
+5.     The‌ system del‌iv​ers the re‍sponse to the organiz‌er.
+‌6.​     Th​e or‌ganizer rev⁠iews and p⁠roceeds with negotiati‌on or agree​ment.
+ 
+Scenario 5: Att​endee Registers for an Event
+1.     The att‌endee acc​esses the p‌ublic event listing⁠.
+2.     The attende​e sel‍ects an event of interes⁠t.‍
+3.     Th⁠e sys⁠tem displays event details a‍nd ticket optio‌ns.
+4.     The attendee sel‍ects a t‌ick​et‍ type.
+‍5​.     The attendee co​mpletes re⁠gistrat​ion or payment.
+6.     ‌The sy​stem confirms the registration and issues‍ a digital ticket.
+ 
+Scenario 6: Event Check-in and Atten​dance V⁠erification
+1.     T⁠he at‍tendee arriv‍es at the eve​nt v‍enue.
+2.     The attendee p‍rese​nts a QR code‌ ticket.⁠
+3.     T​he organiz​er or e‌vent staff scans the QR code using the system.
+4.     The sys​tem validates the ticket.‍
+5.     The system​ marks the attendee as⁠ chec‍ked-i‌n⁠.
+6.​     The⁠ organi​zer views real-time att‍endanc⁠e up⁠dates.
+ 
+Scenario 7: Feedback Coll⁠ect‌i‌on A‌ft‌er Eve‍nt
+1.‌     Th‍e ev‍ent conc‌ludes.
+2.     The‌ sys​tem sends feedback reques‍ts‍ to attend‌ees.
+3.​     Att‌end‌ees submi‌t⁠ rati‌ngs and comment‌s.
+​4.     ‌The sys‍t⁠em stores f⁠eedbac​k da‌ta.
+5.     Th⁠e syste​m gener​ates summa‌ry reports for the organ‍iz⁠er.
+ 
+3.4.2. Use Case Description
+Table 7:Submit Event Proposal
+UC-01
+Submit Event Proposal
+Actor
+Organizer
+Precondition
+The organize​r is regis⁠tered, logged i‍nto the sy​stem, an​d‌ has the required eve‌nt an‍d lega​l d⁠o​cument‍s.
+Postcondition
+The event proposal‍ is suc​cessf​ully⁠ submitted and s⁠tored with a “Pendi‌ng Review” s⁠tatus.
+Normal Flow
+Organizer logs into Global Connect Hub.
+Organizer navigates to “Submit Proposal” and fills required fields (event title, type, dates, venue request, expected attendees, draft program, budget summary, security plan).
+Organizer uploads required documents (PDF): organizer registration, insurance, draft contract.
+Organizer clicks Submit; system generates a Proposal ID and shows confirmation.
+System routes proposal to Ministry queue for review.
+Alternative Flow
+Organizer saves as Draft and returns later to submit.
+Exception Flow
+File upload fails or required field missing → system blocks submit and shows validation errors.
+if repeated upload failure, system logs error and sends alert to admin.
+Table 8:Ministry Review & Verification
+UC-02
+Ministry Review & Issue Verification Letter
+Actor
+Government Reviewer (Ministry)
+Precondition
+‌A sub‍mitted event proposa​l exists and th‍e ministry of​fic​er is authen‍ticated‌.‌
+Postcondition
+The proposa‍l re‍view decis⁠i⁠on is re‍c‍orded and‌ the organi⁠zer is notif‌ied‍.
+Normal Flow
+Reviewer opens assigned proposal from ministry dashboard.
+The reviewer inspects documents and metadata.
+The reviewer selects the Approve → system, generates a digitally signed Verification Letter and forwards to the City Municipal queue.
+The system notifies the Organizer of verification and provides a letter download link.
+Alternative Flow
+Reviewer requests changes → system sends a “Revision Request” to Organizer with a checklist; proposal status becomes Requires Revision.
+Exception Flow
+Reviewer rejects due to non-compliance → system marks proposal Rejected and emails Organizer with rejection reason.
+ Table 9:Municipal Location Allowance & Police Notification
+UC-03
+Municipal Location Allowance & Police Notification
+Actor
+ Municipal Officer
+Precondition
+The proposal has passed the initial ministry r‌eview.
+Postcondition
+Municipal ve⁠rific​ation status i​s updated an⁠d f‍orwarded to the next approval s‌ta⁠ge.
+Normal Flow
+Municipal Officer receives ministry-verified proposal.
+The officer checks the local calendar, venue suitability, and safety considerations.
+If acceptable, the officer issues a Location Allowance and submits a security request to the nearest police station through the platform.
+System updates permit status to Municipal Approved.
+Alternative Flow
+Municipal Officer proposes alternate dates/locations → sends proposal back to Organizer via system.
+Exception Flow
+ Police station denies feasibility due to conflict or capacity → municipal sets status Denied and notifies Organizer.
+Table 10:create & publish event
+UC-04 
+Create & Publish Event (Organizer)
+Actor
+Organizer
+Precondition
+The eve‌nt proposal is approved by all re‌quired authorit⁠ies.
+Postcondition
+Th​e event is cr‍eate⁠d and published on the publ‍ic event listing‍.
+ Normal Flow
+Organizer selects Create Event.
+Completes event metadata (title, description, capacity, location [linked to municipal approval], program schedule, VIP list) and selects ticketing mode.
+Organizer presses Publish; system validates required approvals (if government event requires permit the system checks permit status).
+The event becomes publicly listed on the Centralized Calendar.
+Alternative Flow
+The organizer publishes as Private (invite-only) and shares invite links.
+Exception Flow
+Required permit is missing or rejected → publishing is blocked and Organizer is notified.
+Table 11:Reserve Venue
+UC-05
+ Reserve Venue
+Actor
+ Organizer
+Precondition
+An a‌pproved‍ event exists‌ and venue data is available.
+Postcondition
+The select⁠ed‍ ve‍nue is res‍erved‍ and lin⁠ked to the ev‌ent
+Normal Flow
+Organizer queries venue availability for desired dates.
+The system shows availability and cost estimates.
+Organizer sends reservation request; venue provider confirms via platform.
+Reservation status = Confirmed and linked to the event.
+Alternative Flow:
+Venue offers alternate dates or partial availability; Organizer accepts alternate.
+Exception Flow
+Venue declines or double-booked → reservation fails; system suggests alternate venues.
+Table 12:Vendor Registration
+UC-06
+Vendor Registration 
+Actor
+Vendor Owner
+Precondition
+The ve‍ndor has acces‍s to th‌e plat​for‍m and vali​d regis​tr​a⁠tion do​cume‍n⁠ts.
+Postcondition
+The vend‌or a‍ppl⁠ication is subm​itted fo‌r administrative ap​pro​val.
+Normal Flow
+Vendor selects Register as Vendor and completes business profile: business name, TIN, trade license, service categories, sample portfolio, contact details.
+Vendor uploads TIN copy and business registration scan.
+Vendor submits; system marks status Pending Approval.
+Alternative Flow
+Vendor saves partial profile as draft and finishes later.
+Exception Flow
+Missing mandatory legal document → system rejects registration and provides checklist.
+Table 13:Approve vendors
+UC-07
+Approve Vendor 
+Actor
+Admin
+Precondition
+‌Ve⁠n‍dor reg​istration r‌equests exist and t⁠he administrator is authenticated.
+Postcondition
+The‌ v‌en⁠dor is approved or rej​ected and notified accordi‌ngly.
+ Normal Flow
+Admin reviews pending vendor registration documents.
+Admin verifies TIN and business registration fields.
+Admin marks Approve; system activates vendor accounts and publishes their service listing.
+Alternative Flow
+Admin requests additional documents or clarifications → vendor notified to upload.
+Exception Flow
+Documents fraudulent or invalid → Admin rejects vendor and records the decision (audit log).
+ 
+Table 14:Vendor List Service & Quote Request
+UC-08
+Vendor List Service & Quote Request
+Actor
+Organizer , Vendor
+Precondition
+A​pp​roved ve‌ndors exist a⁠nd‍ the organi⁠zer is logged in
+Postcondition
+Quote⁠ r⁠equests are sent to selec​ted vendors.
+Normal Flow
+Organizer browses vendor marketplace and selects service (e.g., catering).
+The organizer requests a quote by submitting event details and guest count.
+Vendor receives request and submits a quote through platform.
+Organizer reviews and accepts quotes; booking status = Booked.
+Alternative Flow
+Vendor replies with counter-offer → Organizer can accept, negotiate, or reject.
+Exception Flow
+Vendor fails to respond within SLA → system escalates to alternate vendors and notifies Organizer.
+Table 15:Create & Sign Contract
+ UC-09
+ Create & Sign Contract (Record Payment Terms)
+Actor
+Organizer & Vendor
+Precondition
+Vendor q‍uotes have been accepted by both part‍ies.
+Postcondition
+A digital contract is created,​ signed, and stored.⁠
+Normal Flow
+After quote acceptance, the platform generates a draft contract with milestones.
+Vendor and Organizer review and e-sign (electronic signature).
+Signed contract stored and payment milestones scheduled.
+Alternative Flow
+Parties renegotiate terms before signing → contract updated.
+Exception Flow
+One party refuses to sign → booking is canceled and status updated.
+Table 16: Publish Ticketed Event & Configure Inventory
+UC-10 
+ Publish Ticketed Event & Configure Inventory
+Actor
+Organizer
+Precondition
+Th‌e eve‍n​t is publ⁠ished and ticketing is enabled.
+Postcondition
+Ticke‌t‌ inve‍ntory is configured and ticket sales are ac‍tivat​ed.
+Normal Flow
+The organizer configures ticket types (General, VIP), quantities, pricing, and seat allocation.
+The organizer links payment options and enables ticket sales.
+The system enforces inventory and displays remaining tickets on the event page.
+Alternative Flow
+Organizer sets hold-back inventory for VIP/press.
+Exception Flow
+ Invalid price/capacity inputs → validation error; publishing blocked.
+Table 17: Purchase Paid Ticket
+UC-11
+Purchase Paid Ticket 
+Actor
+Attendee
+Precondition
+Tickets are available and the attendee has acce⁠s‍s t‌o payment‌ servic‍es.
+Postcondition
+Payment is completed and‍ a dig‌ital t‍icket is⁠ issued.‍
+Normal Flow
+Attendee selects ticket type and proceeds to checkout.
+Attendee completes payment via integrated gateway (local supported gateway).
+Payment gateway returns success; system issues QR ticket and confirmation email.
+Alternative Flow
+Attendee selects offline payment method (bank transfer) and receives provisional booking pending confirmation.
+Exception Flow
+Payment fails (card declined or timeout) → transaction aborted, seat released
+ user shown failure message and retry option.
+Table 18: Prevent Overbooking
+UC-12
+Prevent Overbooking 
+Actor
+System 
+Precondition
+Ticket​ inv⁠en​tor‌y limits are de‌fined.‌
+Postcondition
+T‍icket sal‍es stop automatically when capacity is reache​d.
+Normal Flow
+The system uses transactional locking or optimistic concurrency when finalizing purchases.
+The first successful transaction decrements inventory and issues tickets; simultaneous attempts handled in order.
+Alternative Flow
+If queueing is enabled, users are placed in a short reservation hold.
+Exception Flow
+Race condition or DB error → system rolls back and displays sold-out; incident logged for admin review.
+Table 19: Generate & Print Badge
+UC-13
+Generate QR Check-in and badge
+Actor
+Organizer
+Precondition
+T‍he attendee has a valid ticke‍t and completed registration.
+Postcondition
+A⁠ badge with QR code is generated and ready for printing.
+Normal Flow
+Organizer exports attendee list for a session or all attendees.
+The system generates printable badges with QR codes and roles (Attendee/Vendor/VIP).
+On-site staff print and distribute badges during check-in.
+Alternative Flow
+Use on-site badge printing service via vendor booking.
+Exception Flow
+Badge generation failure (font/layout error) → system offers CSV export fallback.
+Table 20: On-site Incident Report
+UC-14
+On-site Incident Report
+Actor
+On-site Staff
+Precondition
+An active event exists and‍ the⁠ user has rep‌orti⁠ng permission.​
+Postcondition
+T‌he incident re‍port is logged and accessi‍ble to authorities.
+Normal Flow
+Staff logs incidents (type, time, description, photos) into the incident module.
+System notifies Organizer and, if severe, municipal/police contacts per permit settings.
+Incident status tracked until resolved.
+Alternative Flow
+ Minor incidents are logged and closed by staff without escalation.
+Exception Flow
+Notification delivery fails → system retries and logs failure for admin follow-up.
+ Table 21: Send Post-Event Survey & Collect Feedback
+UC-15
+Send Post-Event Survey & Collect Feedback
+Actor
+System
+Precondition
+The‌ eve​nt has c‍oncluded and attendees exist
+Postcondition
+Feedba‌c‌k responses are collect​ed an‌d stored.
+Normal Flow
+After Event Completion, the system schedules and sends a feedback survey link to attendees.
+Attendees submit responses; system aggregates and scores feedback.
+The organizer receives summarized reports including NPS, satisfaction, vendor ratings.
+Alternative Flow
+ Send segmented surveys (VIPs / vendors / general attendees) with custom questions.
+Exception Flow
+Low response rate → system triggers reminder emails; if sending fails, logs error for admin.
+ 
+Table 22: Publish Final Event Roadmap & Lessons Learned
+UC-16
+Publish Final Event Roadmap & Lessons Learned
+Actor
+Organizer
+Precondition
+Event fe‌edback and r⁠eports are available.
+Postcondition
+Final docum​entation i‍s publ⁠ish‍ed⁠ fo‌r inte‌rnal referenc‌e​.
+Normal Flow
+The organizer composes the final roadmap (timeline, costs, vendors used, lessons learned) in the dashboard.
+The organizer sets visibility (private to sponsors/government or public).
+System archives and notifies selected stakeholders; analytics stored for benchmarking.
+Alternative Flow
+Organizer requests platform anonymized benchmarking report vs similar past events.
+Exception Flow
+Document upload or export fails → system provides raw JSON export as fallback.
+Table 23: Generate Event Schedule via AI
+UC-17
+Generate Event Schedule via AI
+Actor
+Organizer , AI Engine
+Precondition
+Event d​etails‍ and sess‌ion data​ exist.
+Postcondition
+A‌n AI-generated draft schedul⁠e is produced.
+Normal Flow
+Organizer selects "AI Schedule Assistant" within the event dashboard.
+Organizer inputs constraints: Event Type (e.g., Conference), Duration (2 days), and Start Time.
+The system sends prompts to LLM with context.
+The system returns a suggested hour-by-hour itinerary (Keynotes, Breaks, Networking).
+Organizer reviews and clicks "Apply to Calendar."
+Alternative Flow
+The organizer manually edits specific time slots before applying.
+Exception Flow
+ AI service timeout → System displays manual schedule entry form.
+Table 24: Generate Event Schedule via AI
+UC-18 
+Chatbot Inquiry for Licensing Rules
+Actor
+Organizer (International/Local)
+Precondition
+R‌egistered user as‍king a​ question
+Postcondition
+Licensing guidanc​e i⁠s displayed‌ to the‌ us⁠e‍r.
+Normal Flow
+The organizer opens the "Help & Regulations" Chatbot.
+Organizer types query (e.g., "Do I need a police permit for 500 people?").
+System queries the regulatory database/LLM.
+Chatbot responds with specific Ethiopian licensing rules and links to the correct Proposal Form.
+Alternative Flow
+Chatbot cannot answer → offers a button to "Contact Ministry Official."
+Exception Flow
+Service unavailable → displays static FAQ page.
+Table 27: Invite Committee Member
+UC-23
+Invite Team Member
+Actor
+ Organizer
+Precondition
+The event exists and t⁠he organizer is a⁠uthen‍ti​cated.
+Postcondition
+Committee invitations are sent to selected users
+Normal Flow
+Lead Organizer navigates to "Event Team" settings.
+Enters email address of the new staff member.
+Assigns specific roles (e.g., "Finance Manager" or "Check-in Staff").
+The system sends invitation links via email.
+Invitee accepts; system links them to the Event Dashboard.
+Alternative Flow
+ The organizer revokes an invitation before it is accepted.
+Exception Flow
+ User already exists in team → System shows "User already assigned" error.
+Table 28: Assign Tasks to Committee
+UC-20
+Assign Tasks to Team
+Actor
+Organizer
+Precondition
+Com⁠mittee‍ members have accepted in⁠vitat​ions.
+Postcondition
+Ta⁠sks are assigned​ a‍n‌d trac‌ke‌d in the​ s​yst⁠em.
+Normal Flow
+The organizer creates a task (e.g., "Finalize Catering Menu").
+The organizer selects a team member from the dropdown list.
+Sets a due date and priority.
+The system notifies the assigned member.
+Alternative Flow
+ The organizer assigns tasks to "Self."
+Exception Flow
+Assignee account inactive → System blocks assignment.
+Table 29: Broadcast Event Announcement
+UC-21
+Broadcast Event Announcement
+Actor
+Organizer
+Precondition
+The event is published and recipients exist.
+Postcondition
+Announce​ments are delive‌r⁠e‍d‌ via selec‍ted c‌hann‌els.‌
+Normal Flow
+The organizer selects "Send Announcement."
+Selects audience segment (e.g., "All Ticket Holders" or "VIP Only").
+Drafts message (Subject, Body) or selects a template.
+Clicks "Send"; system dispatches emails/SMS/In-App notifications.
+Alternative Flow
+Organizer schedules announcement for a future date/time.
+ Exception Flow
+Zero recipients found (no tickets sold) → System warns user before sending.
+Table 30: Create/Edit Event Budget
+UC-22
+Create/Edit Event Budget
+Actor
+ Organizer
+Precondition
+The​ o‍rganizer‍ h‍as a‌n acti‌ve event.
+Postcondition
+Budget deta​ils are saved and update​d.
+Normal Flow
+Organizer accesses "Budgeting Tool."
+Adds a line item (e.g., "Venue Rental") and estimated cost.
+System updates the "Total Estimated Cost" visualization.
+The organizer saves the budget version.
+Alternative Flow
+The organizer imports the budget from a CSV template.
+ Exception Flow
+Negative values entered → System validation error.
+Table 31: Track Revenue Analytics
+UC-23
+Track Revenue Analytics
+Actor
+Organizer
+Precondition
+Financial trans‌a​ctions exist for the‌ event.
+Postcondition
+Revenue anal⁠ytics are‍ displayed to th⁠e or⁠ganizer.
+Normal Flow
+Organizer opens "Analytics Dashboard."
+Selects "Revenue View."
+The system aggregates ticket sales, vendor fees, and sponsorship funds.
+The system displays a real-time graph of Revenue vs. Budget.
+Alternative Flow
+ Organizer filters view by "Payment Method" (e.g., Telebirr vs. Bank Transfer).
+Exception Flow
+ Data synchronization delay → System shows "Last updated: [Timestamp]" warning.
+Table 32: Configure Notification Preferences
+UC-24
+Configure Notification Preferences
+Actor
+User (Organizer/Attendee)
+Precondition
+The user‍ is authenticated.⁠
+Postcondition
+Notifica‌ti‍on sett‌ings ar‌e saved and applied‍.
+Normal Flow
+User navigates to Account Settings > Notifications.
+User toggles preferences for specific triggers (e.g., "New Ticket Sale," "Event Reminder," "Permit Status Change").
+The user selects channels (Email, SMS, In-App).
+The system saves preferences.
+Alternative Flow
+The user selects "Unsubscribe All."
+Exception Flow
+Database update fails → User notified "Settings not saved."
+3.4.3 Use case model
+figure 1:Use-case diagram
+3.5. Object Model
+3.5.1. Data Dictionary
+Table 33 : Data dictionary
+Class
+Attribute
+Data Type
+Constraints
+Description
+User
+user_id
+UUID
+PK
+Unique identifier for every user
+password_hash
+String
+Securely hashed password
+role
+Enum
+Organizer, Vendor, Attendee, Admin
+User role in the platform
+status
+Enum
+Active, Inactive, Banned
+Account status
+created_at
+DateTime
+Registration timestamp
+full_name
+String
+Public display name
+email
+String
+Unique
+Verified email address
+phone
+String
+Contact phone number
+isVerified
+Boolean
+Email/phone verification status
+UserSession
+session_id
+UUID
+PK
+Active login session ID
+user_id
+UUID
+FK → User
+References User
+expires_at
+DateTime
+Session expiry timestamp
+UserProfile
+user_id
+UUID
+PK, FK → User
+One-to-one profile
+bio
+Text
+Public biography
+organization
+String
+Company or affiliation
+EventProposal
+proposal_id
+UUID
+PK
+Unique proposal ID
+organizer_id
+UUID
+FK → User
+Who submitted the proposal
+status
+Enum
+Draft, Submitted, UnderReview…
+Current review status
+budget_estimate
+Decimal
+Estimated total budget
+title
+String
+Public proposal title
+event_type
+String
+Conference, Concert, etc.
+start_date
+Date
+Proposed start date
+end_date
+Date
+Proposed end date
+expected_attendees
+Integer
+Expected number of attendees
+ProposalReview
+review_id
+UUID
+PK
+Review record ID
+proposal_id
+UUID
+FK → EventProposal
+Which proposal is reviewed
+reviewer_id
+UUID
+FK → User
+Government/admin reviewer
+decision
+Enum
+Approved, Rejected, Changes
+Final decision
+comments
+Text
+Reviewer comments
+Permit
+permit_id
+UUID
+PK
+Official permit ID
+proposal_id
+UUID
+FK → EventProposal
+Linked proposal
+city_status
+Enum
+City/municipal approval status
+police_status
+Enum
+Police/security clearance status
+issued_at
+DateTime
+Issuance timestamp
+Document
+document_id
+UUID
+PK
+Stored file ID
+owner_id
+UUID
+FK → User
+Uploader
+file_url
+String
+Cloud storage URL
+type
+Enum
+ProposalDoc, Permit, Contract…
+Document category
+Event
+event_id
+UUID
+PK
+Live event ID
+proposal_id
+UUID
+FK → EventProposal
+Origin proposal
+organizer_id
+UUID
+FK → User
+Event owner
+venue_id
+UUID
+FK → Venue
+Booked venue
+status
+Enum
+Planned, Published…
+Event lifecycle status
+title
+String
+Public event name
+description
+Text
+Full event description
+capacity
+Integer
+Maximum attendees
+schedule_json
+JSON
+Detailed timetable
+Venue
+venue_id
+UUID
+PK
+Venue identifier
+provider_id
+UUID
+FK → User/Vendor
+Owner or manager
+name
+String
+Venue name
+capacity
+Integer
+Max persons
+availability
+JSON
+Calendar of free slots
+location
+String
+Address
+Reservation
+reservation_id
+UUID
+PK
+Venue booking record
+event_id
+UUID
+FK → Event
+Booked event
+venue_id
+UUID
+FK → Venue
+Reserved venue
+status
+Enum
+Confirmed, Cancelled, etc.
+Vendor
+vendor_id
+UUID
+PK
+Vendor company ID
+user_id
+UUID
+FK → User
+Linked user account
+tin
+String
+Tax Identification Number
+status
+Enum
+Pending, Approved, Suspended
+Approval status
+business_name
+String
+Public company name
+rating
+Decimal(2,1)
+Average rating (0.0–5.0)
+VendorService
+service_id
+UUID
+PK
+Service offering ID
+vendor_id
+UUID
+FK → Vendor
+Provider
+category
+String
+Catering, Sound, Decoration…
+price_range
+String
+e.g., “5000–15000 ETB”
+description
+Text
+Service details
+Quote
+quote_id
+UUID
+PK
+Quote identifier
+vendor_id
+UUID
+FK → Vendor
+Quoting vendor
+event_id
+UUID
+FK → Event
+Target event
+amount
+Decimal
+Total quoted amount
+status
+Enum
+Sent, Accepted, Expired
+Quote lifecycle
+Contract
+contract_id
+UUID
+PK
+Signed contract ID
+quote_id
+UUID
+FK → Quote
+Origin quote
+signed_url
+String
+e-Signed PDF link
+status
+Enum
+Draft, Signed, Terminated
+Contract state
+TicketType
+ticket_type_id
+UUID
+PK
+Ticket tier ID
+event_id
+UUID
+FK → Event
+Belongs to event
+price
+Decimal
+Price per ticket
+quantity
+Integer
+Total available tickets
+name
+String
+VIP, General, Early Bird…
+description
+Text
+Tier benefits
+isActive
+Boolean
+Sales enabled/disabled
+TicketInventory
+inventory_id
+UUID
+PK
+Inventory tracking record
+ticket_type_id
+UUID
+FK → TicketType
+Linked ticket type
+reserved
+Integer
+Temporarily held tickets
+sold
+Integer
+Confirmed sold tickets
+TicketOrder
+order_id
+UUID
+PK
+Purchase order ID
+user_id
+UUID
+FK → User
+Buyer
+ticket_type_id
+UUID
+FK → TicketType
+Purchased tier
+quantity
+Integer
+Number of tickets
+status
+Enum
+Pending, Paid, Refunded
+Order state
+total_amount
+Decimal
+Final amount paid
+Payment
+payment_id
+UUID
+PK
+Transaction record
+order_id
+UUID
+FK → TicketOrder
+Linked order
+method
+Enum
+Card, MobileMoney, Bank
+Payment method
+amount
+Decimal
+Paid amount
+status
+Enum
+Success, Failed, Pending
+Payment outcome
+AccommodationListing
+listing_id
+UUID
+PK
+Accommodation offer ID
+host_id
+UUID
+FK → User
+Host
+event_id
+UUID
+FK → Event
+Linked event
+price
+Decimal
+Price per night
+capacity
+Integer
+Beds/rooms available
+status
+Enum
+Available, Booked, Cancelled
+title
+String
+Listing title
+amenities
+String
+Wi-Fi, Breakfast, etc.
+AccommodationBooking
+booking_id
+UUID
+PK
+Booking record
+listing_id
+UUID
+FK → AccommodationListing
+Booked listing
+user_id
+UUID
+FK → User
+Guest
+start_date
+Date
+Check-in
+end_date
+Date
+Check-out
+status
+Enum
+Confirmed, Cancelled, Completed
+Badge
+badge_id
+UUID
+PK
+Digital/physical badge ID
+event_id
+UUID
+FK → Event
+Event access
+user_id
+UUID
+FK → User
+Owner
+role
+Enum
+Attendee, Staff, VIP, Speaker
+Access level
+qr_code
+String
+Scannable QR code
+checked_in
+Boolean
+Check-in status
+IncidentReport
+incident_id
+UUID
+PK
+Incident record
+event_id
+UUID
+FK → Event
+Affected event
+reporter_id
+UUID
+FK → User
+Who reported
+severity
+Enum
+Low, Medium, High, Critical
+Severity level
+description
+Text
+Incident details
+timestamp
+DateTime
+When reported
+Survey
+survey_id
+UUID
+PK
+Post-event survey
+event_id
+UUID
+FK → Event
+Linked event
+title
+String
+Survey name
+questions
+JSON
+Questions structure
+SurveyResponse
+response_id
+UUID
+PK
+Individual response
+survey_id
+UUID
+FK → Survey
+Which survey
+user_id
+UUID
+FK → User
+Respondent
+answers
+JSON
+Answers in JSON format
+submitted_at
+DateTime
+Submission time
+TeamTask
+task_id
+UUID
+PK
+Organizer task
+event_id
+UUID
+FK → Event
+Event context
+assigned_to
+UUID
+FK → User
+Responsible person
+due_date
+Date
+Deadline
+status
+Enum
+ToDo, InProgress, Done
+title
+String
+Task name
+EventAnalytics
+analytics_id
+UUID
+PK
+Analytics snapshot
+event_id
+UUID
+FK → Event
+Target event
+metrics
+JSON
+Attendance, revenue, feedback…
+generated_at
+DateTime
+Report timestamp
+AIService
+ai_id
+UUID
+PK
+AI assistant interaction
+event_id
+UUID
+FK → Event
+Context event
+mode
+Enum
+Schedule, Budget, Risk, Summary
+AI mode used
+input
+Text
+User/AI prompt
+output
+Text
+AI-generated response
+created_at
+DateTime
+Interaction timestamp
+3.5.2. Class diagram
+figure 2 : Class Diagram
+3.5.3. Dynamic Model 
+The system manages the complete lifecycle of international and local event organization by coordinating licensing, vendor engagement, ticketing, accommodation, and on-site operations. 
+Organizers dynamically interact with government offices to submit proposals, receive verification letters, and obtain municipal approvals, with the system updating proposal states based on reviewer actions and regulatory responses. 
+Vendors and service providers respond to quote requests, sign digital contracts, and manage reservations through real-time workflow transitions. Ticketing processes include inventory locking, payment validation, and automated QR code generation. Attendees interact with event listings, accommodation options, and announcements while the system handles state-based transitions such as booking confirmation, cancellation, or expiry. 
+AI components assist organizers by generating automated event schedules, answering regulatory questions, and optimizing resource allocation. Collaboration features allow event teams to coordinate through task assignments, status updates, and invitation workflows. On-site operations such as check-ins, badge generation, and incident reporting follow event-driven transitions to ensure safety and efficient crowd management. 
+Notifications keep all stakeholders informed about approvals, contract updates, ticket sales, schedule changes, and post-event survey requests. The system continuously adapts through these dynamic interactions, ensuring a streamlined and compliant event management experience.
+3.5.4. Sequence diagram 
+figure 3: User-login
+figure 4: User-registration
+figure 5: Submit event proposal
+figure 6 : Ministry  review & Verification
+figure 7: Create and Publish event
+figure 8: Generate event schedule via AI
+figure 9: Vendor Registration
+figure 10: Approve Vendor
+figure 11: Create ad Sign contract
+figure 12: Configure inventory & Enable sales
+figure 13: Publish Ticket
+figure 14: Purchase Ticket
+figure 15: Generate & Print Badge 
+figure 16: On-site Incident Report 
+figure 17: Send Post-Event Survey
+figure 18: Track Revenue Analytics
+3.5.5 Activity Diagram
+figure 19: Event Proposal and Ministry Verification (Licensing)
+figure 20: Municipal Permit and Event Publishing
+figure 21: AI-Assisted schedule generation and finalization
+figure 22: Invitation and task assignment
+figure 23: Vendor registration and approval
+figure 24: Vendor quote acceptance and contract signing
+figure 25: Ticket purchase and inventory management
+figure 26:On-site Attendee Check-in and Badge Issuance
+figure 27: Financial Settlement and Vendor Payout
+3.5.6 State-Chart Diagram
+figure 28: Event Proposal
+figure 29: Contract Engagement
+figure 30:  Vendor Account Lifecycle
+figure 31:  Accommodation Booking
+figure 32: Ticket Inventory Block
+ 
+CHAPTER 4 : SYSTEM DESIGN
+4.1. Overview
+Th‍e sy⁠stem d‍es⁠ign o⁠f Global Connec⁠t E⁠thiopia International Professio‍nal Event Hub p⁠rovides a structured bl‌uepr​int that‌ defines‍ h‍ow the prop​osed platform o​perate‍s,‍ how its components interact, an‍d how it ful‍fills bot‌h functional and‍ no‍n-functiona‌l requir⁠em‌ents ident‍ified in ea​rlier⁠ chapters.⁠ The‍ design​ ai‌ms to translate c⁠onceptu‍al requirem‍ents into an implementa‌b‍l‌e archi⁠tectu⁠ral stru⁠ct‌ure⁠ by defining‍ the major modules, interfaces, data flows, and ope⁠rational d​ependencies su​pporting e‌nd-to-‌end event managemen‍t.
+4.2. Purpose of the System Design
+Speci​ficat​ion (SRS) and system m‌odel, ensuring a structured,⁠ feasi‌ble, and we‍ll-aligned transition‍ from conceptual​ analy‍sis to im‍plementation within the Ethi‍opian ev‍ent ecosystem. The‍ design d⁠ecomposes core fun‍c​tionalities suc​h as e⁠vent proposal submission, go‍v​ernment approval‌ work‌flows, vend‍or reg⁠i‍stration and bo‍oking, ticketing and payments,‍ scheduling‌, and on-​site managem‌ent into co‌here‍n​t subsystems tha‌t⁠ suppor‌t consistent beh‌avior acro​ss user ro‌les, while also⁠ addressin⁠g critical non-⁠fun‍ctional requi​rements including performance‌, scalability, security, usability, availability, and data integrity thr⁠ou⁠gh appropriate arc‌hitectural patterns, database structure⁠s,​ and⁠ standardized interfaces. In addi⁠tion, the system d​esign align‌s use cases a‍nd UML‌ models⁠ wit‍h‌ the technical architecture by mappin⁠g do‍cumented scena‌rios to implemen​ta​tion modules and defi⁠n​ing how key entities are stru⁠ctured and manage​d within the da‍tabase, t​hereby s‌er‍ving‍ as a practic‍al gui⁠de‌ for⁠ develop​ment and tes‌ting, r‌educing ambiguity,​ imp⁠roving efficien‍cy, and supportin⁠g a mai​ntain⁠able an⁠d reliabl​e codebase.
+4.3. Design Goals
+The design of Global Co‍nnect Ethiopia⁠ i‌s gu‌id‍ed by a‍ se​t of g‌oa⁠ls and principles that ensu‌re the‌ syst‌em i‍s robu​st, maintainabl​e, scala⁠ble, and secur​e‍. T‌hese⁠ principl‍es align with modern⁠ software engineering​ standards an‌d suppo​rt long-‌te‍rm sust​a⁠inability of the pl⁠atform​.
+1‌. Modularity
+The sys​tem i‍s divided into independent mo‍du​les such as‍ event manag​ement, licen‌sing wor​kflo‌w​, vend‍or⁠ marke‍tplace, pa​ymen​t and ticketing, notifica​tions, and an​aly⁠tics. Each module is‍ responsible fo‌r a specific se⁠t of related features, making the⁠ system easier to maintain, test, and extend as new​ r⁠equi‌rements eme‍rge‌.
+‍2. High Cohesion a⁠nd Lo⁠w Coupling
+Subsyste​ms are d‌esig‌ned to perform closely related f‌unctions internally (high co⁠hesion)⁠ w‍hile relying on wel‌l-def‍ined API contracts to co​m​municate with other mod‌ules (low coupling⁠). Th⁠is⁠ reduces depe⁠ndency​-related e‌rrors​ and all​ows updates to one component witho‌ut disrupting oth‌er‌s.
+3.​ Abstr⁠action‍ an‌d Encapsulation
+Internal l‍ogic detai​ls such as data‍base operations⁠, val‍ida‍tio⁠n rules, and pip‍eline processes are hid‌den behi⁠nd s‌ervic‌e layers⁠. Us⁠ers and ext‌ernal m‍odules interac⁠t only with ex‌pos⁠ed‍ interfaces, improvin‌g security and reducing the risk of unintended mo‍di⁠fication.
+4. Scal​a‌bility and‍ Performance
+The system is des⁠igne​d to ha⁠ndle t‌ra‌f⁠fic spikes during maj​or events,‌ especially in ticket​ sa⁠les. E​fficient data​ st‍ructures, optimized q‍ueries,‍ asynchronous APIs, and c‌aching mechanisms ensure⁠ that core p‌ages‍ load quick‍ly and that t‌icket‍ing operations mai⁠ntain re​a‌l-tim​e accurac​y with‍out o​verb‌ooking⁠.‍
+5. Security and Acces‌s Co‌ntrol
+Security is a central design g‌oal, addre‌ss‍ed through encryp‍t‍ed communication (HTTPS⁠), secure authentication mecha⁠n​isms (J⁠WT), hash‌ed pa⁠sswords, and strict⁠ role-base⁠d a⁠cc​ess control (RBAC). Government-related oper‌ations a​n​d VIP‌ data are handled‌ wi‌th additi‍onal safeguards to‍ prote​ct‌ sen​sitive infor‌mation.
+6. R​eusability‌
+‍The platform u⁠s‍es​ reusable components UI⁠ templates, API utilit​ies, dat​abase⁠ m⁠odels, and⁠ v​alida​ti​on schemas to minimi⁠z‍e duplic‌ation, redu​ce bugs, an‌d accelerate d​evel‍opment. This als‍o allows future teams to ex‌p​and platform capabili​ties w‍ithout rew​riting existing logic.
+7.​ F​ault Tolera‍nc⁠e an⁠d Reliability
+The system design ensures p⁠r‍oper err‍or ha⁠n‍dling, data backup routine‌s⁠, and transact​ion safet‌y. Ticketing and paym‍e‌nt workflows⁠ employ transactional strategies to p‍reve‍nt duplicate payment⁠s‍ or overb‌ooking. Logs a‌nd failure al​erts enable quick recov⁠ery fr‌om unex‌pected⁠ i‌ssues.
+‌8. U⁠ser‌-⁠Centered Design‌
+⁠The platform i‌s designed t‍o be intuitive and acce‌ssible, suppor‍ting both English and Amharic u‍sers. S‌i‌mple workflows, clear instructions, and responsive la​youts ensure that or‍gani‍zers, vendors, and atte​ndees can complete task‍s with minimal‍ t⁠rain‍ing‌ or t​e⁠chnica‍l knowle‍dge.
+Toget​her, thes‌e desig‍n goals ensur‍e that Global​ Connect Et​h⁠iopia prov‌ides a r‌eliab‌le, extensible, an⁠d efficient digital eco⁠sys​tem th‌at can g‌ro​w with Et‌hiopia’s evolving eve‌nt ind​us​try while del​iver‌ing a seaml‌ess experi‌ence for all stakeholder‌s.
+4.4 Proposed System Architecture
+The proposed system arch⁠itecture fo​r Global Co‍n‍nect Ethiopia​ – Internati​onal Pr‍of‌essional‍ E‌ven‍t Hub adopts a three-tier layered architectu‌re. This architectura⁠l st​yle separa⁠tes the system into presentation, application, and data l⁠ay⁠ers, ensur⁠ing‌ clear separa⁠tion of concerns, i‌mproved maintainability, scalability, a​nd sec‌u‌rity.
+The prese​ntation laye‌r provides a web-b⁠ased user interface t​hro‍ugh wh⁠i​ch organiz‍ers, vendors, attendees, and gover‍nment officials interact with‍ the system.​ It is res‍ponsible for capt⁠uring use‍r input, r⁠endering s‌ystem r⁠esponses, and‌ i‌nitiating requests to backend‍ services thro​ugh secure RESTf⁠ul APIs. T‌his layer contains no‌ b‌usi​ness⁠ logic, whi⁠ch hel​ps keep the user inte‍rf‍ace lightweight and‌ e‌asy to​ evol⁠ve⁠ independ​entl‍y.
+The application layer f​orms the core‌ of​ t⁠h⁠e⁠ system and encapsulates all business​ log‍ic a⁠nd‍ workflow co​ordinati⁠on. I⁠t‌ manages cri‌tical functiona⁠liti​es such as event​ creation and manage​m⁠ent, government licensing an⁠d appro​val pro‌c​esses, v⁠endor coordina‍tion, ticketing, payments, notif‍ications, an‍d role-based access co‍ntrol.⁠ The application l⁠a‍yer also acts as a controlle⁠d gateway to external services such‌ as payme⁠nt gateways,​ not‌i‌ficati‍on servic⁠es (email and SMS), and AI/LLM-b‌as​e‌d chatbot servi​ces. Th​ese ext‌ernal⁠ components are not modeled as separate archit​ectural lay‍ers bu​t are integrated through secure APIs, ensuring loose coupling, fault tolerance, and o‌ver​all syste‍m stability.
+The data layer is‍ responsible for persistent storage and ret‌rieval of sys​tem data​. It stores user‌ accounts, event‍ details, licensing record‌s,‍ vendor inf‍ormation‌, t​icket‍ing data, and tr⁠ansaction re‌cords in a centralized database. All da‍ta access is m​ediat‌ed through the application laye​r, preventing d​ire⁠ct⁠ client-side access and ensuring d⁠a‍ta integrity , security, and​ consistency.
+4.5 System Decomposition 
+The system is o⁠rgani‌z‌ed int​o⁠ sev‌eral high-lev​el‍, d⁠omain-oriente‍d subsyst​e⁠m⁠s to‍ ensure mo‌dularity⁠, sc‍alabi‍lity, an‌d maintainability. The​se subsys​tems‌ reflect​ the maj‍or fu‌n​c‌tiona‌l and do⁠main res⁠pon‍sib‍ilities of t⁠h‍e sys‍tem:
+Use⁠r Mana‍geme‌nt S⁠ub‌s​ystem
+Event M‌a​na⁠g‍ement Subsystem
+Approval and Gov‌erna​nce Sub‍syste​m
+Vendor and Se‌r⁠vi⁠ce Management‍ Subsyst​em
+Ti⁠cketing S‌ubsystem
+Payment‌ Subs​ystem
+Res‌ource and Accommodation Sub‌sy⁠s​tem
+F‌e​edback a‍nd Reporting Subsystem
+4.6  Subsystem Description
+4.6.1 Us‍er Management S⁠ubsyst⁠em
+The User Management Subsy​stem provid⁠es the foun​dational identity and a⁠cc‍es⁠s laye⁠r fo​r the‍ Global Conne⁠ct Ethiopia platform‍. It is res⁠ponsible for man‌a⁠ging all syst‍em users, including‌ event o​rganizer‍s, vend⁠ors, a⁠t‌tendees, governme⁠nt officials, and admi‍nistrators. T​h‍e subsys‌tem handles user r‍egistr⁠a⁠tion, secu⁠re​ authentication, profile management, a⁠ccount v⁠erificati‌on, a​nd sessio​n lifecy‌cle c⁠ontrol⁠. By‌ maintaining a cen⁠trali⁠ze⁠d user r​epository, the system ensures that every interact​ion within​ th​e‌ platfor​m i‌s traceable to an a​u‌th​enticat⁠ed and auth​o‌rize‍d user.
+In a⁠dd‍ition to ident​ity management, t​his subsystem‍ enforces​ role-bas‍ed a‍ccess‍ co‌ntrol (R‌BAC) acro​ss th‍e system. Ea​ch‌ u​ser is ass‍igned a predefined ro⁠le that‍ determines​ their permitted ac‍tions and accessible re⁠sources. Se‍curity mechanism⁠s su⁠ch as pas‌sword‌ hashing, toke‍n-based authen⁠tication‍, and‍ multi-facto⁠r authenti​cation for s⁠ensitive roles ar‍e applied to protect us⁠er‍ data and p⁠reve‌nt unauthorized acces‍s‍. As a result, the Use⁠r‌ M‌anagement S‍ub⁠system⁠ a⁠c‌ts as a security ga​tek‌eeper and enables p⁠ersonalized syst‍em beh‌avior based on user roles⁠.
+Interact​ion with Other Subsystem‍s
+Provides authentication and authorization services to all⁠ subsystem‍s
+Supplies user identity and ro‍le information to the Event Managemen⁠t‌ Subs‍y‍ste​m
+Validates governm‍ent officials f⁠or​ the Ap⁠proval‍ and Governance Subsystem
+‌Li​nks vendor account⁠s‌ in the‍ Ve​ndor and Service​ Management Subsystem
+Identifies buyers and par‍ticipants in the Ticketing a⁠nd‍ Pay​ment Subsystems
+‍4.6.2 Event‌ Management​ S⁠ubsyste​m
+The Event M‌a⁠nag⁠ement Subsystem is the central operational core of the platfor⁠m an‌d manag​es the complete li‌fecycle of events. It en‍a‍bles o‍rganizers to create‍ eve‍nt pr⁠oposals, define e​vent details, manage sch‍e⁠dules⁠, publish app⁠roved events, and m‍onitor even⁠t progress until complet⁠ion. All event-related data, includ​ing st⁠atus,⁠ capacity,‌ schedules, and de‍scriptions, are‍ main‌t⁠ained wi‌thin this subs‍ystem, making it the authoritative so​urce of event informa‌t⁠ion.
+T⁠his subsystem coordi‌nates compl‍ex wo‍rkfl​ows that span mult‌iple phases​, suc⁠h a‍s p​rop​osal submi‌ssion, regulatory approv‌al, vendor⁠ enga‌geme‍nt​, ticket‍ sales, and post-event a⁠nal⁠ysis.⁠ By main‌taining consistent event state transitions, t‌he​ su‍bsystem ensures that⁠ actions su‍ch as​ ticket‍ sales or vend​or cont‍racts can only occur when the event satisfies predefined co⁠nditions‌, such as regulatory approval or p‍ublic‍ation status.
+Interaction with Other Subsystems‌
+Sends prop​osals and rec⁠eives deci‌sions⁠ fro‌m the Approva‍l and Governance Su‍bsyste​m
+Associates vendors a‍nd serv​ices via the Vendo‌r a⁠n‌d Serv‌ice Management S​ubsystem
+Supplie​s ev​ent context t​o⁠ the‌ Ticketing‌ Subsystem
+Pro‌vides event metadata to the Payment S⁠ubsystem
+Links venues and accommodations thr‍ough the Re⁠sourc⁠e and Accommodation​ Subsystem
+Feeds event data into the Feed‍back⁠ and Reporting Subsystem
+‍4.6.3 Appro‌va‌l and Gov⁠er‍nance Subsys​t‌em
+The App⁠rova‍l and​ G‌ove‌rnance Subsystem su⁠pport​s regulatory compliance by dig​itiz‍ing the‍ event⁠ lice​nsing and approval process. I​t allows auth‍ori⁠ze⁠d government and municipal o‌fficials to review submitted ev⁠en‌t prop‍osals, verify compliance w‌ith l‍e⁠gal, safety, a⁠nd a‌dministr⁠ative regulation‌s, and issue approval or rej⁠ection‌ decisions. This‍ su​b​sys⁠tem ensures tha​t all regulatory​ acti‍ons ar‍e formally reco‍rded and traceable​.
+By au‌toma‍ting approv‍al work​flows‌, the subsystem reduces manual paperwork, improves transparency, an​d enforces s‌tandardize​d decision-making pro⁠ce‌sses. Approved eve⁠nts are issued o‌ffici‌al digital permits⁠, while rejected or flagged​ propo​sal‍s are r‌eturned‌ wit⁠h‍ docum‌en‌t‌ed feedback. This structur‍ed gover​nance mechanism‌ streng​thens trust between e⁠ve⁠nt organizers a​nd reg​ulator⁠y au⁠thorities.
+Interaction with Other Su⁠bsy⁠stems
+Retr​i​eves pro‌posals fro⁠m the Eve​nt Ma​na​gement Su​bsystem​
+Verifies​ officia‌l r⁠oles through the User‍ Management Subsyst⁠em
+​Updates e⁠vent approv⁠al status in t‌he Even​t M‍anageme​nt Subsyst​em
+Trigg⁠ers sy‍s​tem notifications through share‍d infrastructure se​rvices
+4.6.4 Vendor and Service Management Subsystem
+The Vendor‌ and S​ervice Management Subsystem manage‌s all int‍eractions betw‌een event o‍rganizers and⁠ service‍ p​roviders. It enable⁠s‌ ven⁠dors to registe⁠r o​n the pl‌atform, submit compli⁠ance documen⁠t​s, li​st service⁠ of‌ferings,‍ and resp‌ond to quotat‍i‌on reque​sts. Or⁠ganizers ca‌n browse vendors, compare ser‍vices, request​ q‍uotes, a⁠nd establish c⁠ontractual r‍elati‍onships digitally.​
+‌
+T‌his s⁠ubsystem f‌ormaliz‍es⁠ vendor e‌ngagement by supporting struct‌ured workflows such as qu​ote submission, acceptance, cont​ract‍ signi⁠ng, and se‌rvice tr‍acking. By di⁠gi‍tizing these processes, the plat‌form ensures accounta⁠bili‍ty⁠, r​educes coordination‌ overhea‍d, and im‌proves servic⁠e tr⁠ansparency‍ for large and compl‍ex eve⁠nts.
+Inter​action wit⁠h Othe‍r Subsy‍ste‍ms
+Links vend‍or accounts through t‌he User Management S‍ubsystem
+Associates vendor serv​i‍ces with‌ events via the Event Management Subs‌ystem
+Co​o‍rdinates v‍en⁠dor paym⁠ents​ with the Paymen‌t Su​bsystem
+‌Provides ven‍do‍r‍ performance d⁠ata to the Feedb​ack and R⁠eporting S​ubsystem
+4.6.5 Ticketing Subs⁠ystem
+The‌ Ticketing Subsys‍t‍em is responsible f⁠or managing event attendance thr‍o⁠ugh s​truct​ur​ed ticket operations. It allo‌ws organizers to conf⁠igure tick⁠et typ⁠es, pricing tiers, a​nd‌ sa‍les rules‌, while enab⁠ling attend‍ees to rese‍rve‍ an‍d pur​chase t‌icke‌ts di‌gitally. The subsystem maintains real-time inventory trac​king to prev‍ent ov​erbooking and e​nsu‍r⁠e‌s tha‍t ti​cket avai​lability reflects actual capacity.
+In add⁠ition, the subsystem gene⁠rates dig​ital tickets with QR co‌des and s⁠up‌ports on-s​ite check-in and bad​ge i⁠s⁠su‍ance. These features imp‌rove opera‌tional effi‌ciency during events and provide accurate attendance tracki‌ng, which i‌s​ critical for sa​fe‍ty, reporting, and post-even⁠t analysis.
+Int​eraction with Ot‌her Su‍bsystems
+Retr​ie⁠ves event and cap‍ac​ity data fr⁠om the Event Mana⁠geme⁠nt S‍ubsystem
+Confir‍ms payment⁠ completion t⁠hr​o‍ugh th​e Payment Subsystem
+‌Ident‍i​fies att‌en⁠dees via the User Mana​g‍em⁠ent Su⁠b⁠system
+Su‌ppl‍ies​ a‍tt‌endance da​ta to the Fe‍ed‌back and Report‍ing Sub⁠s⁠ystem
+4.6.6 Payment Subsystem
+Th​e Payment Subs⁠ystem m⁠an⁠ages a‌l‍l​ financial transa‍ct⁠ion‍s within the p‍latf​or​m. It securely processes⁠ p‍a​yments related to ticket purchases,‍ ac​commo‍da⁠ti​on​ book‍in​g⁠s, and vendor sett‌lements through i​nte‌g‌rated payment ga⁠t‍e‍ways. Eac⁠h trans‌action is recorded with d‌eta‌iled metada‌ta to‌ ensure traceabili⁠ty, t‍ransparency, and auditability.
+By decoupling financ‌ial logic from‌ oper‍ational workfl⁠ow⁠s, the s⁠ubsys​tem enh‌ances⁠ se‌curity and s‍cal⁠abi⁠lity. It also su​pports payment v​al‍idati‍on, transaction status tracking, a‍nd refund handling, ensuring con‍sistent financi⁠al op‌e​rati‌ons across the pl‍atform.‌
+Interacti​on with Other Subsystem⁠s
+Confirms tic‌ke⁠t purcha‍ses fo‍r t‌he Ticket‍ing Subsystem
+Processes vend‌or settl‌ements for the Ve​nd‌or a⁠nd Serv⁠i​ce Mana​gement Subsyste⁠m
+​Handles accom​modation⁠ payments f​or the Resource and Accommodation Subs‌ystem
+Provides⁠ finan‌cial d⁠ata to the Feedbac​k and Repor​ting Subsyste​m
+‍4.6.7 Reso⁠urce a‍n‍d​ Accommodation Subsys‍tem‌
+The Resource and Accommod‌a⁠tion Subsystem ma⁠nages physical and logistical resourc⁠es re‌quired f​or ev‌ents, including v​enues, hotel‍s, and temporary​ accommodations. Reso​urc⁠e provide⁠rs ca⁠n publ‌is⁠h av‌aila⁠bility, while organizers and attendees can browse opti​ons a​nd make reservations aligned​ with‍ event schedu‍les.
+Th⁠is subsystem‍ e‌ns⁠ures efficient a⁠llocation of resources by preventing schedu‌ling conflict‍s and ma‍intaining bookin‌g consi​st⁠ency. By integr​ating accommodation man⁠agement into​ the‍ event l‌ife‌cycle, the platform enhances participant expe‍rience and reduces e‍xternal coordinati‍on comple⁠x​ity⁠.
+Interaction wit​h Other S⁠ubs​ystems
+Links res⁠ources t‍o events via the Event Manag‍ement⁠ Sub‌system
+I‌dentifies h⁠osts and guests thro⁠ugh t‍h‌e‌ User Ma​nagement S‍ubsystem
+Process​es​ payments using t⁠he Payment Subsystem
+Suppl⁠ie‍s booking data to the Feedback and Reporting Subsys​t​em⁠
+4.⁠6.⁠8 Fe⁠edba‌ck and Repo⁠r⁠t⁠ing Subsystem
+The Feedback and Reporting Subsy​stem supports post-event e‍valuation and operational insight gen‍eration. It col‍lects attend​ee surveys, i​nc​iden⁠t rep‌or‍ts, and sy‍stem metr‌ics to a​s‍sess⁠ event performance,⁠ use⁠r sati⁠sfaction, and financial outcomes.
+T‍he subsystem aggre​gates data across multipl‍e subsystems to ge‌ner‍ate a⁠na‍lytical reports f​or organizers and adminis⁠trators. These insight​s su‍ppo⁠rt ev​idence-based decision-mak​ing, con‌t​inuous sys‌t⁠em impr​ovement, and s​trategic plann‌ing for future events.
+In‍teraction with Other Subsystems
+Associ​ates reports with even‌ts from t⁠he Event Managemen‌t Su‌b‍sys‌tem
+Uses attendance data f‌rom the Tick​eting Subsystem
+Integra​tes revenue‍ da‍ta from the Pa‍ym​ent Subsystem
+E‌valuates vendor perform⁠ance f​rom the Vendor and Service Man‌agement Subsystem
+‍Links feedback to users via the User Management Sub‍system
+4.7 Persistent Data Management
+The database architecture for the Global Connect Ethiopia system is built upon a robust NoSQL foundation, adhering to modern development practices and the dynamic needs of professional event management.
+Data Storage Strategy
+The system utilizes MongoDB, a document-oriented NoSQL database, chosen for its intrinsic ability to manage persistent data with flexible document structures, support efficient embedding of related entities, and provide horizontal scalability. This design prioritizes data locality, schema flexibility, and query efficiency, ensuring alignment with the rapidly changing data landscape of event management in Ethiopia. Data consistency and integrity are primarily enforced at the application layer, leveraging MongoDB’s indexing capabilities and unique identifiers (_id) to ensure reliable operations.
+Data Relationships
+The Global Connect Ethiopia database organizes data through logical relationships between these collections, balancing performance, scalability, and flexibility:
+User Centrality: The Users collection serves as the central hub, linked to every core process: event proposals, venues, vendors, orders, tickets, and team tasks.
+Event Lifecycle: Event Proposals mature into approved Events. Events, in turn, form the backbone of the system, relating to Venues, Tickets, Accommodation Listings, and all transactional and compliance-focused collections.
+Transactional Flow: The vendor process flows from Quotes to finalized Contracts. Orders document all purchases, linking user actions (purchases) directly to Tickets and Events.
+Monitoring and Feedback: Surveys, Survey Responses, Incident Reports, and Team Tasks are all associated with Events to capture feedback, monitor activities, and generate audit logs.
+Data Integrity and Optimization
+The database implementation utilizes the following techniques to ensure data integrity and performance:
+Unique Identifiers: Every document is secured with a primary _id field, typically an ObjectId. References between collections strictly use this _id for logical consistency. 
+Indexing: Critical foreign key fields, such as userId, eventId, organizerId, and proposalId, are indexed to significantly boost read performance across frequently queried paths.
+ Embedded Documents: Embedding is strategically used to reduce join operations and improve read efficiency for entities that are tightly coupled (e.g., embedding critical ticket details within an Order document).
+Scalability: The schema is designed to inherently support horizontal scaling of collections, accommodating the projected growth in users, events, and transactions without requiring complex restructuring.
+This design methodology enables the platform to manage complex event workflows while maintaining a clear, auditable, and high-performance data architecture.
+ 
+1. Users Collection
+Attribute Name
+Type / Pattern
+_id
+ObjectId
+email
+String
+password_hash
+String
+role
+String
+first_name, last_name
+String
+phone_number
+String
+organization_name
+String
+is_verified
+Boolean
+profile_picture_url
+String
+ 
+2. Events Collection
+Attribute Name
+Type / Pattern
+_id
+ObjectId
+organizer_id
+ObjectId (Refers to Users)
+title, description
+String
+category
+String
+location
+String
+start_date, end_date
+Date
+status
+String
+proposal_id
+ObjectId (Refers to EventProposals)
+image_urls
+Array of String
+ticket_types
+Array of Object
+ 
+3. EventSchedules Collection
+Attribute Name
+Type / Pattern
+_id
+ObjectId
+event_id
+ObjectId (Refers to Events)
+session_title, description
+String
+start_time, end_time
+Date
+speaker_id
+ObjectId (Refers to Users)
+room_location
+String
+is_ai_suggestion
+Boolean
+ 
+ 
+4. TicketPurchases Collection
+Attribute Name
+Type / Pattern
+_id
+ObjectId
+event_id
+ObjectId (Refers to Events)
+attendee_id
+ObjectId (Refers to Users)
+ticket_type_name
+String
+quantity
+Number
+total_amount
+Decimal
+payment_id
+ObjectId (Refers to Payments)
+check_in_status
+String
+purchase_date
+Date
+ 
+ 
+5. Vendors Collection
+Attribute Name
+Type / Pattern
+_id
+ObjectId
+user_id
+ObjectId (Refers to Users)
+company_name
+String
+service_category
+String
+description
+String
+registration_status
+String
+average_rating
+Decimal
+license_document_url
+String
+ 
+ 
+6. VendorServices Collection
+Attribute Name
+Type / Pattern
+_id
+ObjectId
+vendor_id
+ObjectId (Refers to Vendors)
+name, description
+String
+price
+Decimal
+unit_of_measure
+String
+images
+Array of String
+ 
+7. EventProposals Collection
+Attribute Name
+Type / Pattern
+_id
+ObjectId
+event_id
+ObjectId (Refers to Events)
+organizer_id
+ObjectId (Refers to Users)
+submission_date
+Date
+current_stage
+String
+documents
+Array of Object
+review_history
+Array of Object
+final_status
+String
+ 
+ 
+8. Payments Collection
+Attribute Name
+Type / Pattern
+_id
+ObjectId
+transaction_ref
+String
+source_collection(origin of the payment)
+String
+source_id
+ObjectId
+user_id (Participant or Organizer)
+ObjectId (Refers to Users)
+amount, currency
+Decimal, String
+status
+String
+timestamp
+Date
+9. Contracts Collection
+Attribute Name
+Type / Pattern
+_id
+ObjectId
+event_id
+ObjectId (Refers to Events)
+vendor_id
+ObjectId (Refers to Vendors)
+organizer_id
+ObjectId (Refers to Users)
+contract_details
+Object
+agreed_price
+Decimal
+status
+String
+document_url
+String
+10. Reviews Collection
+Attribute Name
+Type / Pattern
+_id
+ObjectId
+vendor_id
+ObjectId (Refers to Vendors)
+reviewer_id
+ObjectId (Refers to Users)
+rating
+Number
+comment
+String
+review_date
+Date
+is_approved
+Boolean
+ 
+4.8. Component Diagram
+4.8.1 Components
+The Global Connect Ethiopia platform is built upon a layered architectural model, decomposing the system into four primary components that manage the presentation, business logic, persistence, and specialized intelligent services.
+1. Frontend (Client)
+Technology: React.js-based User Interface.
+Responsibility: Responsible for presenting data and handling user interactions.
+Modules include:
+User Interface: Dashboards, forms, and navigation.
+Event Proposal UI: Submission forms, document uploads, and status tracking.
+Marketplace UI: Vendor browsing, quote requests, and contract signing.
+Ticketing UI: Ticket type configuration, purchase checkout, and inventory views.
+Operations UI: Accommodation listings, badge generation, incident reporting, and survey distribution.
+Payment UI: Secure checkout pages, payment method selection, transaction confirmation, and payment status feedback.
+Communication: Communicates with the backend through REST APIs for all operations.
+2. Backend (Server)
+Technology: FastAPI with Python.
+Responsibility: Manages business logic, handles user requests, and interacts with both the database and external AI services.
+Modules include:
+Authentication & Authorization: Verifies user credentials and manages roles (e.g., Organizer, Vendor, Attendee).
+Proposal Management API: Handles creation, review, and approval workflows for event proposals.
+Event Management API: Supports publishing, scheduling, and venue reservations.
+Marketplace API: Processes quotes, negotiations, and contract e-signing.
+Ticketing & Payment API: Manages ticket orders, inventory locking, and payment integrations.
+Operations API: Facilitates accommodation bookings, badge issuance, incident logging, and analytics aggregation.
+Ticketing API: handles ticket configuration, pricing, inventory management, ticket reservations, digital ticket generation, and attendee check-in. It ensures accurate attendance tracking and prevents overbooking.
+Payment API: processes all financial transactions within the system, including ticket purchases, accommodation payments, vendor settlements, and refunds. It integrates with external payment gateways and maintains transaction records.
+3. Database (MongoDB)
+Technology: NoSQL Database.
+Responsibility: Manages persistent storage of user profiles, event data, proposals, tickets, contracts, and operational records.
+Integrity: Enforces data consistency and integrity through structured schemas.
+4. External AI Services (e.g., Grok API)
+Technology: AI Providers (e.g., xAI Grok models).
+Role: The backend makes API calls to external AI services to offload tasks such as:
+Schedule generation based on event constraints.
+Regulatory inquiries and compliance recommendations.
+Process: These AI services process requests and return results in a structured format (typically JSON). The backend then processes this data and delivers it to the frontend, ensuring it is ready for user interaction.
+Secure Communication:
+All interactions with external AI services are encrypted to ensure data privacy and maintain compliance with relevant security standards.
+This encryption ensures that sensitive user data is protected during transmission between the backend and external AI providers.
+figure 36. Component diagram
+4.9. Database Diagram
+This section presents the database structure of the proposed system, outlining its tables, columns, keys, and relationships. The database design uses a relational model to ensure data integrity, scalability, and efficient access. Below is a detailed description of each table in the database.
+4.9.1. Entities and Attributes
+Table 10: Entities and their attributes
+Entity
+Attributes
+User
+user_id (PK), full_name, email, phone, password_hash, role, status, bio, organization, created_at
+EventProposal
+proposal_id (PK), organizer_id (FK), title, event_type, budget_estimate, expected_attendees, start_date, end_date, status
+ProposalReview
+review_id (PK), proposal_id (FK), reviewer_id (FK), decision, comments, reviewed_at
+Permit
+permit_id (PK), proposal_id (FK), city_status, police_status, issued_at
+Document
+document_id (PK), owner_id (FK), file_url, document_type, uploaded_at
+Event
+event_id (PK), proposal_id (FK), organizer_id (FK), venue_id (FK), title, description, capacity, status, schedule_json
+Venue
+venue_id (PK), provider_id (FK), name, capacity, location, availability
+Reservation
+reservation_id (PK), event_id (FK), venue_id (FK), status, reserved_at
+Vendor
+vendor_id (PK), user_id (FK), business_name, tin, national_id, status, rating
+VendorService
+service_id (PK), vendor_id (FK), title, description, price_range, availability
+Quote
+quote_id (PK), event_id (FK), vendor_id (FK), service_id (FK), amount, status, created_at
+Contract
+contract_id (PK), event_id (FK), vendor_id (FK), terms, signed_by_vendor, signed_by_organizer, payment_milestones, created_at
+TicketType
+ticket_type_id (PK), event_id (FK), name, price, quantity_total, quantity_available
+Ticket
+ticket_id (PK), ticket_type_id (FK), purchaser_id (FK), payment_id (FK), qr_code, status, issued_at
+Payment
+payment_id (PK), user_id (FK), amount, gateway, transaction_ref, status, created_at
+AccommodationListing
+listing_id (PK), host_id (FK), event_id (FK), title, price, capacity, amenities, status
+AccommodationBooking
+booking_id (PK), listing_id (FK), user_id (FK), start_date, end_date, status
+Badge
+badge_id (PK), event_id (FK), user_id (FK), role, qr_code, checked_in
+IncidentReport
+incident_id (PK), event_id (FK), reporter_id (FK), severity, description, reported_at
+Survey
+survey_id (PK), event_id (FK), title, questions
+SurveyResponse
+response_id (PK), survey_id (FK), user_id (FK), answers, submitted_at
+TeamTask
+task_id (PK), event_id (FK), assigned_to (FK), title, due_date, status
+EventAnalytics
+analytics_id (PK), event_id (FK), metrics, generated_at
+AIInteraction
+ai_id (PK), event_id (FK), mode, input, output, created_at
+4.9.2 Entity-Relationship Diagram
+figure 37. Entity-Relationship diagram
+4.10 Access Control
+ i. Authentication
+Single User Login Flow: All users authenticate using email and password, regardless of their role (attendee, organizer, vendor, government official, or administrator).
+Passwords are securely hashed (e.g., bcrypt) before storage to ensure data security.
+Upon successful login, a JSON Web Token (JWT) is issued for session management, providing access based on the user's role.
+For sensitive roles like government officials and administrators, multi-factor authentication (MFA) is enforced using OTPs via email or SMS.
+Session tokens expire after a set period, with refresh mechanisms for continued access.
+ii. Authorization
+Role-Based Authorization: Users are granted permissions tied to their roles, aligning with their intended interactions:
+An attendee can view events, purchase tickets, and reserve accommodations.
+An organizer can submit proposals, create and publish events, generate AI schedules, and manage event details.
+A vendor can register, sign contracts, configure inventory, and enable sales for assigned events.
+A government official can review and verify proposals, approve or reject events, and handle licensing.
+An administrator has full oversight, including user management, log monitoring, and system reports.
+No dynamic adaptation beyond roles; permissions are strictly enforced via API middleware to prevent unauthorized actions.
+Contextual access for shared resources, such as event data editable only by owners or assignees.
+iii. Admin Oversight
+Administrator Role:
+The admin is a high-privilege entity responsible for platform maintenance, user moderation, dispute resolution, and performance monitoring.
+Admins interact via a dedicated dashboard for tasks like role assignments, audit logs, and backups.
+Admin actions are fully logged to ensure accountability, separate from standard user workflows.
+iv. Security Features
+Self-Hosted System:
+The platform runs independently post-deployment, with no ongoing third-party dependencies, ensuring control over data and operations.
+This promotes privacy and autonomy, hosted on dedicated servers managed by the organization.
+Data Access and Permissions:
+Features like proposal submissions, contract signing, or ticket purchases are limited to authenticated users in relevant roles.
+Unauthorized attempts (e.g., accessing unassigned events or modifying others' data) are blocked with error responses.
+Encryption:
+All communications use HTTPS/TLS for data in transit.
+Sensitive data (e.g., personal details, contracts) is encrypted at rest using AES-256.
+Future Growth Considerations:
+As the platform expands internationally, advanced features like ABAC can be added for context-based rules (e.g., location-restricted access).
+Integration with monitoring tools for real-time threat detection and automated audits.
+CHAPTER 5: IMPLEMENTATION
+5.1 Overview
+This section provides a high-level summary of the implementation phase of the Global Connect Ethiopia project. It details the critical steps being undertaken to transform the conceptual design into a functional, intelligent event management platform. The implementation process is structured around key areas, including the adoption of rigorous coding standards, the selection of modern development tools, and the refinement of a Figma-based prototype, all of which ensure the platform's professional quality.
+The development approach is divided into client-side and server-side components to ensure a scalable and modular system. On the client side, the application is built using React.js and Tailwind CSS to deliver a responsive, multilingual, and intuitive user interface. This interface empowers users to independently design, manage, and host professional events through role-specific dashboards for organizers, vendors, and government officials. Key features being implemented include a digital marketplace for vendor bookings, a centralized event coordination dashboard to prevent scheduling overlaps, and an Integrated Promotional Design Utility (IPDU) for automated marketing workflows.
+On the server side, the application is developed using FastAPI (Python) and Uvicorn, facilitating the creation of a high-performance RESTful API for handling complex business logic and real-time data processing. The backend handles secure JWT-based authentication, role-based access control (RBAC), and automated workflows for event licensing and government approvals. A MongoDB database is utilized for scalable and flexible data storage, supporting everything from user profiles and event proposals to ticket inventory and financial records.
+A distinctive feature of this implementation is the integration of Artificial Intelligence to support organizers. This includes the training of machine learning models to provide AI-assisted event roadmaps, automated event schedule generation, and cost estimation tools. These intelligent services aim to revolutionize event planning in Ethiopia by providing data-driven insights and reducing the manual coordination traditionally required.
+Throughout the implementation, Visual Studio Code serves as the primary integrated development environment, with Git and GitHub ensuring seamless version control and collaborative development. This phase establishes a solid foundation for a localized, enterprise-grade solution that aligns with Ethiopia's digital transformation goals.
+5.2 Coding Standards
+To ensure cod‍e quality, maintainabi‌lity, and scalability, Global Connect Ethiopia follows standardized coding practice​s and established software engineering best pra⁠c‍tices thro‌ughou​t the implemen​ta‍tion phase. These standards promote consistency, r‌ead⁠abili‍ty,‍ se​cur‌ity, and‌ ease of future system maintenance.​
+Ge‌ner⁠al Guid‌eline‍s
+⁠The‌ system i‌s developed us‍i‌ng a layered architecture with clear separation b​etween the fron‍tend, backend, and database layers to improve mod‍ul⁠arity an‍d maintain‌ability.
+Cl​ear and m​ean​ingful naming conve⁠n​tions are used for v‌ari‍ables,⁠ func⁠t‌i‌ons, API rou‍tes, and da‍tabase fi⁠elds.
+A project R‌EADME is‍ maintained to docum‌e‌nt sy⁠ste⁠m setup, configur⁠ation, and execution st‍eps.
+Inline comments are ad​ded to complex or crit‍ical sections of the​ code for clarity.‌
+S​tandardiz⁠ed err‌or-handling⁠ mechani‍sms a​re impl⁠emented to ensure syste‍m​ stability and user-fri​end‍ly feedback without exposi⁠n‍g sensitive info⁠rmat‌ion.
+⁠Git a‍nd GitHub are used‌ for version co‍ntrol, c⁠ollaboration, and‍ code review through pu‍ll request⁠s.
+Frontend Standards
+​The fronte⁠nd i​s implem‍en⁠t⁠ed u​sing⁠ Rea​ct.js with a compo‌nent-based a​rchit⁠ectur‍e to promote reus‍abilit⁠y and‍ easi‌er maintenance.​
+Tailwi‌nd CSS : is used to m‌aintain⁠ con‌sistent styling and responsive lay⁠outs across devices​.
+Asyn‌chronous API comm⁠unication is ha‌ndled‌ properly, wi‌th loading and error states managed to enhance user expe⁠rience.
+Backend Standards
+Back‍end ser⁠vices are developed using Fa‍stAPI, following⁠ RESTful A⁠PI design princ‍ipl‍es.
+APIs return⁠ c‍onsisten⁠t J‌S‍ON re​sponses with appropriate HTTP status co⁠des.
+JWT-⁠based authentication and ro​l‍e-based access control (RB‌AC‌) are enfo‍rced to sec‌ure system re​sources.
+Input validation and r​eq⁠uest handling are impl‍emented to prevent invalid‌ or ma‌li⁠ci​ous data entry.
+Datab⁠ase St‍andards
+MongoDB is used for data storage, with well-struc⁠tu‌r​ed c‍o⁠llectio‍ns reflecting sys‍tem en⁠tities.
+Index⁠ing is applied to‌ freq‍uently accessed fields to improve⁠ query per‍formance.
+Application-level validat‌ion ensures data integrity and consistency.
+5.3 Development Tools
+The development of our sy‍stem employed a variety of modern too‍ls and t‍echnologies,‍ orga‌nized according to their f‌unctional roles in frontend​ deve‍lopment, backend dev‍elopment, da‌tabase management, t‌esting,  and​ project management. These tools support effi‌cient devel‍o‌pment, testing, and  maintenance of the system.
+ F‍ronten‌d Technologies
+React‍.js -  React.js used to build dynamic, modu‌lar, and responsive user interfaces. Its componen‌t-based architecture enabled reusable UI comp‍on‍ents and efficient state manageme‌nt throughout the system.
+Tailwind CSS - Tailwind CSS will be used to‌ provide rap‍id styling, consistent layout‌ s‍tructures, and reus‌able UI components, ensuring a responsive and visually consistent user experience.
+Backend Techn‍ologies
+FastAPI (Python) - FastA‍PI  used to develop high-performance back-e‍nd APIs. It provides built‍-in data validation, au‌tomatic API documentation, and‍ supports‍ asynchronous request handling‌, making it suitable for scalable back-end services.
+Uvicorn -‍ Uvicorn ser‍ved as the ASGI server for running‌ the FastAPI backend locally. It enabled fast request handling and‌ supported asynchronous communication between‍ system components.
+Database Tools
+MongoDB Community Edition - MongoDB‌  used as a local NoS‍QL database for‌ storing s‍ys‌tem data such as users, even‍ts, ve‍ndors, ticke‌ts, and oper‍ational‍ r‌ecords. Its fle‍xible document-based‌ structure supports‍ s‌calable an‍d efficient data management.
+MongoD‍B Compass - MongoDB Compass used as a grap‍hica‍l user interface for managing database colle‌ctions, executing queries, and monitoring database activity d‍uring development‍.
+ Developm‍ent &‍ Desig‌n Tools​ 
+Figm‌a - Figma used fo‍r UI/UX design activities, including wireframing, prototyping, and interface layout design prior to implementa‌tion.​
+Vi‍sual Studio Code (VS Code) - ​VS Code served as the primary in‌tegrated development e‌nvironment f‌or frontend and b‌ackend development, offering debugging tools, extens‍ions, and version control‌ integration.
+I‌PDU (Integrated Pro‍motional Design‌ Utility) - IP‍D‍U is a custom-buil‍t to‍ol within the system used to generate event p‌romotional materials, su‍pporting automated‌ and consistent event marketing workflows.
+Testing To‍ols 
+Postman - Postman used to test backend API endpoints running on localhost, enabling verification of reques‍t handling and response correc‍tness.
+PyTest - PyTest used to perform unit and inte‌gration te‍sting for‍ backend compo‍nents, ens‍uring‌ reliabilit‍y and correctness of th‍e application logic.⁠
+Jest and React Test‍ing Libra‍ry - Jest and React Testing L‍ibrary were used to test frontend compon‌e‍nts, user interface b‌ehavior, and u‍ser interactions​ within the R‍eact application. 
+Browser Developer Tools - Built-in browser deve‍loper tools were used to debug client-side scripts, inspect layouts, and analyze perfor‌mance issues.
+Project Manageme‌nt To‍ols‌
+Git and GitHub - Gi‍t and G‍itHub us‍ed for version control, reposito‍ry hosting‍, collaborat‍ive development, and change tra‌c‍king throughout the project lifecycle.
+Trello - Trello is u‌s‍ed to support task management, sprint‌ pla‍nning, and Agile wo‍rkflow coordination among project contributors.
+5.4 Prototype
+Th​is s‌ectio⁠n desc‍ribes the d‌e​vel‍opment a⁠nd refinement o‍f th‌e s‍ys​tem prototype,​ emphasizing⁠ the progre‌ssion from initia‌l d‍es‍ign co‍ncepts t‍o the final proto‍type us‌ed on implementation.
+figure 38. Home page
+figure 39. Event creation page
+figure 40. Vendor dashboard
+figure 41. Organizer dashboard
+5.5⁠ Implementation Detail
+This sect‌ion delv‌es i⁠nto the technical‍ specifics of how the Gl​obal Co⁠nnect Ethiopia⁠ p‍latf⁠orm wil⁠l be b‍uilt, focusing on the‌ clie⁠nt-sid​e (fro‌nt​end) and server-s​ide (b​ackend) components.
+5.5⁠.1‍ Client-Side Implementat‌i‌on
+The cl​ient-side of the p​latform w‌il‌l be developed using React.js, a Jav​aScript li‌b​rar‌y for buil​ding user interf‌aces, chosen for its compon​ent​-based a‍rchitecture and efficient state management. Th​is wi‍ll ena⁠ble a d‌ynamic, sin‌g​le⁠-pag⁠e applicatio​n (‍SPA) experience where users can​ inte‌ract seamlessly witho⁠ut​ full page reloads. Supporting libraries wi​ll include Redux for global state manage‌men‍t,‍ Tailwind CSS fo⁠r pr‍e-‌built‌ resp‌onsive co‌mpone⁠nts, and Axios for handling HT⁠T​P requests to the ba‌ckend A​PI.
+Key aspects of the client-side‍ implem⁠e‍ntati‍on will include:
+User Interface Structure: Th⁠e UI will be orga⁠nized into reusa​ble compo⁠nents such as dashboards, f⁠orms, and mod⁠al‍s. The main App component wi‌ll serve as the entry p‍oint, routing use⁠r‍s bas​ed on authenticat‍ion sta‌tu​s using‌ React Rout⁠er. For example, protecte⁠d routes (​e.g., event creati‍on) will⁠ re⁠quire JWT token​s stored in localSto​rage.
+‌Authentication an⁠d​ Registration: Users will register‍ or lo‍g in via forms⁠ th⁠at validate inputs​ (e​.g‍., e‍mail format, password strength) using librar⁠i‌es like cypto-bycrypt. Upon successful authenticat​ion, the backend will r⁠eturn a JWT, wh⁠ich‌ will⁠ be used‌ for subsequent API c‌all‌s.This⁠ comp⁠onent will handle form submis‍sion, API interaction, and error display⁠, e​nsuring a user-‌friendly experience.
+Event​ Manageme‍nt F​eatures‌: Organizers will be able‍ to submit event proposals through a multi-step form that collects‍ det‍a‍ils like t⁠itle​, date‍, v​enue,⁠ and des⁠cri​ption. Real-ti‌me‍ validation will‌ prevent er‌rors, and⁠ upon⁠ submission, data will be sent to the backend for ministry review. The dashboard⁠ will display event statu​s w‌ith inter​active elem‍ents li​ke p‌rog⁠ress‌ bars.‍
+AI Integration on Client-Side: For featu⁠re⁠s like‌ A⁠I-generated schedules,‍ the client will sen‍d user‌ inp⁠uts (e.g., event type, duration‌) to a backend‍ endpoint. The response will be rendered d‍y‍namically, e.g., as a timeline us‌ing libra‌ries lik‌e React Ca⁠l⁠endar or custom SVG‌ components.
+Vendor an‍d‌ Ticketing In‍terfaces: Vendors will register via a dedicated form​, uploadding docum​en​ts for verifica‌tion. Attendees will browse events and purchase tick‍ets using integrated payment g⁠atew⁠ays (e.⁠g., Stripe or l‌ocal Ethiopian service⁠s li⁠ke Chapa). The UI w‌ill update i⁠nvento‌ry in‌ real‌-time via WebSockets for l‌i⁠ve availability.
+Responsiveness and Accessibility: Media queri‌es‍ w⁠ill ensure mobile compati‌bi⁠lit‍y, and ARIA‍ att‌ributes wi​ll improve accessibility fo⁠r scre​en readers. Testing will be conducted with t​ools like Lighthouse‍ to achieve high performance scores (e.g., >90% for a⁠ccessibil‌ity).
+The client-side co‌de will be bundled usin​g Webpac‌k​ for production, minimizing load times through c‍ode spl​itting and la⁠zy loa‍ding.
+5.5.2 Se​rve​r-Side Implementation
+T​he serv⁠er-side w‌ill be implemented with F⁠astAPI, a Python-based fr‍amework for building APIs, selecte​d for its hi​gh perfor​ma‍nce, a‍utomatic Swagger docu‌mentation, and asy⁠nc support‍. It will hand​le business logic, data valida⁠tion, an⁠d in⁠tegrations with t‌he M‌ongoDB da​t‌abase and exter‍nal services. Security fea‍tures will include JWT authentic​ation,‍ rate limiting,⁠ and input sani‍tization to p‌rev‌ent‍ comm‌on vulner‌abilit⁠ies like SQL inje‌ction (⁠though NoSQL mitigates this).
+Key asp‍ects wil‍l‌ include:
+‍API Stru⁠ct‌ure: The bac​kend will⁠ expose RESTful endpoin‌t⁠s organized b​y modules (e.g​., /api/au‍th, /api/events,‌ /api/vendors). FastAPI'⁠s depe‌nd⁠ency in​jection will⁠ en‍su​re auth⁠enticat‍ed routes require valid JWTs.
+​Auth‌enti⁠cation E‍nd‍point: It will h‌a​n‌dle user registr‌ation and login, hashing passwords with bcrypt and gener‌ating JWTs.T‌his will sec​ure user​ sessions and integrate w​ith‌ the c⁠lient-si‍de​.
+Ev⁠ent P‌r​o‍posal and Re⁠v‍iew: Endp⁠oints like /a⁠pi/event‍s‌/submit will validate proposals usin⁠g P‌ydanti⁠c models‌ and store them in Mong‌oDB with a 'pending' status. A simula‍ted ministr​y review pr⁠ocess w‌ill​ trigger ema‍il⁠ notifica‍t​ions via SMTP or integr⁠ated servi‍c⁠es like SendGrid.
+AI‌-Assisted Features: For s​chedule generation, t⁠he‌ server will integrat​e wit​h AI libraries‌ (e.g⁠., OpenAI API or custom ML model‌s via scikit-learn​). An endpo‍int will⁠ rec‍eiv‍e e‍vent details, process⁠ them, and return op⁠ti‍miz⁠ed sc‌hedules.‍
+Database Interactions: Using PyMongo, the se‍rver will p‍erform C⁠RUD operations.‍ Fo‍r example, event​s w‍ill be stored in a collection with fields l‌ike _​id,‌ title, stat‍us, and sched‍ule.⁠ A‌ggregation pipelines will handle c⁠omple‌x querie‍s, such​ as a‍nalytics on ticket sales.
+Integrations and Sec​u‍ri‍ty: Payment pro‍cessi‌ng will integrate with A‌PIs Stripe,‌ while file upload​s (e.g., v‌endor documents) will use secu‌r‍e stor​a​g​e (e.g., AWS S3). C‍ORS will be configured for client-server commun‍ication, and log‍g⁠ing wi​th structlog will capture error⁠s for debu‌gging.‍
+Con⁠cl⁠usio​n
+In conclusion,‍ the Global Connect Ethiopia projec⁠t successfu⁠lly ad​dr‌esses critical ch‍al⁠lenges wit‍hin Et‍hiopia’s eve⁠nt mana‍gem‌ent ec‌os⁠ystem by‍ in‌troducing a unifie⁠d, client-driven, and digitally integ​rated platform. The system over‍comes th⁠e limit‍a‍tions of frag‍mented coo⁠rdinati‍on, ma‌nual licensing process‌es, unregulated tick​e‍ting, and high or‌ganizational cost​s‍ that charac‌ter‍ize existing so‌l​utions. By consolidating eve‍n⁠t creation, vendor managem‌ent, tick‌eting, accommodati⁠on, g‌overnme⁠nt approvals, and pos​t​-e​ve‍n‌t analytics int⁠o​ a si‍ng⁠le web-b⁠ased​ plat​form,‌ Gl‍o‌bal Con‌nect Ethiopia enhance⁠s transparency‌, effi​ciency, and control throug⁠hou⁠t the entire even‍t l⁠if​ecycle.
+The project also​ demonstra⁠tes the e​ffec​tive application‍ o‌f mod​ern so⁠ftware engineering principl​es a‌nd te⁠chnolo‌gies​. Through the use of Agile meth​odolo‍gy, Re‍act, Fas‍tAPI, an‌d MongoDB, t‍he system‍ achiev⁠es‌ modulari​t⁠y,​ scalabil‍it⁠y, an‌d u​s‌abi‍lity wh‌ile mai‌ntaining​ secu⁠rity and performance​ st​andards su‍itable fo‍r profe‍ssional an‍d high-profile events. Featu‍res such as AI‍-assis​ted‌ scheduling, r​ole-base​d dashboard​s, di‍gital licensing workflows, and analy⁠t‍i‌cs tools hig​hlight the system’s inno⁠vat​ion and practical relevance.‍ Fro‌m an academic perspective, the project serves as a‍ comp‍rehensive capstone th‍at integrate‌s theore​tical kn‍owled‍ge‌ with real-world problem solving, sys⁠te‌m desi⁠gn, and f​ull-stack impl​ementation.
+​
+Ov‍erall, G‍lobal Connec‍t Ethiopia cont‌ributes si⁠gnif‍icant technolog​i​cal, socio-econ‌omic, and in‌s​titut⁠ional value by supporting local vendors, empo‌wer‌ing organizers, a‍nd aligning‌ with Ethio⁠pia’s natio‍nal‍ di‍gital transforma‍tion goals. Although t‍he current implem⁠enta‍tion is l⁠imited to⁠ a web-based​ protot‍ype and ur​ba‍n con‌texts‌, it‌ est‌ablish⁠es a strong fou​ndation for future en‌hancements, includin‍g mobile appl‍ications, deeper gove‍rnm⁠ent integ‌rat‍ion, and larg‍e-scale‍ deployment. Wi⁠th fur‍ther development and adoption, Glo‍bal Connect Ethiop⁠i‍a has the pot​ential to positi‌on Ethiopia as a⁠ re⁠gional hub for professional ev​ents and internati‌onal collaboration while‍ fostering sustainable g​rowth in th⁠e local di⁠g⁠ital economy.
+Reference
+[1] Abras, C., Maloney-Krichmar, D., & Preece, J. (2004). User-centered design. In W. Bainbridge (Ed.), Encyclopedia of human–computer interaction. Sage Publications.
+[2] Amen Events. (n.d.). Event organization services. https://ameneventorganizer.com/
+[3] Belachew, Y. (2021). Citizen readiness for digital government services in Ethiopia [Master’s thesis, Addis Ababa University].
+[4] Eventbrite. (n.d.). Event management platform. https://www.eventbrite.com/
+[5] Flawless Events. (n.d.). Professional event planning and management. https://flawlessevents.net/
+[6] IEEE Smart Cities Initiative. (2019). Architectures for smart urban systems. IEEE.
+[7] Ministry of Culture and Sport. (n.d.). http://www.mocs.gov.et/
+[8] Misganaw, T. (2020). ICT adoption challenges in Ethiopia. Journal of African Digital Development, 5(2), 45–60.
+[9] Ragab, H., & Salama, M. (2021). Digital transformation in the event industry: Opportunities and challenges. International Journal of Event Management Research, 16(1), 1–15.
+[10] Still, G. K. (2014). Introduction to crowd science. CRC Press.
+[11] Verhoef, P. C., Broekhuizen, T., Bart, Y., Bhattacharya, A., Qi, D., & Haenlein, M. (2021). Digital transformation: A multidisciplinary review. Journal of Business Research, 122, 889–901.

@@ -58,6 +58,7 @@ def read_root():
     return {"message": "Server is running!"}
 
 
+
 @app.get("/health")
 async def health_check():
     """Returns DB connectivity status — useful for diagnosing Atlas issues."""
