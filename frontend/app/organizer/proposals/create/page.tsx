@@ -196,9 +196,9 @@ export default function CreateProposalPage() {
     if (!formData.end_date) errors.push("End date is required");
     if (startDate && Number.isNaN(startDate.getTime())) errors.push("Start date is invalid");
     if (endDate && Number.isNaN(endDate.getTime())) errors.push("End date is invalid");
-    if (startDate && startDate < now) errors.push("Date cannot be in the past.");
-    if (endDate && endDate < now) errors.push("Date cannot be in the past.");
-    if (startDate && endDate && endDate <= startDate) errors.push("End date must be after the start date.");
+    if (startDate && startDate < now) errors.push("Caution: Date cannot be in the past.");
+    if (endDate && endDate < now) errors.push("Caution: Date cannot be in the past.");
+    if (startDate && endDate && endDate <= startDate) errors.push("Caution: End date must be sequential (after the start date).");
     if (!formData.location.trim()) errors.push("Location is required");
     if (formData.expected_attendees <= 0) errors.push("Expected attendees must be greater than 0");
     if (!formData.budget_estimate || Number(formData.budget_estimate) <= 0) errors.push("Budget estimate is required");
@@ -215,12 +215,12 @@ export default function CreateProposalPage() {
     if (formData.start_date) {
       const s = new Date(formData.start_date);
       s.setHours(0,0,0,0);
-      if (s < today) errors.push("Start date cannot be in the past");
+      if (s < today) errors.push("Caution: Start date cannot be in the past");
     }
     if (formData.end_date) {
       const e = new Date(formData.end_date);
       e.setHours(0,0,0,0);
-      if (e < today) errors.push("End date cannot be in the past");
+      if (e < today) errors.push("Caution: End date cannot be in the past");
     }
 
     if (errors.length > 0) {
@@ -274,6 +274,33 @@ export default function CreateProposalPage() {
   };
 
   const handleSaveDraft = async (redirectTo = '/organizer/proposals') => {
+    // Validate dates to show a caution message instead of causing an API 400 error
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startDate = formData.start_date ? new Date(formData.start_date) : null;
+    const endDate = formData.end_date ? new Date(formData.end_date) : null;
+
+    if (startDate) {
+      const s = new Date(formData.start_date);
+      s.setHours(0, 0, 0, 0);
+      if (s < today) {
+        setError("Caution: Start date cannot be in the past.");
+        return;
+      }
+    }
+    if (endDate) {
+      const e = new Date(formData.end_date);
+      e.setHours(0, 0, 0, 0);
+      if (e < today) {
+        setError("Caution: End date cannot be in the past.");
+        return;
+      }
+    }
+    if (startDate && endDate && endDate <= startDate) {
+      setError("Caution: End date must be sequential (after the start date).");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 

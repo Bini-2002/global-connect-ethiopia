@@ -36,7 +36,6 @@ type EventWorkspaceTab =
   | 'attendees'
   | 'vip'
   | 'booking'
-  | 'tickets'
   | 'engagement'
   | 'operations'
   | 'vip-reservations'
@@ -71,7 +70,6 @@ const tabConfigs: TabConfig[] = [
   { id: 'attendees', label: 'Attendees', icon: UserCheck, href: (eventId) => `/organizer/events/${eventId}/attendees` },
   { id: 'vip', label: 'Hotels', icon: Crown, href: (eventId) => `/organizer/events/${eventId}/vip` },
   { id: 'booking', label: 'Booking', icon: Tickets, href: (eventId) => `/organizer/events/${eventId}/booking` },
-  { id: 'tickets', label: 'Tickets', icon: Tickets, href: (eventId) => `/organizer/events/${eventId}/tickets` },
   { id: 'engagement', label: 'Engagement', icon: Megaphone, href: (eventId) => `/organizer/events/${eventId}/engagement` },
   { id: 'operations', label: 'Operations', icon: ShieldAlert, href: (eventId) => `/organizer/events/${eventId}/operations` },
   { id: 'vip-reservations', label: 'VIP Rooms', icon: Crown, href: (eventId) => `/organizer/events/${eventId}/vip-reservations` },
