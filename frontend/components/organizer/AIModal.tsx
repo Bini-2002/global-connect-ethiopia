@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import { Send, X, Bot, Circle } from 'lucide-react';
+import { Send, X, Circle } from 'lucide-react';
+import AIAssistantIcon from '@/components/AIAssistantIcon';
 
 interface ChatMessage {
   id: string;
@@ -205,7 +205,7 @@ export default function AIModal({ isOpen, onClose }: AIModalProps) {
         <div className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-[#062E22] to-[#0B3A2E] text-white flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-              <Bot className="w-5 h-5" />
+              <AIAssistantIcon className="w-5 h-5" />
             </div>
             <div>
               <h2 className="font-bold text-base">AI Assistant</h2>
@@ -215,7 +215,7 @@ export default function AIModal({ isOpen, onClose }: AIModalProps) {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-lg transition">
+          <button onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-lg transition" aria-label="Close AI assistant" title="Close AI assistant">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -268,6 +268,8 @@ export default function AIModal({ isOpen, onClose }: AIModalProps) {
               onClick={handleSend}
               disabled={!input.trim()}
               className="w-10 h-10 bg-[#062E22] text-white rounded-full flex items-center justify-center hover:bg-[#0B3A2E] transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              aria-label="Send message"
+              title="Send message"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -299,15 +301,9 @@ export function AIFloatingButton({ onClick }: { onClick: () => void }) {
     <div className="fixed bottom-8 right-8 z-40">
       <button
         onClick={onClick}
-        className="relative group"
+        className="relative group flex h-14 w-14 items-center justify-center rounded-full bg-[#062E22] text-white shadow-xl transition hover:scale-105 hover:bg-[#0a4533]"
       >
-        <Image
-          src="/ai.png"
-          alt="AI Assistant"
-          width={100}
-          height={40}
-          className="cursor-pointer hover:scale-110 transition-transform drop-shadow-lg"
-        />
+        <AIAssistantIcon className="h-6 w-6" />
         <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-[#062E22] text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
           Chat with AI
         </div>

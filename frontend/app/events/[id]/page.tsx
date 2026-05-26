@@ -156,13 +156,26 @@ export default function EventDetailPage() {
         setSchedule(scheduleResponse);
 
         if (getRole() === 'attendee') {
-          const [myBookings, inbox] = await Promise.all([
+          const [myBookings, inbox, meProfile] = await Promise.all([
             eventsService.getMyBookings(eventId).catch(() => []),
             api.get<AnnouncementDeliveryRecord[]>('/users/me/in-app-announcements').catch(() => []),
+            api.get<any>('/users/me').catch(() => null),
           ]);
           if (!active) return;
           setBooking(myBookings[0] ?? null);
           setInboxAnnouncements(inbox.filter((item) => item.event_id === eventId));
+
+          const profileDefaults: Record<string, string> = {};
+          (eventResponse.required_attendee_fields || []).forEach((field: string) => {
+            profileDefaults[field] = '';
+          });
+
+          setForm((prev) => ({
+            ...prev,
+            attendee_name: prev.attendee_name || meProfile?.name || '',
+            attendee_email: prev.attendee_email || meProfile?.email || '',
+            attendee_profile: profileDefaults,
+          }));
         }
       } catch (err) {
         if (!active) return;
@@ -212,6 +225,16 @@ export default function EventDetailPage() {
     ]);
     setEvent(eventResponse);
     setBooking(bookingResponse[0] ?? null);
+  };
+
+  const handleProfileFieldChange = (field: string, val: string) => {
+    setForm((prev) => ({
+      ...prev,
+      attendee_profile: {
+        ...prev.attendee_profile,
+        [field]: val,
+      },
+    }));
   };
 
   const handleBookingSubmit = async (eventForm: React.FormEvent<HTMLFormElement>) => {
@@ -453,34 +476,80 @@ export default function EventDetailPage() {
                         Advance booking is available for attendees. Sign in as an attendee to reserve your place.
                       </div>
                     ) : (
-                      <div className="mt-5 space-y-4">
-                        <p className="text-sm text-slate-500">Advance booking is managed through the attendee booking flow. Click below to reserve a place for one attendee.</p>
-                        {!canReserve ? (
+                      <form onSubmit={handleBookingSubmit} className="mt-5 space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Your Full Name</label>
+                          <input
+                            type="text"
+                            required
+                            value={form.attendee_name}
+                            onChange={(e) => setForm((prev) => ({ ...prev, attendee_name: e.target.value }))}
+                            className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] transition"
+                            placeholder="e.g. Abebe Kebede"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Your Email Address</label>
+                          <input
+                            type="email"
+                            required
+                            value={form.attendee_email}
+                            onChange={(e) => setForm((prev) => ({ ...prev, attendee_email: e.target.value }))}
+                            className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] transition"
+                            placeholder="e.g. abebe@domain.com"
+                          />
+                        </div>
+
+                        {requiredFields.map((field) => (
+                          <div key={field} className="space-y-1">
+                            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              {field.replace(/_/g, ' ')}
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={form.attendee_profile[field] || ''}
+                              onChange={(e) => handleProfileFieldChange(field, e.target.value)}
+                              className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] transition"
+                              placeholder={`Enter your ${field.replace(/_/g, ' ')}`}
+                            />
+                          </div>
+                        ))}
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Special Requests / Notes (Optional)</label>
+                          <textarea
+                            rows={2}
+                            value={form.notes}
+                            onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                            className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#062E22]/20 focus:border-[#062E22] transition resize-none"
+                            placeholder="Any specific requests or requirements..."
+                          />
+                        </div>
+
+                        {submitError && (
+                          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700">
+                            {submitError}
+                          </div>
+                        )}
+
+                        {!canReserve && (
                           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
                             {booking ? 'You already have a confirmed booking for this event.' : 'This event is not open for reservation yet.'}
                           </div>
-                        ) : null}
+                        )}
+
                         <div>
                           <button
-                            onClick={async () => {
-                              try {
-                                setSubmitting(true);
-                                const created = await eventsService.createBooking(eventId, { slots_requested: 1 });
-                                setBooking(created);
-                                await refreshEventAndBooking();
-                              } catch (err) {
-                                setSubmitError(err instanceof Error ? err.message : 'Unable to reserve a place.');
-                              } finally {
-                                setSubmitting(false);
-                              }
-                            }}
+                            type="submit"
                             disabled={!canReserve || submitting}
-                            className="px-6 py-2.5 rounded-xl bg-[#062E22] text-white font-semibold hover:bg-[#0a4a37] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="w-full px-6 py-3 rounded-xl bg-[#062E22] text-white text-sm font-bold tracking-wide uppercase hover:bg-[#0a4a37] transition disabled:cursor-not-allowed disabled:opacity-50 shadow-md hover:shadow-lg"
                           >
                             {submitting ? 'Reserving...' : canReserve ? 'Reserve My Seat' : 'Booking Unavailable'}
                           </button>
                         </div>
-                      </div>
+                      </form>
                     )}
                   </>
                 )}

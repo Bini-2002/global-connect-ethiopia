@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import AIAssistantIcon from '@/components/AIAssistantIcon';
 
 interface AIFloatingButtonProps {
   isOpen: boolean;
@@ -12,15 +12,9 @@ export default function AIFloatingButton({ isOpen, onToggle }: AIFloatingButtonP
     <div className="fixed bottom-8 right-8 z-40">
       <button
         onClick={onToggle}
-        className="relative group"
+        className="relative group flex h-14 w-14 items-center justify-center rounded-full bg-[#062E22] text-white shadow-xl transition hover:scale-105 hover:bg-[#0a4533]"
       >
-        <Image
-          src="/ai.png"
-          alt="AI Assistant"
-          width={100}
-          height={40}
-          className="cursor-pointer hover:scale-110 transition-transform drop-shadow-lg"
-        />
+        <AIAssistantIcon className="h-6 w-6" />
         <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-[#062E22] text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
           Chat with AI
         </div>

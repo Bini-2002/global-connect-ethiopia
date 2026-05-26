@@ -288,6 +288,8 @@ async def get_platform_commission_receipts(current_user: dict, limit: int = 100,
     if role not in {UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required.")
 
+    from app.db.mongodb import user_collection
+
     pipeline = [
         {"$match": {"type": TransactionType.COMMISSION.value}},
         {"$sort": {"created_at": -1}},
@@ -316,8 +318,35 @@ async def get_platform_commission_receipts(current_user: dict, limit: int = 100,
         }
         if "contract_info" in r and r["contract_info"]:
             receipt["contract_price"] = float(r["contract_info"].get("price", 0))
-            receipt["organizer_id"] = str(r["contract_info"].get("organizer_id"))
-            receipt["vendor_id"] = str(r["contract_info"].get("vendor_id"))
+            organizer_id = r["contract_info"].get("organizer_id")
+            event_id = r["contract_info"].get("event_id")
+            
+            receipt["organizer_id"] = str(organizer_id) if organizer_id else None
+            receipt["vendor_id"] = str(r["contract_info"].get("vendor_id")) if r["contract_info"].get("vendor_id") else None
+            receipt["event_id"] = str(event_id) if event_id else None
+
+            # Fetch Event Title
+            event_title = "Unknown Event"
+            if event_id:
+                try:
+                    event_doc = await event_collection.find_one({"_id": ObjectId(str(event_id))})
+                    if event_doc:
+                        event_title = event_doc.get("title", "Unknown Event")
+                except Exception:
+                    pass
+            receipt["event_title"] = event_title
+
+            # Fetch Organizer Name
+            organizer_name = "Unknown Organizer"
+            if organizer_id:
+                try:
+                    user_doc = await user_collection.find_one({"_id": ObjectId(str(organizer_id))})
+                    if user_doc:
+                        organizer_name = user_doc.get("full_name", "Unknown Organizer")
+                except Exception:
+                    pass
+            receipt["organizer_name"] = organizer_name
+            
         formatted_receipts.append(receipt)
         
     return formatted_receipts
