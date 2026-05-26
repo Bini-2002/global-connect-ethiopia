@@ -21,6 +21,28 @@ router = APIRouter()
 storage_service = ObjectStorageService()
 
 
+def _parse_utc_datetime(value: str | None, field_name: str) -> datetime | None:
+    if value is None or value == "":
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid {field_name}") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _validate_proposal_dates(start_date: datetime | None, end_date: datetime | None) -> None:
+    now = datetime.now(timezone.utc)
+    if start_date and start_date < now:
+        raise HTTPException(status_code=400, detail="Date cannot be in the past.")
+    if end_date and end_date < now:
+        raise HTTPException(status_code=400, detail="Date cannot be in the past.")
+    if start_date and end_date and end_date <= start_date:
+        raise HTTPException(status_code=400, detail="End date must be after the start date.")
+
+
 def _require_organizer(current_user: dict) -> None:
     from app.models.roles import normalize_role
     role = normalize_role(current_user.get("role"))
@@ -162,6 +184,9 @@ async def create_proposal(
 ):
     _require_organizer(current_user)
     normalized_event_type = _normalize_proposal_event_type(event_type)
+    parsed_start_date = _parse_utc_datetime(start_date, "start date")
+    parsed_end_date = _parse_utc_datetime(end_date, "end date")
+    _validate_proposal_dates(parsed_start_date, parsed_end_date)
 
     document_url = None
     document_name = None
@@ -201,8 +226,8 @@ async def create_proposal(
         "event_type": normalized_event_type,
         "location": location,
         "expected_attendees": expected_attendees,
-        "start_date": datetime.fromisoformat(start_date) if start_date else None,
-        "end_date": datetime.fromisoformat(end_date) if end_date else None,
+        "start_date": parsed_start_date,
+        "end_date": parsed_end_date,
         "budget_estimate": budget_estimate,
         "program_overview": program_overview,
         "event_objectives": event_objectives,
@@ -265,6 +290,22 @@ async def update_proposal(
             detail="Only draft, changes requested, or rejected proposals can be updated."
         )
 
+    parsed_start_date = (
+        _parse_utc_datetime(start_date, "start date")
+        if start_date is not None
+        else proposal.get("start_date")
+    )
+    parsed_end_date = (
+        _parse_utc_datetime(end_date, "end date")
+        if end_date is not None
+        else proposal.get("end_date")
+    )
+    if parsed_start_date is not None and parsed_start_date.tzinfo is None:
+        parsed_start_date = parsed_start_date.replace(tzinfo=timezone.utc)
+    if parsed_end_date is not None and parsed_end_date.tzinfo is None:
+        parsed_end_date = parsed_end_date.replace(tzinfo=timezone.utc)
+    _validate_proposal_dates(parsed_start_date, parsed_end_date)
+
     update_data = {
         "updated_at": datetime.now(timezone.utc),
     }
@@ -282,9 +323,9 @@ async def update_proposal(
     if expected_attendees is not None:
         update_data["expected_attendees"] = expected_attendees
     if start_date is not None:
-        update_data["start_date"] = datetime.fromisoformat(start_date) if start_date else None
+        update_data["start_date"] = parsed_start_date
     if end_date is not None:
-        update_data["end_date"] = datetime.fromisoformat(end_date) if end_date else None
+        update_data["end_date"] = parsed_end_date
     if budget_estimate is not None:
         update_data["budget_estimate"] = budget_estimate
     if program_overview is not None:

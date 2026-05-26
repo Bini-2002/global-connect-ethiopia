@@ -609,6 +609,16 @@ def _generate_ticket_code(prefix: str) -> str:
     return f"{prefix}-{secrets.token_hex(6).upper()}"
 
 
+def _validate_event_dates(start_date: datetime | None, end_date: datetime | None) -> None:
+    now = utc_now()
+    if start_date and start_date < now:
+        raise HTTPException(status_code=400, detail="Date cannot be in the past.")
+    if end_date and end_date < now:
+        raise HTTPException(status_code=400, detail="Date cannot be in the past.")
+    if start_date and end_date and end_date <= start_date:
+        raise HTTPException(status_code=400, detail="End date must be after the start date.")
+
+
 def _derive_event_category(proposal: dict) -> str | None:
     return normalize_supported_event_type(
         proposal.get("event_type") or proposal.get("category")
@@ -621,9 +631,6 @@ def _resolve_booking_status(
     # Ensure current_time is naive for comparison with MongoDB naive datetimes
     raw_now = now or utc_now()
     current_time = raw_now.replace(tzinfo=None) if raw_now.tzinfo else raw_now
-
-    if not event.get("booking_required"):
-        return BookingStatus.DISABLED
 
     closes_at = event.get("booking_closes_at")
     if closes_at:
@@ -783,6 +790,7 @@ async def create_event_from_proposal(
 
     permit = await permit_collection.find_one({"proposal_id": proposal_id})
     now = utc_now()
+    _validate_event_dates(proposal.get("start_date"), proposal.get("end_date"))
     category = _derive_event_category(proposal)
     if not category:
         raise HTTPException(
@@ -1339,6 +1347,8 @@ async def postpone_event(
         )
 
     now = utc_now()
+
+    _validate_event_dates(payload.new_start_date, payload.new_end_date)
 
     # Update event dates
     await event_collection.update_one(
@@ -2782,12 +2792,10 @@ async def create_booking(
             detail="Bookings can only be created for published or live events",
         )
     if not event.get("booking_required"):
-        raise HTTPException(
-            status_code=400, detail="This event does not use advance booking"
-        )
+        event["booking_required"] = True
     now = utc_now()
     current_booking_status = _resolve_booking_status(event, now=now)
-    if current_booking_status != BookingStatus.OPEN:
+    if current_booking_status == BookingStatus.CLOSED:
         await event_collection.update_one(
             {"_id": event["_id"]},
             {"$set": {"booking_status": current_booking_status, "updated_at": now}},
@@ -2796,6 +2804,14 @@ async def create_booking(
         if current_booking_status == BookingStatus.FULL:
             detail = "This event is already at full confirmed booking capacity"
         raise HTTPException(status_code=400, detail=detail)
+    if current_booking_status == BookingStatus.FULL:
+        await event_collection.update_one(
+            {"_id": event["_id"]},
+            {"$set": {"booking_status": current_booking_status, "updated_at": now}},
+        )
+        raise HTTPException(
+            status_code=400, detail="This event is already at full confirmed booking capacity"
+        )
 
     attendee_profile = {
         str(key): str(value).strip()
