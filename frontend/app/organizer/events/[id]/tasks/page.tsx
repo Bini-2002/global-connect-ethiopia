@@ -12,6 +12,7 @@ import {
   sentenceCase,
   startOfInputDateTime,
 } from '@/components/organizer/events';
+import { isDateInPast } from '@/app/lib/dateUtils';
 
 export default function EventTasksPage() {
   const params = useParams();
@@ -41,6 +42,8 @@ export default function EventTasksPage() {
     priority: 'medium',
     payout_amount: '',
   });
+
+  const dueDateInvalid = taskForm.due_date ? isDateInPast(taskForm.due_date) : false;
 
   const loadTaskWorkspace = async () => {
     try {
@@ -82,6 +85,10 @@ export default function EventTasksPage() {
 
   const handleCreateTask = async () => {
     if (!event) return;
+    if (dueDateInvalid) {
+      setError('Due date cannot be in the past.');
+      return;
+    }
     try {
       setCreating(true);
       setError(null);
@@ -388,14 +395,21 @@ export default function EventTasksPage() {
           </div>
         </div>
 
-        <div className="flex justify-end mt-6">
-          <button
-            onClick={() => void handleCreateTask()}
-            disabled={creating}
-            className="px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50"
-          >
-            {creating ? 'Creating...' : 'Create Task'}
-          </button>
+        <div className="flex flex-col items-end mt-6">
+          {dueDateInvalid && (
+            <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 w-full">
+              Due date cannot be in the past.
+            </div>
+          )}
+          <div className="w-full flex justify-end">
+            <button
+              onClick={() => void handleCreateTask()}
+              disabled={creating || dueDateInvalid}
+              className="px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50"
+            >
+              {creating ? 'Creating...' : 'Create Task'}
+            </button>
+          </div>
         </div>
       </div>
 
