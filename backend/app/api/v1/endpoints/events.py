@@ -84,6 +84,7 @@ from app.schemas.event import (
     IncidentUpdate,
     EventCancelRequest,
     EventPostponeRequest,
+    TaskRejectPayload,
 )
 from app.schemas.ai import (
     AiScheduleDraftCreate,
@@ -287,6 +288,22 @@ def _serialize_task(document: dict) -> dict:
         "priority": document.get("priority", "medium"),
         "status": document.get("status", "open"),
         "payout_amount": document.get("payout_amount"),
+        # Escrow
+        "escrow_locked": bool(document.get("escrow_locked", False)),
+        "escrow_amount": float(document.get("escrow_amount") or 0),
+        "escrow_locked_at": document.get("escrow_locked_at"),
+        # Workspace
+        "workspace_open": bool(document.get("workspace_open", False)),
+        "workspace_opened_at": document.get("workspace_opened_at"),
+        "workspace_closed": bool(document.get("workspace_closed", False)),
+        "workspace_closed_at": document.get("workspace_closed_at"),
+        # Negotiation phase gate
+        "negotiation_phase_locked": bool(document.get("negotiation_phase_locked", False)),
+        "negotiation_locked_at": document.get("negotiation_locked_at"),
+        # Rejection
+        "rejection_note": document.get("rejection_note"),
+        "rejected_at": document.get("rejected_at"),
+        "rejection_count": int(document.get("rejection_count") or 0),
         "created_at": document["created_at"],
         "updated_at": document["updated_at"],
     }
@@ -2037,9 +2054,56 @@ async def create_event_task(
         if target_user:
             doc["assignee_user_id"] = str(target_user["_id"])
 
-    doc.update(
-        {"event_id": event_id, "status": "open", "created_at": now, "updated_at": now}
-    )
+    # ── ESCROW LOCK ──────────────────────────────────────────────────────────
+    # When a payout is set and an assignee exists, lock funds immediately.
+    payout = float(doc.get("payout_amount") or 0)
+    escrow_locked = False
+    if payout > 0 and (doc.get("assignee_user_id") or doc.get("assignee_email")):
+        organizer_id = str(event.get("organizer_id"))
+        organizer_wallet = await ensure_wallet(organizer_id)
+        if float(organizer_wallet.get("balance", 0)) < payout:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient funds to lock escrow (need ETB {payout}). Please top up your wallet.",
+            )
+        await wallet_collection.update_one(
+            {"_id": organizer_wallet["_id"]},
+            {"$inc": {"balance": -payout, "escrow_balance": payout}, "$set": {"updated_at": now}},
+        )
+        await log_transaction(
+            user_id=organizer_id,
+            transaction_type=TransactionType.ESCROW_LOCK,
+            amount=payout,
+        )
+        escrow_locked = True
+        # Notify team member if already registered
+        if doc.get("assignee_user_id"):
+            await push_notification(
+                recipient_id=doc["assignee_user_id"],
+                notification_type="task_assigned",
+                message=f"You have been assigned task '{doc['title']}' with a payout of ETB {payout} locked in escrow.",
+                related_entity={"type": "task", "event_id": event_id},
+            )
+    # ─────────────────────────────────────────────────────────────────────────
+
+    doc.update({
+        "event_id": event_id,
+        "status": "open",
+        "escrow_locked": escrow_locked,
+        "escrow_amount": payout if escrow_locked else 0.0,
+        "escrow_locked_at": now if escrow_locked else None,
+        "workspace_open": False,
+        "workspace_opened_at": None,
+        "workspace_closed": False,
+        "workspace_closed_at": None,
+        "negotiation_phase_locked": False,
+        "negotiation_locked_at": None,
+        "rejection_note": None,
+        "rejected_at": None,
+        "rejection_count": 0,
+        "created_at": now,
+        "updated_at": now,
+    })
     result = await event_task_collection.insert_one(doc)
     doc["_id"] = result.inserted_id
     return _serialize_task(doc)
@@ -2385,14 +2449,215 @@ async def approve_task(
             related_entity={"type": "task", "id": task_id, "event_id": event_id},
         )
 
-    # Finally mark as done
+    # Finally mark as done and close workspace
     await event_task_collection.update_one(
         {"_id": oid},
-        {"$set": {"status": "done", "updated_at": now}},
+        {"$set": {
+            "status": "done",
+            "workspace_open": False,
+            "workspace_closed": True,
+            "workspace_closed_at": now,
+            "updated_at": now,
+        }},
     )
 
     updated = await event_task_collection.find_one({"_id": oid})
     return _serialize_task(updated)
+
+
+# ─── OPEN WORKSPACE ──────────────────────────────────────────────────────────
+@router.post("/{event_id}/tasks/{task_id}/open-workspace", response_model=EventTaskResponse)
+async def open_task_workspace(
+    event_id: str,
+    task_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Team Member activates their scoped workspace for a specific task."""
+    event = await _get_event_or_404(event_id)
+    oid = parse_object_id(task_id, field_name="task id")
+    task = await event_task_collection.find_one({"_id": oid, "event_id": event_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Only the assigned team member can open their workspace
+    is_assignee = (
+        str(task.get("assignee_user_id") or "") == str(current_user["id"])
+        or (task.get("assignee_email") or "").strip().lower() == (current_user.get("email") or "").strip().lower()
+    )
+    if not is_assignee:
+        raise HTTPException(status_code=403, detail="Only the assigned team member can open this workspace.")
+
+    if task.get("status") not in ("open", "in_progress"):
+        raise HTTPException(status_code=400, detail="Cannot open workspace for a completed or pending-approval task.")
+
+    now = utc_now()
+    await event_task_collection.update_one(
+        {"_id": oid},
+        {"$set": {
+            "workspace_open": True,
+            "workspace_opened_at": task.get("workspace_opened_at") or now,
+            "status": "in_progress",
+            "updated_at": now,
+        }},
+    )
+
+    # Notify organizer
+    organizer_id = str(event.get("organizer_id", ""))
+    if organizer_id:
+        await push_notification(
+            recipient_id=organizer_id,
+            notification_type="workspace_opened",
+            message=f"{current_user.get('full_name', 'Team Member')} opened the workspace for task '{task['title']}'.",
+            related_entity={"type": "task", "id": task_id, "event_id": event_id},
+        )
+
+    updated = await event_task_collection.find_one({"_id": oid})
+    return _serialize_task(updated)
+
+
+# ─── REJECT TASK (mandatory note) ────────────────────────────────────────────
+@router.post("/{event_id}/tasks/{task_id}/reject", response_model=EventTaskResponse)
+async def reject_task(
+    event_id: str,
+    task_id: str,
+    payload: TaskRejectPayload,
+    current_user: dict = Depends(get_current_user),
+):
+    """Organizer rejects a pending-approval task with a mandatory fix note.
+    Team Member keeps workspace access to revise.
+    """
+    event = await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(task_id, field_name="task id")
+    task = await event_task_collection.find_one({"_id": oid, "event_id": event_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.get("status") != "pending_approval":
+        raise HTTPException(status_code=400, detail="Only tasks pending approval can be rejected.")
+
+    now = utc_now()
+    new_rejection_count = int(task.get("rejection_count") or 0) + 1
+    await event_task_collection.update_one(
+        {"_id": oid},
+        {"$set": {
+            "status": "in_progress",
+            "rejection_note": payload.note,
+            "rejected_at": now,
+            "rejection_count": new_rejection_count,
+            # Keep workspace open so TM can revise
+            "workspace_open": True,
+            "updated_at": now,
+        }},
+    )
+
+    # Notify Team Member
+    assignee_id = task.get("assignee_user_id")
+    if assignee_id:
+        await push_notification(
+            recipient_id=assignee_id,
+            notification_type="task_rejected",
+            message=f"Your task '{task['title']}' was rejected. Fix required: {payload.note}",
+            related_entity={"type": "task", "id": task_id, "event_id": event_id},
+        )
+
+    updated = await event_task_collection.find_one({"_id": oid})
+    return _serialize_task(updated)
+
+
+# ─── LOCK VENDOR NEGOTIATION (move to contract stage) ────────────────────────
+@router.post("/{event_id}/tasks/{task_id}/lock-vendor-negotiation", response_model=EventTaskResponse)
+async def lock_vendor_negotiation(
+    event_id: str,
+    task_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Organizer locks the vendor negotiation phase.
+    Team Member is blocked from contract/payment routes; organizer takes over.
+    """
+    event = await _get_owned_event_or_403(event_id, current_user)
+    oid = parse_object_id(task_id, field_name="task id")
+    task = await event_task_collection.find_one({"_id": oid, "event_id": event_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.get("negotiation_phase_locked"):
+        raise HTTPException(status_code=400, detail="Vendor negotiation is already locked for this task.")
+
+    now = utc_now()
+    await event_task_collection.update_one(
+        {"_id": oid},
+        {"$set": {
+            "negotiation_phase_locked": True,
+            "negotiation_locked_at": now,
+            "updated_at": now,
+        }},
+    )
+
+    # Notify team member
+    assignee_id = task.get("assignee_user_id")
+    if assignee_id:
+        await push_notification(
+            recipient_id=assignee_id,
+            notification_type="negotiation_locked",
+            message=f"Vendor negotiation for task '{task['title']}' is now closed. The organizer will handle contracting.",
+            related_entity={"type": "task", "id": task_id, "event_id": event_id},
+        )
+
+    # Notify organizer themselves as confirmation
+    organizer_id = str(event.get("organizer_id", ""))
+    if organizer_id:
+        await push_notification(
+            recipient_id=organizer_id,
+            notification_type="negotiation_locked",
+            message=f"You have moved task '{task['title']}' to the contracting stage. Team Member access to vendor contracts is revoked.",
+            related_entity={"type": "task", "id": task_id, "event_id": event_id},
+        )
+
+    updated = await event_task_collection.find_one({"_id": oid})
+    return _serialize_task(updated)
+
+
+# ─── REAL-TIME TASK ACTIVITY (organizer view) ─────────────────────────────────
+@router.get("/{event_id}/tasks/activity")
+async def get_tasks_activity(
+    event_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Organizer real-time view: all tasks with workspace + escrow activity."""
+    event = await _get_owned_event_or_403(event_id, current_user)
+    docs = await event_task_collection.find({"event_id": event_id}, sort=[("updated_at", -1)]).to_list(length=300)
+
+    # Enrich with assignee names
+    assignee_ids = list({d["assignee_user_id"] for d in docs if d.get("assignee_user_id")})
+    users_map: dict = {}
+    if assignee_ids:
+        from bson import ObjectId as BsonOid
+        valid_oids = [BsonOid(uid) for uid in assignee_ids if BsonOid.is_valid(uid)]
+        if valid_oids:
+            user_docs = await user_collection.find({"_id": {"$in": valid_oids}}).to_list(length=200)
+            for u in user_docs:
+                users_map[str(u["_id"])] = u.get("full_name") or u.get("email") or "Unknown"
+
+    result = []
+    for doc in docs:
+        serialized = _serialize_task(doc)
+        serialized["assignee_name"] = users_map.get(doc.get("assignee_user_id") or "", doc.get("assignee_email", "Unassigned"))
+        result.append(serialized)
+
+    # Summary stats for the organizer
+    total_escrow = sum(float(d.get("escrow_amount") or 0) for d in docs if d.get("escrow_locked"))
+    active_workspaces = sum(1 for d in docs if d.get("workspace_open"))
+    pending_approval = sum(1 for d in docs if d.get("status") == "pending_approval")
+
+    return {
+        "event_id": event_id,
+        "event_title": event.get("title"),
+        "summary": {
+            "total_tasks": len(docs),
+            "active_workspaces": active_workspaces,
+            "pending_approval": pending_approval,
+            "total_escrow_locked_etb": total_escrow,
+        },
+        "tasks": result,
+    }
 
 
 @router.get("/{event_id}/booking", response_model=EventResponse)

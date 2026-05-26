@@ -23,6 +23,11 @@ export default function EventTasksPage() {
   const [creating, setCreating] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+  // Reject Modal State
+  const [rejectingTaskId, setRejectingTaskId] = useState<string | null>(null);
+  const [rejectionNote, setRejectionNote] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+
   // Quick Invite State
   const [isInviting, setIsInviting] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: '', role: 'Team Member' });
@@ -104,18 +109,33 @@ export default function EventTasksPage() {
     }
   };
 
-  const approveTask = async (taskId: string) => {
+  const handleRejectTask = async () => {
+    if (!event || !rejectingTaskId || !rejectionNote.trim()) return;
+    try {
+      setRejecting(true);
+      setError(null);
+      const updated = await eventsService.rejectTask(event.id, rejectingTaskId, rejectionNote);
+      setTasks((current) => current.map((task) => (task.id === rejectingTaskId ? updated : task)));
+      setRejectingTaskId(null);
+      setRejectionNote('');
+      alert("Task successfully sent back to team member with correction request.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reject task');
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  const handleLockNegotiation = async (taskId: string) => {
     if (!event) return;
     try {
       setUpdatingId(taskId);
       setError(null);
-      const updated = await fetch(`/api/v1/events/${event.id}/tasks/${taskId}/approve`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-      }).then((r) => r.json());
-      setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, ...updated } : task)));
+      const updated = await eventsService.lockVendorNegotiation(event.id, taskId);
+      setTasks((current) => current.map((task) => (task.id === taskId ? updated : task)));
+      alert("Vendor negotiation phase has been locked. Organizer takes over contracts.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to approve task');
+      setError(err instanceof Error ? err.message : 'Failed to lock negotiation');
     } finally {
       setUpdatingId(null);
     }
@@ -394,7 +414,7 @@ export default function EventTasksPage() {
             {tasks.map((task) => (
               <div key={task.id} className={`rounded-2xl border p-5 transition-all ${task.status === 'pending_approval' ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'}`}>
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                  <div>
+                  <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3">
                       <h3 className="text-base font-semibold text-[#062E22]">{task.title}</h3>
                       <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${task.priority === 'high' ? 'bg-red-100 text-red-700' : task.priority === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>
@@ -407,15 +427,48 @@ export default function EventTasksPage() {
                         }`}>
                         {task.status === 'pending_approval' ? '⏳ Pending Approval' : sentenceCase(task.status)}
                       </span>
+                      {task.workspace_open && (
+                        <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 items-center gap-1.5 animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Workspace Active
+                        </span>
+                      )}
+                      {task.escrow_locked && (
+                        <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-[#062E22] border border-[#8CB988]/20 items-center gap-1">
+                          🔒 Escrow Locked
+                        </span>
+                      )}
+                      {task.negotiation_phase_locked && (
+                        <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                          🚫 Negotiation Locked
+                        </span>
+                      )}
                     </div>
                     {task.description ? <p className="text-sm text-slate-600 mt-3">{task.description}</p> : null}
+                    {task.rejection_note && task.status === 'in_progress' && (
+                      <div className="mt-3 p-3 bg-red-50 border-l-4 border-red-500 rounded-r-xl">
+                        <p className="text-xs font-bold text-red-800 uppercase tracking-wider">Changes Requested:</p>
+                        <p className="text-xs text-red-700 mt-1">{task.rejection_note}</p>
+                      </div>
+                    )}
                     <p className="text-sm text-slate-500 mt-3">
                       Assigned to {task.assignee_email || 'Unassigned'} {task.due_date ? `• Due ${formatDateTime(task.due_date)}` : ''}
                       {task.payout_amount ? ` • Payout: ETB ${task.payout_amount.toLocaleString()}` : ''}
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {/* Move to contract stage/Lock negotiation — only for tasks in progress without lock */}
+                    {task.status === 'in_progress' && !task.negotiation_phase_locked && (
+                      <button
+                        onClick={() => void handleLockNegotiation(task.id)}
+                        disabled={updatingId === task.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 border border-amber-300 bg-amber-50 text-amber-700 rounded-xl text-xs font-semibold hover:bg-amber-100 transition disabled:opacity-50"
+                      >
+                        Lock Negotiation
+                      </button>
+                    )}
+
                     {/* Start button — only for open tasks */}
                     {task.status === 'open' ? (
                       <button
@@ -430,26 +483,44 @@ export default function EventTasksPage() {
 
                     {/* Approve & Pay — only when team member has submitted for approval AND task has a payout */}
                     {task.status === 'pending_approval' && (task.payout_amount ?? 0) > 0 ? (
-                      <button
-                        onClick={() => void handleApproveAndPay(task.id)}
-                        disabled={updatingId === task.id}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50 shadow-md"
-                      >
-                        <SquareCheckBig className="w-4 h-4" />
-                        {updatingId === task.id ? 'Processing...' : 'Approve & Pay'}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => void handleApproveAndPay(task.id)}
+                          disabled={updatingId === task.id}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#062E22] text-white rounded-xl text-sm font-semibold hover:bg-[#0a4a37] transition disabled:opacity-50 shadow-md animate-bounce"
+                        >
+                          <SquareCheckBig className="w-4 h-4" />
+                          {updatingId === task.id ? 'Processing...' : 'Approve & Pay'}
+                        </button>
+                        <button
+                          onClick={() => setRejectingTaskId(task.id)}
+                          disabled={updatingId === task.id}
+                          className="inline-flex items-center gap-2 px-4 py-2 border border-red-200 bg-red-50 text-red-700 rounded-xl text-sm font-semibold hover:bg-red-100 transition disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
                     ) : null}
 
                     {/* Approve without pay — pending_approval but no payout set */}
                     {task.status === 'pending_approval' && (task.payout_amount ?? 0) === 0 ? (
-                      <button
-                        onClick={() => void updateStatus(task.id, 'done')}
-                        disabled={updatingId === task.id}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-sm font-semibold hover:bg-emerald-600 transition disabled:opacity-50"
-                      >
-                        <SquareCheckBig className="w-4 h-4" />
-                        {updatingId === task.id ? 'Approving...' : 'Approve'}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => void updateStatus(task.id, 'done')}
+                          disabled={updatingId === task.id}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-sm font-semibold hover:bg-emerald-600 transition disabled:opacity-50 shadow-md"
+                        >
+                          <SquareCheckBig className="w-4 h-4" />
+                          {updatingId === task.id ? 'Approving...' : 'Approve'}
+                        </button>
+                        <button
+                          onClick={() => setRejectingTaskId(task.id)}
+                          disabled={updatingId === task.id}
+                          className="inline-flex items-center gap-2 px-4 py-2 border border-red-200 bg-red-50 text-red-700 rounded-xl text-sm font-semibold hover:bg-red-100 transition disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
                     ) : null}
 
                     {/* Completed badge */}
@@ -466,6 +537,46 @@ export default function EventTasksPage() {
           </div>
         )}
       </div>
+
+      {/* Reject Modal */}
+      {rejectingTaskId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md border border-slate-100 shadow-2xl">
+            <h3 className="text-lg font-black text-[#062E22] uppercase tracking-wider mb-2">
+              Reject Task Submission
+            </h3>
+            <p className="text-xs text-slate-500 font-medium mb-4">
+              Please specify the required changes or correction instructions. The team member will keep workspace access to edit.
+            </p>
+            <textarea
+              value={rejectionNote}
+              onChange={(e) => setRejectionNote(e.target.value)}
+              placeholder="e.g. Please negotiate a lower rate for catering, or add more VIP room options..."
+              rows={4}
+              className="w-full p-4 border border-slate-200 rounded-2xl text-sm outline-none focus:border-[#062E22] transition-colors resize-none mb-4"
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setRejectingTaskId(null);
+                  setRejectionNote('');
+                }}
+                disabled={rejecting}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void handleRejectTask()}
+                disabled={rejecting || !rejectionNote.trim()}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+              >
+                {rejecting ? "Rejecting..." : "Confirm Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </EventWorkspaceShell>
   );
 }

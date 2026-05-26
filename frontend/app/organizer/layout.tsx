@@ -16,7 +16,7 @@ export default function OrganizerLayout({ children }: { children: React.ReactNod
     }
 
     const role = getRole();
-    if (role !== 'organizer' && role !== 'team_member') {
+    if (role !== 'organizer') {
       const destination = role && ROLE_DASHBOARDS[role] ? ROLE_DASHBOARDS[role] : '/login';
       router.replace(destination);
       return;
