@@ -12,7 +12,8 @@ async def main():
     ev = await db['events'].find_one({'_id': ObjectId(EVENT_ID)})
     print('--- Full booking-relevant fields ---')
     for k in ['title', 'status', 'booking_required', 'booking_status',
-              'capacity', 'booked_count', 'booking_opens_at', 'booking_closes_at']:
+              'capacity', 'booked_count', 'booking_opens_at', 'booking_closes_at',
+              'required_attendee_fields']:
         print(f'  {k:22s}: {ev.get(k)!r}')
     c.close()
 

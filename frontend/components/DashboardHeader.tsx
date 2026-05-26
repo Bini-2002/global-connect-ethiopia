@@ -81,10 +81,19 @@ export default function DashboardHeader({
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const rawRole = getRole() ?? 'organizer';
+  // ── Role is only available client-side (localStorage/cookie).
+  // We start with null so SSR and the first client render produce identical
+  // HTML, then update after mount to avoid hydration mismatch.
+  const [clientRole, setClientRole] = useState<string | null>(null);
+  useEffect(() => {
+    setClientRole(getRole() ?? 'organizer');
+  }, []);
+
+  const rawRole = clientRole ?? 'organizer';
   const sidebarRole: AllowedRole = ROLE_MAP[rawRole] ?? 'organizer';
   const profileHref = PROFILE_ROUTES[sidebarRole] ?? '/profile/organizer';
-  const settingsHref = SETTINGS_ROUTES[sidebarRole];
+  // Only compute settingsHref after mounting to avoid SSR/client mismatch.
+  const settingsHref = clientRole ? SETTINGS_ROUTES[sidebarRole] : undefined;
 
   useEffect(() => {
     const fetchProfile = async () => {
