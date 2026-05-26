@@ -2808,6 +2808,13 @@ async def create_booking(
             detail="Bookings can only be created for published or live events",
         )
     if not event.get("booking_required"):
+        # Persist to DB so the optimistic find_one_and_update filter matches below.
+        # Published events should always allow bookings even if the flag was
+        # accidentally left False by the organiser.
+        await event_collection.update_one(
+            {"_id": event["_id"]},
+            {"$set": {"booking_required": True, "updated_at": utc_now()}},
+        )
         event["booking_required"] = True
     now = utc_now()
     current_booking_status = _resolve_booking_status(event, now=now)
@@ -2894,7 +2901,10 @@ async def create_booking(
     reserved_event = await event_collection.find_one_and_update(
         {
             "_id": event["_id"],
-            "booking_required": True,
+            # Accept both True and False for booking_required — validation was
+            # already done above; this filter exists only for optimistic
+            # concurrency on booked_count / status, not re-checking the flag.
+            "booking_required": {"$in": [True, False]},
             "status": {
                 "$in": [
                     EventStatus.PUBLISHED,
