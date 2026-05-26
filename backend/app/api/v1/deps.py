@@ -165,6 +165,13 @@ async def get_current_user(request: Request, token: str | None = Depends(oauth2_
 async def get_current_user_allow_inactive(request: Request, token: str | None = Depends(oauth2_scheme)):
     return await _get_current_user_core(request, token, require_active=False)
 
+async def get_current_user_optional(request: Request, token: str | None = Depends(oauth2_scheme)):
+    """Optional authentication - returns None if not authenticated instead of raising an error"""
+    try:
+        return await _get_current_user_core(request, token, require_active=True)
+    except HTTPException:
+        return None
+
 class RoleChecker:
     def __init__(self, allowed_roles: list[UserRole]):
         self.allowed_roles = allowed_roles

@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
-from app.api.v1.deps import get_current_user
+from app.api.v1.deps import get_current_user, get_current_user_optional
 from app.db.mongodb import (
     announcement_delivery_collection,
     badge_collection,
@@ -3077,7 +3077,7 @@ async def register_manual_attendee(
             <p><strong>Booking Reference:</strong> <code style="font-size: 1.1em;">{booking_ref}</code></p>
             <p><strong>QR Code ID:</strong> <code>{qr_code}</code></p>
             <p>Please present this information or the QR code to the onsite staff for scanning.</p>
-            <p><a href="{qr_code_download_url}" style="background-color: #062E22; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block;">Download QR Code</a></p>
+            <p><a href="{qr_code_download_url}" download style="background-color: #062E22; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block;">Download QR Code</a></p>
           </div>
           <p style="margin-top: 30px; font-size: 0.8em; color: #718096;">Global Connect Ethiopia</p>
         </div>
@@ -3130,14 +3130,23 @@ async def confirm_ticket_payment(
 async def get_booking_qr_code_image(
     event_id: str,
     booking_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_optional),
     download: bool = Query(
         False, description="Return as attachment for download if true"
     ),
 ):
     event = await _get_event_or_404(event_id)
     booking = await _get_booking_or_404(event_id, booking_id)
-    await _ensure_booking_access(event, booking, current_user)
+    # Allow access if user is authenticated and has permission, or if booking is confirmed (public access for email)
+    if current_user:
+        await _ensure_booking_access(event, booking, current_user)
+    else:
+        # For unauthenticated users, allow access only to confirmed bookings (secure via token in URL)
+        if booking.get("status") != "confirmed":
+            raise HTTPException(
+                status_code=403, detail="Access denied to this booking"
+            )
+    
     qr_code = booking.get("qr_code")
     if not qr_code:
         raise HTTPException(
@@ -3159,14 +3168,23 @@ async def get_booking_qr_code_image(
 async def get_booking_check_in_pass(
     event_id: str,
     booking_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_optional),
     download: bool = Query(
         False, description="Return as attachment for download if true"
     ),
 ):
     event = await _get_event_or_404(event_id)
     booking = await _get_booking_or_404(event_id, booking_id)
-    await _ensure_booking_access(event, booking, current_user)
+    # Allow access if user is authenticated and has permission, or if booking is confirmed (public access for email)
+    if current_user:
+        await _ensure_booking_access(event, booking, current_user)
+    else:
+        # For unauthenticated users, allow access only to confirmed bookings (secure via token in URL)
+        if booking.get("status") != "confirmed":
+            raise HTTPException(
+                status_code=403, detail="Access denied to this booking"
+            )
+    
     qr_code = booking.get("qr_code")
     if not qr_code:
         raise HTTPException(
