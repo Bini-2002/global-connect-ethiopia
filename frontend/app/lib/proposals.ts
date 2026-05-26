@@ -65,12 +65,17 @@ export const PROPOSAL_STATUS_META: Record<
 };
 
 export function appendProposalFields(formData: FormData, proposal: ProposalFieldSource): void {
+  const toUtcIso = (value: string | undefined): string => {
+    if (!value) return "";
+    return new Date(value).toISOString();
+  };
+
   formData.append("title", proposal.title || "");
   formData.append("description", proposal.description || "");
   formData.append("visibility", proposal.visibility || "public");
   formData.append("event_type", proposal.event_type || "");
-  formData.append("start_date", proposal.start_date || "");
-  formData.append("end_date", proposal.end_date || "");
+  formData.append("start_date", toUtcIso(proposal.start_date));
+  formData.append("end_date", toUtcIso(proposal.end_date));
   formData.append("location", proposal.location || "");
   formData.append("expected_attendees", String(proposal.expected_attendees || 0));
   formData.append("budget_estimate", String(proposal.budget_estimate || 0));
@@ -198,14 +203,22 @@ export function findReviewTargetById(
 }
 
 export function proposalToSessionData(proposal: ProposalRecord): SessionProposalData {
+  const toDateTimeLocal = (value?: string | null): string => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    const pad = (input: number) => String(input).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
   return {
     id: proposal.id,
     title: proposal.title,
     description: proposal.description || "",
     visibility: (proposal.visibility as 'public' | 'private') || 'public',
     event_type: proposal.event_type || "",
-    start_date: proposal.start_date ? proposal.start_date.split("T")[0] : "",
-    end_date: proposal.end_date ? proposal.end_date.split("T")[0] : "",
+    start_date: toDateTimeLocal(proposal.start_date),
+    end_date: toDateTimeLocal(proposal.end_date),
     location: proposal.location || "",
     expected_attendees: proposal.expected_attendees || 0,
     budget_estimate: Number(proposal.budget_estimate || 0),

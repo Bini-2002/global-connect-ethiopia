@@ -30,6 +30,9 @@ interface ProposalFormProps {
   reviewTargetsLoading: boolean;
   reviewTargetsError: string | null;
   loading: boolean;
+  dateError: string | null;
+  startDateMin: string;
+  endDateMin: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onAddAudience: () => void;
@@ -45,6 +48,9 @@ export default function ProposalForm({
   reviewTargetsLoading,
   reviewTargetsError,
   loading,
+  dateError,
+  startDateMin,
+  endDateMin,
   onChange,
   onFileUpload,
   onAddAudience,
@@ -150,6 +156,8 @@ export default function ProposalForm({
               name="event_type"
               value={formData.event_type}
               onChange={onChange}
+              aria-label="Event type"
+              title="Event type"
               className={selectClassName}
               required
               disabled={loading}
@@ -183,10 +191,14 @@ export default function ProposalForm({
           <div className="flex-1">
             <label className="text-sm font-semibold text-gray-700 mb-2 block">Start Date</label>
             <input
-              type="date"
+              type="datetime-local"
               name="start_date"
               value={formData.start_date}
               onChange={onChange}
+              min={startDateMin}
+              aria-label="Start date and time"
+              title="Start date and time"
+              placeholder="Select start date and time"
               className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/30 focus:border-[#062E22] transition-colors"
               required
               disabled={loading}
@@ -195,16 +207,26 @@ export default function ProposalForm({
           <div className="flex-1">
             <label className="text-sm font-semibold text-gray-700 mb-2 block">End Date</label>
             <input
-              type="date"
+              type="datetime-local"
               name="end_date"
               value={formData.end_date}
               onChange={onChange}
+              min={endDateMin}
+              aria-label="End date and time"
+              title="End date and time"
+              placeholder="Select end date and time"
               className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#062E22]/30 focus:border-[#062E22] transition-colors"
               required
               disabled={loading}
             />
           </div>
         </div>
+
+        {dateError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            {dateError}
+          </div>
+        )}
         
         <div>
           <label className="text-sm font-semibold text-gray-700 mb-2 block">Event Location</label>
@@ -339,6 +361,8 @@ export default function ProposalForm({
               name="securityLevel"
               value={formData.securityLevel}
               onChange={onChange}
+              aria-label="Security level"
+              title="Security level"
               className={selectClassName}
               disabled={loading}
             >
@@ -392,6 +416,8 @@ export default function ProposalForm({
               name="ministryOfficeId"
               value={formData.ministryOfficeId}
               onChange={onChange}
+              aria-label="Ministry office"
+              title="Ministry office"
               className={selectClassName}
               disabled={loading || reviewTargetsLoading}
               required
@@ -421,6 +447,8 @@ export default function ProposalForm({
               name="municipalOfficeId"
               value={formData.municipalOfficeId}
               onChange={onChange}
+              aria-label="Municipal office"
+              title="Municipal office"
               className={selectClassName}
               disabled={loading || reviewTargetsLoading}
               required
@@ -450,6 +478,8 @@ export default function ProposalForm({
               name="policeOfficeId"
               value={formData.policeOfficeId}
               onChange={onChange}
+              aria-label="Police notification office"
+              title="Police notification office"
               className={selectClassName}
               disabled={loading || reviewTargetsLoading}
               required

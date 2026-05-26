@@ -35,6 +35,10 @@ def _parse_utc_datetime(value: str | None, field_name: str) -> datetime | None:
 
 def _validate_proposal_dates(start_date: datetime | None, end_date: datetime | None) -> None:
     now = datetime.now(timezone.utc)
+    if start_date and start_date.tzinfo is None:
+        start_date = start_date.replace(tzinfo=timezone.utc)
+    if end_date and end_date.tzinfo is None:
+        end_date = end_date.replace(tzinfo=timezone.utc)
     if start_date and start_date < now:
         raise HTTPException(status_code=400, detail="Date cannot be in the past.")
     if end_date and end_date < now:

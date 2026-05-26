@@ -41,6 +41,7 @@ from app.models.event_states import (
     BookingStatus,
     EventStatus,
     FinalReportStatus,
+    VenueReservationStatus,
     SurveyStatus,
 )
 from app.models.proposal_states import ProposalStatus
@@ -611,6 +612,10 @@ def _generate_ticket_code(prefix: str) -> str:
 
 def _validate_event_dates(start_date: datetime | None, end_date: datetime | None) -> None:
     now = utc_now()
+    if start_date and start_date.tzinfo is None:
+        start_date = start_date.replace(tzinfo=timezone.utc)
+    if end_date and end_date.tzinfo is None:
+        end_date = end_date.replace(tzinfo=timezone.utc)
     if start_date and start_date < now:
         raise HTTPException(status_code=400, detail="Date cannot be in the past.")
     if end_date and end_date < now:

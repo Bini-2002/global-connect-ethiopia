@@ -186,7 +186,6 @@ export default function EventDetailPage() {
 
   const canReserve = useMemo(() => {
     if (!event || role !== 'attendee') return false;
-    if (!event.booking_required) return false;
     if (booking) return false;
     return ['published', 'private_published', 'live'].includes(event.status);
   }, [booking, event, role]);
@@ -417,7 +416,25 @@ export default function EventDetailPage() {
                             <div className="flex flex-col items-center">
                               <p className="mb-2 text-sm font-semibold text-slate-600">Check-in QR Code</p>
                               <img src={qrImageUrl} alt="QR Code" className="w-48 h-48 rounded-xl border border-slate-200 shadow-sm" />
+                              {booking?.qr_code_image_url ? (
+                                <Link
+                                  href={api.resolveUrl(booking.qr_code_image_url) + '?download=true'}
+                                  target="_blank"
+                                  className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  Download QR Code
+                                </Link>
+                              ) : null}
                             </div>
+                          ) : null}
+                          {passImageUrl && booking?.check_in_pass_image_url ? (
+                            <Link
+                              href={api.resolveUrl(booking.check_in_pass_image_url) + '?download=true'}
+                              target="_blank"
+                              className="inline-flex items-center gap-2 rounded-xl bg-[#062E22] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0a4a37]"
+                            >
+                              Download Check-in Pass
+                            </Link>
                           ) : null}
                         </>
                       )}
@@ -438,6 +455,11 @@ export default function EventDetailPage() {
                     ) : (
                       <div className="mt-5 space-y-4">
                         <p className="text-sm text-slate-500">Advance booking is managed through the attendee booking flow. Click below to reserve a place for one attendee.</p>
+                        {!canReserve ? (
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                            {booking ? 'You already have a confirmed booking for this event.' : 'This event is not open for reservation yet.'}
+                          </div>
+                        ) : null}
                         <div>
                           <button
                             onClick={async () => {
@@ -452,9 +474,10 @@ export default function EventDetailPage() {
                                 setSubmitting(false);
                               }
                             }}
-                            className="px-6 py-2.5 rounded-xl bg-[#062E22] text-white font-semibold hover:bg-[#0a4a37]"
+                            disabled={!canReserve || submitting}
+                            className="px-6 py-2.5 rounded-xl bg-[#062E22] text-white font-semibold hover:bg-[#0a4a37] disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            Reserve My Seat
+                            {submitting ? 'Reserving...' : canReserve ? 'Reserve My Seat' : 'Booking Unavailable'}
                           </button>
                         </div>
                       </div>

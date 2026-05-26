@@ -18,6 +18,25 @@ import ProposalForm from "./ProposalForm";
 import ProposalSidebar, { MobileLicensingCard, FloatingAIButton } from "./ProposalSidebar";
 import Image from "next/image";
 
+function getLocalDateTimeMin(): string {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+function getDateValidationError(startDate: string, endDate: string): string | null {
+  const now = new Date();
+  const start = startDate ? new Date(startDate) : null;
+  const end = endDate ? new Date(endDate) : null;
+
+  if (start && Number.isNaN(start.getTime())) return 'Start date is invalid';
+  if (end && Number.isNaN(end.getTime())) return 'End date is invalid';
+  if (start && start < now) return 'Date cannot be in the past.';
+  if (end && end < now) return 'Date cannot be in the past.';
+  if (start && end && end <= start) return 'End date must be after the start date.';
+  return null;
+}
+
 const initialFormData: ProposalFormData = {
   title: "",
   description: "",
@@ -117,8 +136,8 @@ export default function CreateProposalPage() {
           title: parsed.title,
           description: parsed.description,
           event_type: parsed.event_type,
-          start_date: parsed.start_date ? parsed.start_date.split('T')[0] : "",
-          end_date: parsed.end_date ? parsed.end_date.split('T')[0] : "",
+          start_date: parsed.start_date || "",
+          end_date: parsed.end_date || "",
           location: parsed.location,
           expected_attendees: parsed.expected_attendees,
           budget_estimate: parsed.budget_estimate ? String(parsed.budget_estimate) : '',
@@ -146,7 +165,15 @@ export default function CreateProposalPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const parsedValue = type === 'number' ? (value === '' ? 0 : Number(value)) : value;
-    setFormData(prev => ({ ...prev, [name]: parsedValue }));
+    setFormData((prev) => {
+      if (name === 'start_date' && prev.end_date && prev.end_date < value) {
+        return { ...prev, start_date: value, end_date: '' };
+      }
+      if (name === 'end_date' && prev.start_date && value && value < prev.start_date) {
+        return { ...prev, end_date: '' };
+      }
+      return { ...prev, [name]: parsedValue };
+    });
   };
 
   const saveToSession = async (data: ProposalFormData) => {
@@ -158,12 +185,20 @@ export default function CreateProposalPage() {
 
   const validateForm = (): boolean => {
     const errors: string[] = [];
+    const now = new Date();
+    const startDate = formData.start_date ? new Date(formData.start_date) : null;
+    const endDate = formData.end_date ? new Date(formData.end_date) : null;
 
     if (!formData.title.trim()) errors.push("Title is required");
     if (!formData.description.trim()) errors.push("Description is required");
     if (!formData.event_type) errors.push("Event type is required");
     if (!formData.start_date) errors.push("Start date is required");
     if (!formData.end_date) errors.push("End date is required");
+    if (startDate && Number.isNaN(startDate.getTime())) errors.push("Start date is invalid");
+    if (endDate && Number.isNaN(endDate.getTime())) errors.push("End date is invalid");
+    if (startDate && startDate < now) errors.push("Date cannot be in the past.");
+    if (endDate && endDate < now) errors.push("Date cannot be in the past.");
+    if (startDate && endDate && endDate <= startDate) errors.push("End date must be after the start date.");
     if (!formData.location.trim()) errors.push("Location is required");
     if (formData.expected_attendees <= 0) errors.push("Expected attendees must be greater than 0");
     if (!formData.budget_estimate || Number(formData.budget_estimate) <= 0) errors.push("Budget estimate is required");
@@ -218,6 +253,10 @@ export default function CreateProposalPage() {
       setLoading(false);
     }
   };
+
+  const dateError = getDateValidationError(formData.start_date, formData.end_date);
+  const startDateMin = getLocalDateTimeMin();
+  const endDateMin = formData.start_date || startDateMin;
 
   const persistDraft = async (): Promise<ProposalRecord> => {
     const formDataToSend = new FormData();
@@ -430,6 +469,9 @@ export default function CreateProposalPage() {
                 reviewTargetsLoading={reviewTargetsLoading}
                 reviewTargetsError={reviewTargetsError}
                 loading={loading}
+                dateError={dateError}
+                startDateMin={startDateMin}
+                endDateMin={endDateMin}
                 onChange={handleChange}
                 onFileUpload={handleFileUpload}
                 onAddAudience={addAudience}
