@@ -10,7 +10,6 @@ import {
   Plus,
   BarChart3,
   FileCheck,
-  Bot,
   ArrowRight,
   Ticket,
   DollarSign,
@@ -22,6 +21,7 @@ import {
   Gauge,          
   Store,  
 } from 'lucide-react';
+import AIAssistantIcon from '@/components/AIAssistantIcon';
 
 
 interface DashboardStats {
@@ -257,7 +257,7 @@ export default function DashboardWithEvents({
             <span className="text-sm font-semibold">Proposals</span>
           </Link>
           <button onClick={onOpenAI} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#062E22]/95 to-[#1E6F5C] text-white rounded-lg hover:opacity-90 transition">
-            <Bot className="w-8 h-8" />
+            <AIAssistantIcon className="w-8 h-8" />
             <span className="text-sm font-semibold">AI Assistant</span>
           </button>
         </div>
@@ -308,7 +308,7 @@ export default function DashboardWithEvents({
 
         <div className="bg-gradient-to-br from-[#062E22] to-[#1E6F5C] rounded-xl p-4 md:p-6 text-white">
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Bot className="w-5 h-5" />
+            <AIAssistantIcon className="w-5 h-5" />
             Quick Stats
           </h2>
           <div className="grid grid-cols-2 gap-4">

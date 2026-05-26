@@ -119,7 +119,7 @@ export function SvgPieChart({ data, total }: { data: { label: string; value: num
                 </span>
               </div>
               <span className="text-slate-500 font-medium whitespace-nowrap pl-2">
-                {percent.toFixed(1)}% ({slice.value.toLocaleString()} ETB)
+                {percent.toFixed(1)}%
               </span>
             </div>
           );
@@ -160,9 +160,9 @@ export function SvgDonutChart({ data, total }: { data: { label: string; value: n
           })}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Total Cut</p>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Total</p>
           <p className="text-xs sm:text-sm font-extrabold text-[#062E22] mt-1 leading-none truncate max-w-full">
-            {total.toLocaleString()} ETB
+            100%
           </p>
         </div>
       </div>
@@ -179,7 +179,7 @@ export function SvgDonutChart({ data, total }: { data: { label: string; value: n
                 </span>
               </div>
               <span className="text-slate-500 font-medium whitespace-nowrap pl-2">
-                {percent.toFixed(1)}% ({slice.value.toLocaleString()} ETB)
+                {percent.toFixed(1)}%
               </span>
             </div>
           );

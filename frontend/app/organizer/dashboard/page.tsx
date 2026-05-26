@@ -6,13 +6,13 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import DashboardHeader from '@/components/DashboardHeader';
 import AIModal, { AIFloatingButton } from '@/components/organizer/AIModal';
+import AIAssistantIcon from '@/components/AIAssistantIcon';
 import { api } from '@/app/lib/api';
 import { getOfficeLabel, PROPOSAL_STATUS_META } from '@/app/lib/proposals';
 import { ProposalOrganizerUpdate, ProposalRecord } from '@/app/types/proposal';
 import {
   Activity,
   ArrowRight,
-  Bot,
   Calendar,
   CheckCircle2,
   Clock3,
@@ -24,7 +24,6 @@ import {
   MapPin,
   Plus,
   ShieldCheck,
-  Sparkles,
   TriangleAlert,
 } from 'lucide-react';
 import { getToken } from '@/app/lib/auth';
@@ -296,7 +295,7 @@ export default function OrganizerDashboard() {
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 md:p-10 flex flex-col lg:flex-row gap-8 lg:items-center lg:justify-between">
                 <div className="max-w-2xl">
                   <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#EC5B13]">
-                    <Sparkles className="w-4 h-4" />
+                    <AIAssistantIcon className="w-4 h-4" />
                     Organizer Workspace
                   </p>
                   <h2 className="text-3xl font-bold text-[#062E22] mt-3">Start your first event approval journey</h2>
@@ -325,7 +324,7 @@ export default function OrganizerDashboard() {
                 <div className="bg-gradient-to-br from-[#062E22]/95 via-[#0B3A2E]/90 to-[#1E6F5C]/80 text-white rounded-2xl shadow p-6 flex flex-col justify-between w-full lg:w-80">
                   <div>
                     <h3 className="text-xl font-bold mt-2 mb-6 flex items-center gap-2">
-                      <Bot className="w-6 h-6" />
+                      <AIAssistantIcon className="w-6 h-6" />
                       AI Assistant
                     </h3>
                     <p className="text-sm text-white/90">
@@ -337,7 +336,7 @@ export default function OrganizerDashboard() {
                       onClick={() => setIsAIModalOpen(true)}
                       className="w-full px-4 py-2 bg-white text-[#062E22] rounded-lg font-semibold hover:bg-gray-100 flex items-center justify-center gap-2"
                     >
-                      <Sparkles className="w-4 h-4" />
+                      <AIAssistantIcon className="w-4 h-4" />
                       Ask AI Assistant
                     </button>
                   </div>
@@ -452,7 +451,7 @@ export default function OrganizerDashboard() {
                 <span className="text-sm font-semibold">Approved Events</span>
               </Link>
               <button onClick={() => setIsAIModalOpen(true)} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#062E22]/95 to-[#1E6F5C] text-white rounded-lg hover:opacity-90 transition">
-                <Bot className="w-8 h-8" />
+                <AIAssistantIcon className="w-8 h-8" />
                 <span className="text-sm font-semibold">AI Assistant</span>
               </button>
             </div>

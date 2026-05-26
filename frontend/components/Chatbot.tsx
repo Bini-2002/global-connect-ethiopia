@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import aiService from '@/app/services/aiService';
 import { ChatMessage } from '@/app/types/ai';
+import AIAssistantIcon from '@/components/AIAssistantIcon';
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -77,13 +78,20 @@ export default function Chatbot() {
         <div className="absolute bottom-16 right-0 w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col h-[500px] transition-all duration-300">
           {/* Header */}
           <div className="bg-[#062E22] text-white p-4 flex justify-between items-center">
-            <div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center">
+                <AIAssistantIcon className="w-5 h-5" />
+              </div>
+              <div>
               <h3 className="font-semibold text-sm">Help & Regulations</h3>
               <p className="text-xs text-green-200 opacity-80">AI Licensing Assistant</p>
+              </div>
             </div>
             <button 
               onClick={() => setIsOpen(false)}
               className="text-white hover:text-red-200 transition-colors"
+              aria-label="Close chatbot"
+              title="Close chatbot"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -172,6 +180,8 @@ export default function Chatbot() {
               type="submit"
               disabled={isLoading || !inputValue.trim()}
               className="bg-[#062E22] text-white p-2 rounded-lg hover:bg-[#0a4533] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              aria-label="Send message"
+              title="Send message"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -185,15 +195,15 @@ export default function Chatbot() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-14 h-14 bg-[#062E22] text-white rounded-full flex items-center justify-center shadow-xl hover:bg-[#0a4533] transition-transform hover:scale-105"
+        aria-label={isOpen ? 'Close chatbot' : 'Open chatbot'}
+        title={isOpen ? 'Close chatbot' : 'Open chatbot'}
       >
         {isOpen ? (
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         ) : (
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-          </svg>
+          <AIAssistantIcon className="w-6 h-6" />
         )}
       </button>
     </div>

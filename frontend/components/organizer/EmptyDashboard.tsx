@@ -2,7 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Bot, FileText, Sparkles, Target, Users, Building, Rocket, BookOpen, Calendar, Store, MapPin, ArrowRight } from 'lucide-react';
+import { FileText, Target, Users, Building, Rocket, BookOpen, Calendar, Store, MapPin, ArrowRight } from 'lucide-react';
+import AIAssistantIcon from '@/components/AIAssistantIcon';
 
 const upcomingEventsData = [
   {
@@ -67,7 +68,7 @@ export default function EmptyDashboard({ onOpenAI }: { onOpenAI: () => void }) {
             <Image width={200} height={200} src='/dashback.png' alt='' className="md:w-[240px] md:h-[240px]" />
             <div className='ml-0 md:ml-5 space-y-2 mt-4 md:mt-0'>
               <h1 className="font-bold text-base md:text-lg mt-2 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[#EC5B13]" />
+                <AIAssistantIcon className="w-5 h-5 text-[#EC5B13]" />
                 You haven't created any events yet.
               </h1>
               <p className='text-gray-600 text-sm md:text-base'>
@@ -92,7 +93,7 @@ export default function EmptyDashboard({ onOpenAI }: { onOpenAI: () => void }) {
         <div className="bg-gradient-to-br from-[#062E22]/95 via-[#0B3A2E]/90 to-[#1E6F5C]/80 text-white rounded-2xl shadow p-6 flex flex-col justify-between w-full lg:w-80">
           <div>
             <h2 className="text-xl font-bold mt-5 mb-10 lg:mb-15 flex items-center gap-2">
-              <Bot className="w-6 h-6" />
+              <AIAssistantIcon className="w-6 h-6" />
               AI Assistant
             </h2>
             <p className="text-sm">
@@ -101,7 +102,7 @@ export default function EmptyDashboard({ onOpenAI }: { onOpenAI: () => void }) {
           </div>
           <div className="mt-6">
             <button onClick={onOpenAI} className="w-full px-4 py-2 bg-white text-[#062E22] rounded-lg font-semibold hover:bg-gray-100 flex items-center justify-center gap-2">
-              <Sparkles className="w-4 h-4" />
+              <AIAssistantIcon className="w-4 h-4" />
               Ask AI Assistant
             </button>
           </div>
