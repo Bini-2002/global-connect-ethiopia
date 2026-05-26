@@ -148,10 +148,10 @@ export function SvgDonutChart({ data, total }: { data: { label: string; value: n
                 key={index}
                 cx="16"
                 cy="16"
-                r="12"
+                r="15.91549430918954"
                 fill="transparent"
                 stroke={slice.color}
-                strokeWidth="5"
+                strokeWidth="8"
                 strokeDasharray={dashArray}
                 strokeDashoffset={dashOffset}
                 className="transition-all duration-300 hover:opacity-90 origin-center cursor-pointer"
@@ -159,7 +159,7 @@ export function SvgDonutChart({ data, total }: { data: { label: string; value: n
             );
           })}
         </svg>
-        <div className="absolute flex flex-col items-center justify-center text-center px-4 w-full">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Total Cut</p>
           <p className="text-xs sm:text-sm font-extrabold text-[#062E22] mt-1 leading-none truncate max-w-full">
             {total.toLocaleString()} ETB
@@ -233,7 +233,7 @@ export default function AdminPlatformAnalyticsPage() {
     organizerRevenueMap["Mafi Logistics & Team"] = 15000;
   }
 
-  const COLORS = ["#062E22", "#0A4A37", "#1A5C45", "#2C7D62", "#41A284", "#66C2A5"];
+  const COLORS = ["#4ade80", "#22c55e", "#86efac", "#16a34a", "#bbf7d0", "#15803d"];
 
   const eventChartData = Object.entries(eventRevenueMap)
     .map(([label, value], idx) => ({
