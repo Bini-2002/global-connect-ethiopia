@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 from app.models.event_states import (
     BookingStatus,
@@ -168,6 +168,22 @@ class BookingSettingsUpdate(BaseModel):
     booking_closes_at: datetime | None = None
     allow_waitlist: bool = False
     required_attendee_fields: list[str] = []
+
+    @model_validator(mode="after")
+    def validate_booking_window(self) -> "BookingSettingsUpdate":
+        """booking_closes_at must be strictly after booking_opens_at when both are set."""
+        opens  = self.booking_opens_at
+        closes = self.booking_closes_at
+        if opens and closes:
+            # Strip timezone info for comparison (stored as naive UTC in MongoDB)
+            opens_cmp  = opens.replace(tzinfo=None)  if opens.tzinfo  else opens
+            closes_cmp = closes.replace(tzinfo=None) if closes.tzinfo else closes
+            if closes_cmp <= opens_cmp:
+                raise ValueError(
+                    "booking_closes_at must be after booking_opens_at. "
+                    f"Got opens={opens_cmp}, closes={closes_cmp}."
+                )
+        return self
 
 
 class EventBookingCreate(BaseModel):

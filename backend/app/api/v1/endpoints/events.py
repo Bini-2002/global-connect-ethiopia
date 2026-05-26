@@ -638,13 +638,27 @@ def _resolve_booking_status(
     current_time = raw_now.replace(tzinfo=None) if raw_now.tzinfo else raw_now
 
     closes_at = event.get("booking_closes_at")
+    opens_at  = event.get("booking_opens_at")
+
+    # Normalise both to naive datetimes for consistent comparison
+    closes_at_naive: datetime | None = None
     if closes_at:
-        # Normalize closes_at to naive if it's aware (unlikely from Mongo but safe)
-        closes_at_naive = (
-            closes_at.replace(tzinfo=None) if closes_at.tzinfo else closes_at
-        )
-        if closes_at_naive <= current_time:
-            return BookingStatus.CLOSED
+        closes_at_naive = closes_at.replace(tzinfo=None) if closes_at.tzinfo else closes_at
+
+    opens_at_naive: datetime | None = None
+    if opens_at:
+        opens_at_naive = opens_at.replace(tzinfo=None) if opens_at.tzinfo else opens_at
+
+    # Guard: if closes_at was set *before* opens_at the window is inverted /
+    # stale (organiser data-entry error).  Ignore the stale close date so
+    # the opens_at check below can make the correct determination.
+    closes_is_valid = (
+        closes_at_naive is not None
+        and not (opens_at_naive is not None and closes_at_naive <= opens_at_naive)
+    )
+
+    if closes_is_valid and closes_at_naive <= current_time:  # type: ignore[operator]
+        return BookingStatus.CLOSED
 
     try:
         capacity = int(event.get("capacity") or 0)
@@ -659,14 +673,11 @@ def _resolve_booking_status(
     if capacity and booked_count >= capacity:
         return BookingStatus.FULL
 
-    opens_at = event.get("booking_opens_at")
-    if opens_at:
-        # Normalize opens_at to naive if it's aware
-        opens_at_naive = opens_at.replace(tzinfo=None) if opens_at.tzinfo else opens_at
-        if opens_at_naive > current_time:
-            return BookingStatus.CLOSED
+    if opens_at_naive is not None and opens_at_naive > current_time:
+        return BookingStatus.CLOSED
 
     return BookingStatus.OPEN
+
 
 
 def _normalize_required_attendee_fields(fields: list[str] | None) -> list[str]:
