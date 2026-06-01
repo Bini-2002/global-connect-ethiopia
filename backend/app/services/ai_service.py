@@ -555,75 +555,26 @@ class AIService:
         answer = ""
 
         if AIService._is_mock_mode():
-            q_lower = request.query.lower()
-            if any(kw in q_lower for kw in ["proposal", "ministry", "approval", "verification", "letter"]):
-                answer = (
-                    "Global Connect Ethiopia implements a multi-step event proposal approval workflow (UC-01 & UC-02). "
-                    "First, the Organizer submits the proposal (status becomes 'Pending Review') with draft budgets, security plans, and PDFs. "
-                    "A Government Reviewer (Ministry) inspects it, and if approved, generates a digitally signed Verification Letter and forwards it to the City Municipal queue. "
-                    "The Organizer is notified with a letter download link."
-                )
-                citations.append(ChatbotCitation(title="Ministry Verification Policy", source_reference="Ministry Directive 02/2025"))
-            elif any(kw in q_lower for kw in ["municipal", "allowance", "police", "permit", "security"]):
-                answer = (
-                    "Under UC-03, once a proposal passes Ministry review, it is routed to the City Municipal queue. "
-                    "A Municipal Officer checks the local calendar, venue suitability, and safety. If acceptable, the officer issues a Location Allowance "
-                    "and submits a security request to the nearest police station. The permit status then becomes 'Municipal Approved'."
-                )
-                citations.append(ChatbotCitation(title="Municipal Location Allowance", source_reference="City Safety Code Sec 14"))
-            elif any(kw in q_lower for kw in ["ticket", "overbooking", "sales", "concurrency", "lock"]):
-                answer = (
-                    "To prevent overbooking (UC-12), the platform uses transactional locking (optimistic concurrency) during ticket purchases. "
-                    "When an attendee proceeds to checkout, the system temporarily holds the tickets. If payment via a local gateway (Telebirr, Chapa, or bank transfer) "
-                    "is successful, the tickets are issued with unique QR codes; if it fails, the tickets are released back to inventory."
-                )
-                citations.append(ChatbotCitation(title="Ticketing Concurrency Policy", source_reference="GC Transaction Engine V2"))
-            elif any(kw in q_lower for kw in ["hotel", "vip", "accommodation", "booking", "guest"]):
-                answer = (
-                    "Organizers can reserve detailed accommodations from mock hotels for special guests directly through the platform. "
-                    "The system stores the reservation details and automatically emails notifications to the special guests with all booking details."
-                )
-                citations.append(ChatbotCitation(title="VIP Accommodation Booking", source_reference="VIP Hotel Reservation System"))
-            elif any(kw in q_lower for kw in ["payout", "escrow", "wallet", "commission", "fee"]):
-                answer = (
-                    "The platform features a secure task escrow system. When a task is assigned with a payout, the organizer's wallet is immediately debited, "
-                    "locking the funds in escrow. Releasing task escrow pays out 100% of the funds to the team member on Organizer approval. "
-                    "For marketplace contracts, the platform deducts a 5% commission fee from both the Organizer and the Vendor upon final payment completion."
-                )
-                citations.append(ChatbotCitation(title="Platform Fees & Escrow", source_reference="Marketplace Escrow Policy"))
-            elif any(kw in q_lower for kw in ["check-in", "badge", "qr"]):
-                answer = (
-                    "Global Connect Ethiopia supports on-site badge generation and printing (UC-13). The system generates printable badges with QR codes "
-                    "and role labels (Attendee, Vendor, VIP, Speaker). Attendees check in on-site by having staff scan the QR code on their badge or ticket."
-                )
-                citations.append(ChatbotCitation(title="Badge & Check-in Standards", source_reference="On-site Logistics Manual"))
-            elif any(kw in q_lower for kw in ["incident", "report"]):
-                answer = (
-                    "On-site staff can log incident reports (UC-14) including type, time, severity (Low, Medium, High, Critical), description, and photos. "
-                    "Severe incidents automatically trigger system notifications to the Organizer and local municipal/police contacts."
-                )
-                citations.append(ChatbotCitation(title="Incident Management", source_reference="Event Security Protocol"))
-            else:
-                answer = (
-                    "I am the Global Connect Ethiopia assistant. I can guide you through the event lifecycle, including event proposals, Ministry verification, "
-                    "Municipal Location Allowance, Police Notification, ticketing with overbooking prevention, VIP hotel bookings, task escrow, and contract payments "
-                    "(subject to a 5% commission from both organizers and vendors)."
-                )
-                citations.append(ChatbotCitation(title="General Platform Rules", source_reference="Global Connect specifications"))
+            answer = (
+                "I am the Global Connect Ethiopia assistant. I can give a general overview of how the platform works: event proposals, approval steps, permits, ticketing, vendor coordination, check-ins, hotel bookings, task assignments, and payment flow. "
+                "If you want, I can summarize one area at a high level, such as proposals, permits, tickets, vendors, or event operations."
+            )
+            citations.append(ChatbotCitation(title="General Platform Overview", source_reference="Global Connect specifications"))
         else:
             try:
                 model = genai.GenerativeModel('gemini-2.5-flash')
                 system_spec = GLOBAL_CONNECT_ETHIOPIA_SPECIFICATIONS
                 rule_context_full = system_spec + "\n\nAdditional Database Rules:\n" + rule_context
                 prompt = (
-                    f"You are a helpful and precise assistant for Global Connect Ethiopia. "
-                    f"Answer questions from organizers, vendors, attendees, and team members based on the following system specifications and regulatory rules:\n"
+                    f"You are a helpful assistant for Global Connect Ethiopia. "
+                    f"Answer at a broad, concept level based on the following system specifications and regulatory rules:\n"
                     f"{rule_context_full}\n\n"
                     f"User question: {request.query}\n\n"
                     f"Guidelines:\n"
-                    f"- Answer precisely and reference specific workflows, roles, rules, or fees (e.g., the 5% platform fee for both organizer and vendor, the multi-step proposal workflow starting with Ministry review then Municipal location allowance, and police notification, MFA for government users, check-ins with QR badges, transactional locking to prevent overbooking, task escrow, and VIP hotel bookings).\n"
-                    f"- If you cannot answer the question based on the specs or rules, reply exactly with: 'I cannot answer this based on my current knowledge base.'\n"
-                    f"- Provide a professional and accurate answer."
+                    f"- Keep the answer general and conceptual instead of highly specific or procedural.\n"
+                    f"- Summarize the main idea, the likely workflow, and a few broad next steps.\n"
+                    f"- If the question is very specific, still respond with the closest high-level overview rather than refusing.\n"
+                    f"- Provide a professional and concise answer."
                 )
                 response = model.generate_content(prompt)
                 answer = response.text.strip()

@@ -23,6 +23,7 @@ import {
   Gavel,
   MapPin,
   Plus,
+  Sparkles,
   ShieldCheck,
   TriangleAlert,
 } from 'lucide-react';

@@ -510,10 +510,7 @@ export default function CreateProposalPage() {
             </div>
 
             {/* Sidebar */}
-            <ProposalSidebar
-              isAIModalOpen={isAIModalOpen}
-              onOpenAIModal={() => setIsAIModalOpen(true)}
-            />
+            <ProposalSidebar />
           </div>
         </div>
       </main>

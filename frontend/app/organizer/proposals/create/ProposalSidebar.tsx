@@ -4,15 +4,7 @@ import Link from 'next/link';
 import { FileText } from 'lucide-react';
 import Image from 'next/image';
 import AIAssistantIcon from '@/components/AIAssistantIcon';
-interface ProposalSidebarProps {
-  isAIModalOpen: boolean;
-  onOpenAIModal: () => void;
-}
-
-export default function ProposalSidebar({ 
-  isAIModalOpen: _isAIModalOpen, 
-  onOpenAIModal: _onOpenAIModal 
-}: ProposalSidebarProps) {
+export default function ProposalSidebar() {
   return (
     <div className="hidden lg:block lg:w-80 xl:w-96 space-y-6">
       {/* Help & Resources */}
@@ -26,21 +18,6 @@ export default function ProposalSidebar({
           <FileText className="w-4 h-4" />
           Sample Proposal Template (PDF, 1.3MB)
         </a>
-      </div>
-
-      {/* AI Assistant */}
-      <div className="bg-[#062E22] text-white rounded-xl p-6 space-y-3 shadow-lg flex flex-col items-center text-center">
-        <span className="font-bold text-lg">Ask AI Assistant</span>
-        <p className="mb-2 text-white/80 text-sm">
-          Need help creating your event proposal? I'm here to assist you.
-        </p>
-        <button 
-          className="w-full px-4 py-3 bg-white text-[#062E22] rounded-lg hover:bg-gray-100 font-semibold transition-colors flex items-center justify-center gap-2"
-          onClick={onOpenAIModal}
-        >
-          <AIAssistantIcon className="h-4 w-4" />
-          Get Started
-        </button>
       </div>
     </div>
   );

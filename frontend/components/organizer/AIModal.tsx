@@ -3,128 +3,17 @@
 import { useState, useEffect } from 'react';
 import { Send, X, Circle } from 'lucide-react';
 import AIAssistantIcon from '@/components/AIAssistantIcon';
+import aiService from '@/app/services/aiService';
+import { ChatbotCitation } from '@/app/types/ai';
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  citations?: ChatbotCitation[];
+  form_link?: string | null;
 }
-
-const AI_RESPONSES: Record<string, string> = {
-  'tech conference': `Great choice! 🎉 Here's how to plan an amazing tech conference:
-
-**📋 Key Steps:**
-
-1. **Define Your Theme** - What's the focus? (AI, Web3, General Tech?)
-2. **Set Date & Duration** - Best time: Weekdays, 1-3 days
-3. **Choose Venue** - Recommended: Addis Convention Center (capacity: 2000+)
-4. **Create Proposal** - I'll help you draft one
-
-**💰 Budget Estimate:**
-• Small (500 people): 500K - 1M ETB
-• Medium (1000 people): 1M - 3M ETB
-• Large (5000+ people): 5M+ ETB
-
-Would you like me to help you start creating your proposal?`,
-
-  'permit': `Good question! 📋 Here are the permits you'll need:
-
-**✅ Required Permits:**
-
-1. **Event Permit** (Municipality)
-   • Submit 60 days before event
-   • Cost: ~5,000 ETB
-
-2. **Police Clearance**
-   • Security assessment
-   • Traffic management plan
-
-3. **Ministry Approval** (for 500+ attendees)
-   • Ministry of Tourism/Culture
-
-4. **Noise Permit** (if outdoor)
-   • Environmental protection
-
-5. **Fire Safety Certificate**
-   • Venue compliance check
-
-**📝 Timeline:**
-• Start applications: 60-90 days before
-• Processing: 14-30 days
-• Follow up: 7 days before event
-
-Need help with the application process?`,
-
-  'venue': `Here are some popular venues in Addis Ababa 🏛️:
-
-**🏆 Large Venues:**
-• Millennium Hall - Capacity: 15,000 (ideal for concerts, festivals)
-• Addis Convention Center - Capacity: 3,000 (perfect for conferences)
-• African Union Conference Center - Capacity: 2,500 (prestigious events)
-
-**🏠 Medium Venues:**
-• Ethio-Russian Friendship Hall - Capacity: 1,500 (cultural events)
-• Hyatt Regency Ballroom - Capacity: 800 (business events)
-• Bole Community Center - Capacity: 500 (workshops, seminars)
-
-**💡 Tips:**
-• Book 3-6 months in advance
-• Negotiate package deals (catering + AV)
-• Check parking availability
-
-Which venue type interests you?`,
-
-  'budget': `Let me help you plan your budget 💰:
-
-**📊 Typical Budget Breakdown:**
-
-1. **Venue (30-40%)**
-   • Large: 500K - 2M ETB
-   • Medium: 100K - 500K ETB
-
-2. **Catering (25-30%)**
-   • Per person: 500 - 2000 ETB
-   • Includes: Meals, drinks, snacks
-
-3. **Marketing (15-20%)**
-   • Social media ads
-   • Printed materials
-   • Influencer partnerships
-
-4. **Equipment (10-15%)**
-   • Sound system
-   • Projector
-   • Lighting
-
-5. **Contingency (10%)**
-   • Emergency fund
-
-**💡 Money-Saving Tips:**
-• Partner with sponsors
-• Use local vendors
-• Leverage social media
-
-What type of event are you planning?`,
-
-  'default': `I'm here to help! 👋 Here are some things I can assist you with:
-
-**🎯 Popular Topics:**
-
-• **Plan an Event** - From tech conferences to cultural festivals
-• **Permits & Licenses** - Navigate the approval process
-• **Budget Planning** - Optimize your spending
-• **Venue Selection** - Find the perfect location
-• **Timeline & Schedule** - Plan your milestones
-
-**💡 Getting Started:**
-Type your question or choose a topic above, and I'll provide detailed guidance!
-
-Examples:
-• "Help me plan a tech conference"
-• "What permits do I need?"
-• "Suggest venues for 500 people"`
-};
 
 interface AIModalProps {
   isOpen: boolean;
@@ -135,6 +24,7 @@ export default function AIModal({ isOpen, onClose }: AIModalProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -169,30 +59,37 @@ export default function AIModal({ isOpen, onClose }: AIModalProps) {
     setInput('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      setIsTyping(false);
-      let response = AI_RESPONSES['default'];
-      const lowerInput = input.toLowerCase();
+    void (async () => {
+      try {
+        const response = await aiService.chatWithLicensingAssistant(userMessage.content, sessionId);
+        setSessionId(response.session_id);
 
-      if (lowerInput.includes('tech') || lowerInput.includes('conference')) {
-        response = AI_RESPONSES['tech conference'];
-      } else if (lowerInput.includes('permit') || lowerInput.includes('license') || lowerInput.includes('approval')) {
-        response = AI_RESPONSES['permit'];
-      } else if (lowerInput.includes('venue') || lowerInput.includes('location') || lowerInput.includes('place')) {
-        response = AI_RESPONSES['venue'];
-      } else if (lowerInput.includes('budget') || lowerInput.includes('cost') || lowerInput.includes('price')) {
-        response = AI_RESPONSES['budget'];
+        const aiMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: response.answer,
+          timestamp: new Date(response.created_at),
+          citations: response.citations,
+          form_link: response.form_link,
+        };
+
+        setMessages(prev => [...prev, aiMessage]);
+      } catch (error) {
+        const fallbackMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: error instanceof Error
+            ? error.message
+            : 'I am currently unavailable. Please check our FAQ page.',
+          timestamp: new Date(),
+          form_link: '/faq',
+        };
+
+        setMessages(prev => [...prev, fallbackMessage]);
+      } finally {
+        setIsTyping(false);
       }
-
-      const aiMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response,
-        timestamp: new Date(),
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
-    }, 1500);
+    })();
   };
 
   if (!isOpen) return null;
@@ -234,6 +131,28 @@ export default function AIModal({ isOpen, onClose }: AIModalProps) {
                 }`}
               >
                 <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                {msg.citations && msg.citations.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
+                    <p className="font-semibold mb-1">Citations:</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      {msg.citations.map((citation, cidx) => (
+                        <li key={`${msg.id}-citation-${cidx}`}>
+                          {citation.title} ({citation.source_reference})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {msg.form_link && (
+                  <div className="mt-3">
+                    <a
+                      href={msg.form_link}
+                      className="inline-block text-xs font-medium text-[#062E22] bg-green-50 px-3 py-1.5 rounded hover:bg-green-100 transition-colors"
+                    >
+                      {msg.form_link.startsWith('mailto') ? 'Contact Ministry' : msg.form_link.startsWith('/faq') ? 'View FAQ' : 'Open Form'}
+                    </a>
+                  </div>
+                )}
                 <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-green-200' : 'text-gray-400'}`}>
                   {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
@@ -245,9 +164,9 @@ export default function AIModal({ isOpen, onClose }: AIModalProps) {
             <div className="flex justify-start">
               <div className="bg-white border border-gray-200 rounded-xl rounded-bl-sm px-3 py-2 shadow-sm">
                 <div className="flex gap-1">
-                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="typing-dot typing-dot-1 w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="typing-dot typing-dot-2 w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="typing-dot typing-dot-3 w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
                 </div>
               </div>
             </div>
@@ -290,6 +209,12 @@ export default function AIModal({ isOpen, onClose }: AIModalProps) {
         }
         .animate-slide-in-right {
           animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .typing-dot-2 {
+          animation-delay: 0.1s;
+        }
+        .typing-dot-3 {
+          animation-delay: 0.2s;
         }
       `}</style>
     </div>
